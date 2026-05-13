@@ -1,0 +1,7 @@
+# General Rules for LegacyX
+- Always read `@docs/ARCHITECTURE.md` before making architectural decisions.
+- Strictly follow the "Event-Driven Modular Monolith" approach.
+- Use Next.js for Frontend and Core API, but Node.js for Background Workers.
+- Database: Always use Prisma with MySQL.
+- Security: NEVER use hard delete for EMR, Financial, or Inventory data. Always use soft delete or status reversal.
+- Wait for my approval before running major `npm install` or scaffolding commands.

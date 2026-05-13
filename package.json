@@ -1,0 +1,34 @@
+{
+  "name": "legacyx",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LegacyX — Enterprise Clinic Management System (Monorepo)",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rimraf node_modules",
+    "db:generate": "pnpm --filter @legacyx/db generate",
+    "db:migrate": "pnpm --filter @legacyx/db migrate",
+    "db:migrate:deploy": "pnpm --filter @legacyx/db migrate:deploy",
+    "db:seed": "pnpm --filter @legacyx/db seed",
+    "db:studio": "pnpm --filter @legacyx/db studio",
+    "db:reset": "pnpm --filter @legacyx/db reset",
+    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "rimraf": "^5.0.5",
+    "turbo": "^2.0.6",
+    "typescript": "^5.4.5"
+  }
+}

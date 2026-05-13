@@ -1,0 +1,1148 @@
+// =============================================================================
+// LegacyX Enterprise Clinic Management System
+// Prisma Schema — DESIGN ARTIFACT (will be moved to packages/db/prisma/schema.prisma)
+// Reference: docs/ARCHITECTURE.md
+// =============================================================================
+// Conventions:
+//   - All operational tables carry tenant_id + branch_id (where applicable).
+//   - Master data uses soft delete (deleted_at).
+//   - Ledger/EMR/Payment tables are append-only (immutable). Reversal via new rows.
+//   - Snake_case columns (@map) and table names (@@map).
+//   - Composite index on (tenant_id, branch_id, *) for hot paths.
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex", "fullTextSearch"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// 0. TENANCY & MULTI-BRANCH
+// =============================================================================
+
+model Tenant {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  status      TenantStatus @default(ACTIVE)
+  plan        String?   // SaaS plan
+  settings    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt       @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  branches    Branch[]
+  users       User[]
+  @@map("tenants")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+model Branch {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  code        String    // e.g. "br_01"
+  name        String
+  address     String?
+  timezone    String    @default("Asia/Bangkok")
+  status      BranchStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt       @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("branches")
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+// =============================================================================
+// 1. IDENTITY, SECURITY & ABAC
+// =============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  email         String
+  phone         String?
+  passwordHash  String?   @map("password_hash")
+  fullName      String    @map("full_name")
+  avatarUrl     String?   @map("avatar_url")
+  status        UserStatus @default(ACTIVE)
+  mfaEnabled    Boolean   @default(false) @map("mfa_enabled")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  roles         UserRole[]
+  branchAccess  UserBranchAccess[]
+  sessions      Session[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+model Role {
+  id          String  @id @default(cuid())
+  tenantId    String  @map("tenant_id")
+  code        String  // DOCTOR, NURSE, RECEPTION, PHARMACIST, MANAGER, ADMIN
+  name        String
+  description String?
+  isSystem    Boolean @default(false) @map("is_system")
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([tenantId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id        String @id @default(cuid())
+  resource  String // e.g. "emr", "payment", "inventory"
+  action    String // e.g. "read", "write", "void", "approve"
+  scope     String // e.g. "branch", "tenant", "self"
+  // resource:action:scope is unique
+  roles     RolePermission[]
+
+  @@unique([resource, action, scope])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// Limits which branches a user can act in (ABAC scope = branch_id list)
+model UserBranchAccess {
+  userId   String @map("user_id")
+  branchId String @map("branch_id")
+  user     User   @relation(fields: [userId], references: [id])
+  @@id([userId, branchId])
+  @@map("user_branch_access")
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  tokenHash   String   @unique @map("token_hash")
+  ip          String?
+  userAgent   String?  @map("user_agent")
+  expiresAt   DateTime @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id])
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Append-only audit log
+model AuditLog {
+  id            BigInt   @id @default(autoincrement())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  actorUserId   String?  @map("actor_user_id")
+  action        String   // e.g. "emr.update", "payment.void"
+  resourceType  String   @map("resource_type")
+  resourceId    String   @map("resource_id")
+  before        Json?
+  after         Json?
+  reason        String?  @db.Text
+  correlationId String?  @map("correlation_id")
+  ip            String?
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, branchId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+model BreakGlassOverride {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  actorUserId   String   @map("actor_user_id")
+  approvedBy    String   @map("approved_by")    // another user id
+  resourceType  String   @map("resource_type")
+  resourceId    String   @map("resource_id")
+  reason        String   @db.Text
+  payload       Json
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, createdAt])
+  @@map("break_glass_overrides")
+}
+
+model ConsentSnapshot {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  branchId        String   @map("branch_id")
+  patientId       String   @map("patient_id")
+  documentType    String   @map("document_type") // CONSENT_GENERAL, CONSENT_LASER, ...
+  documentVersion String   @map("document_version")
+  contentHash     String   @map("content_hash")  // sha256 of rendered template
+  signedAt        DateTime @map("signed_at")
+  signedByName    String   @map("signed_by_name")
+  signatureUrl    String?  @map("signature_url") // S3 signed url path
+  pdfUrl          String?  @map("pdf_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  @@index([tenantId, patientId])
+  @@map("consent_snapshots")
+}
+
+// =============================================================================
+// 2. PATIENT, EMR, LAB
+// =============================================================================
+
+model Patient {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  hn            String    // Hospital Number, unique within tenant
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  nicknameEnc   String?   @map("nickname_enc")  // app-level encrypted
+  nationalIdEnc String?   @map("national_id_enc")
+  dob           DateTime?
+  gender        Gender?
+  phoneEnc      String?   @map("phone_enc")
+  emailEnc      String?   @map("email_enc")
+  bloodType     String?   @map("blood_type")
+  allergies     Json?
+  chronicConditions Json? @map("chronic_conditions")
+  homeBranchId  String?   @map("home_branch_id")
+  lineUserId    String?   @map("line_user_id")
+  status        PatientStatus @default(ACTIVE)
+  mergedIntoId  String?   @map("merged_into_id") // if merged, points to surviving patient
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  emrs              EMR[]
+  appointments      Appointment[]
+  visits            Visit[]
+  consents          ConsentSnapshot[]
+  walletEntries     WalletLedger[]
+  invoices          Invoice[]
+  mergedFromLogs    PatientMergeLog[] @relation("MergedFrom")
+  mergedIntoLogs    PatientMergeLog[] @relation("MergedInto")
+
+  @@unique([tenantId, hn])
+  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, lineUserId])
+  @@map("patients")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNDISCLOSED
+}
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  MERGED
+}
+model PatientMergeLog {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  fromPatientId String   @map("from_patient_id")
+  intoPatientId String   @map("into_patient_id")
+  performedBy   String   @map("performed_by")
+  reason        String   @db.Text
+  diff          Json     // before/after summary
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  fromPatient   Patient  @relation("MergedFrom", fields: [fromPatientId], references: [id])
+  intoPatient   Patient  @relation("MergedInto", fields: [intoPatientId], references: [id])
+  @@map("patient_merge_logs")
+}
+
+// EMR root (header). Versions are immutable rows in EMRVersion.
+model EMR {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  patientId     String   @map("patient_id")
+  visitId       String?  @unique @map("visit_id")
+  currentVersion Int     @default(1) @map("current_version")
+  status        EMRStatus @default(DRAFT)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  versions      EMRVersion[]
+  visit         Visit?   @relation(fields: [visitId], references: [id])
+
+  @@index([tenantId, branchId, patientId])
+  @@map("emrs")
+}
+
+enum EMRStatus {
+  DRAFT
+  SIGNED
+  AMENDED
+}
+model EMRVersion {
+  id            String   @id @default(cuid())
+  emrId         String   @map("emr_id")
+  version       Int
+  contentEnc    String   @map("content_enc") @db.LongText // encrypted JSON blob
+  contentHash   String   @map("content_hash")
+  signedBy      String?  @map("signed_by")
+  signedAt      DateTime? @map("signed_at")
+  amendmentOf   Int?     @map("amendment_of")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  emr           EMR      @relation(fields: [emrId], references: [id])
+  @@unique([emrId, version])
+  @@map("emr_versions")
+}
+
+model LabOrder {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  patientId   String   @map("patient_id")
+  visitId     String   @map("visit_id")
+  orderedBy   String   @map("ordered_by")
+  panel       String   // CBC, LIPID, ...
+  status      LabStatus @default(ORDERED)
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  results     LabResult[]
+  @@index([tenantId, patientId, status])
+  @@map("lab_orders")
+}
+
+enum LabStatus {
+  ORDERED
+  COLLECTED
+  PROCESSING
+  RESULTED
+  CANCELLED
+}
+model LabResult {
+  id          String   @id @default(cuid())
+  labOrderId  String   @map("lab_order_id")
+  payload     Json
+  fileUrl     String?  @map("file_url")
+  resultedAt  DateTime @map("resulted_at")
+  resultedBy  String?  @map("resulted_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  labOrder    LabOrder @relation(fields: [labOrderId], references: [id])
+  @@map("lab_results")
+}
+
+// =============================================================================
+// 3. APPOINTMENT, VISIT, RESOURCE
+// =============================================================================
+
+model Appointment {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  patientId   String   @map("patient_id")
+  doctorId    String?  @map("doctor_id")
+  scheduledAt DateTime @map("scheduled_at")
+  durationMin Int      @default(30) @map("duration_min")
+  channel     AppointmentChannel @default(WALKIN)
+  status      AppointmentStatus  @default(BOOKED)
+  reason      String?  @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  visits      Visit[]
+  reservations ResourceReservation[]
+
+  @@index([tenantId, branchId, scheduledAt])
+  @@index([tenantId, patientId, status])
+  @@map("appointments")
+}
+
+enum AppointmentChannel {
+  WALKIN
+  ONLINE
+  LIFF
+  PHONE
+}
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+model Visit {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  patientId     String   @map("patient_id")
+  appointmentId String?  @map("appointment_id")
+  checkedInAt   DateTime? @map("checked_in_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  status        VisitStatus @default(OPEN)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  emr           EMR?
+  orders        Order[]
+  invoices      Invoice[]
+
+  @@index([tenantId, branchId, status])
+  @@map("visits")
+}
+
+enum VisitStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+// Generic resource: Room / Machine / Therapist / Laser
+model Resource {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  type          ResourceType
+  code          String
+  name          String
+  capacity      Int      @default(1)
+  attributes    Json?    // e.g. { laserType: "ND-YAG" }
+  status        ResourceStatus @default(AVAILABLE)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  reservations  ResourceReservation[]
+  maintenance   ResourceMaintenance[]
+
+  @@unique([tenantId, branchId, code])
+  @@index([tenantId, branchId, type, status])
+  @@map("resources")
+}
+
+enum ResourceType {
+  ROOM
+  MACHINE
+  THERAPIST
+  LASER
+  OTHER
+}
+enum ResourceStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  RETIRED
+}
+model ResourceReservation {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  resourceId    String   @map("resource_id")
+  appointmentId String?  @map("appointment_id")
+  procedureId   String?  @map("procedure_id")
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime @map("ends_at")
+  status        ReservationStatus @default(HELD)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  resource      Resource @relation(fields: [resourceId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([resourceId, startsAt, endsAt])
+  @@map("resource_reservations")
+}
+
+enum ReservationStatus {
+  HELD
+  CONFIRMED
+  RELEASED
+  CONSUMED
+}
+model ResourceMaintenance {
+  id            String   @id @default(cuid())
+  resourceId    String   @map("resource_id")
+  reason        String
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime? @map("ends_at")
+  performedBy   String?  @map("performed_by")
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  resource      Resource @relation(fields: [resourceId], references: [id])
+  @@map("resource_maintenance")
+}
+
+// =============================================================================
+// 4. CLINICAL ORDERS, PROCEDURES, PHARMACY
+// =============================================================================
+
+model Order {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  visitId     String   @map("visit_id")
+  patientId   String   @map("patient_id")
+  orderedBy   String   @map("ordered_by")
+  status      OrderStatus @default(CREATED)
+  totalAmount Decimal   @map("total_amount") @db.Decimal(12,2)
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  visit       Visit    @relation(fields: [visitId], references: [id])
+  items       OrderItem[]
+  procedures  Procedure[]
+  invoices    Invoice[]
+
+  @@index([tenantId, branchId, status])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  CREATED
+  CONFIRMED
+  FULFILLED
+  CANCELLED
+}
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  itemType    OrderItemType @map("item_type") // PROCEDURE, PRODUCT, MEDICATION, COURSE
+  refId       String   @map("ref_id")         // procedure code / product id / course id
+  description String
+  qty         Decimal  @db.Decimal(12,3)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(12,2)
+  discount    Decimal  @default(0) @db.Decimal(12,2)
+  total       Decimal  @db.Decimal(12,2)
+  metadata    Json?
+
+  order       Order    @relation(fields: [orderId], references: [id])
+  @@map("order_items")
+}
+
+enum OrderItemType {
+  PROCEDURE
+  PRODUCT
+  MEDICATION
+  COURSE
+  OTHER
+}
+model Procedure {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  orderId     String   @map("order_id")
+  patientId   String   @map("patient_id")
+  performedBy String?  @map("performed_by") // doctor user id
+  assistedBy  Json?    @map("assisted_by")  // array of user ids
+  procedureCode String @map("procedure_code")
+  status      ProcedureStatus @default(SCHEDULED)
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  cancelReason String?  @map("cancel_reason") @db.Text
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  order       Order    @relation(fields: [orderId], references: [id])
+  feeRecords  DoctorFee[]
+
+  @@index([tenantId, branchId, status])
+  @@map("procedures")
+}
+
+enum ProcedureStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+model PharmacyDispense {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  orderId       String   @map("order_id")
+  patientId     String   @map("patient_id")
+  status        PharmacyStatus @default(PREPARING)
+  preparedBy    String?  @map("prepared_by")
+  dispensedBy   String?  @map("dispensed_by")
+  dispensedAt   DateTime? @map("dispensed_at")
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, branchId, status])
+  @@map("pharmacy_dispenses")
+}
+
+enum PharmacyStatus {
+  PREPARING
+  READY
+  DISPENSED
+  CANCELLED
+}
+model DoctorFee {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  branchId    String   @map("branch_id")
+  procedureId String   @map("procedure_id")
+  doctorId    String   @map("doctor_id")
+  feeAmount   Decimal  @map("fee_amount") @db.Decimal(12,2)
+  commissionPct Decimal? @map("commission_pct") @db.Decimal(5,2)
+  status      DoctorFeeStatus @default(ACCRUED)
+  settledAt   DateTime? @map("settled_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  procedure   Procedure @relation(fields: [procedureId], references: [id])
+  @@map("doctor_fees")
+}
+
+enum DoctorFeeStatus {
+  ACCRUED
+  SETTLED
+  REVERSED
+}
+// =============================================================================
+// 5. FINANCIAL: INVOICE, PAYMENT, WALLET, PROMOTION
+// =============================================================================
+
+model Invoice {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  patientId     String   @map("patient_id")
+  visitId       String?  @map("visit_id")
+  orderId       String?  @map("order_id")
+  number        String   // tenant-scoped sequence
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal  @db.Decimal(12,2)
+  discount      Decimal  @default(0) @db.Decimal(12,2)
+  tax           Decimal  @default(0) @db.Decimal(12,2)
+  total         Decimal  @db.Decimal(12,2)
+  currency      String   @default("THB")
+  voidedAt      DateTime? @map("voided_at")
+  voidReason    String?  @map("void_reason") @db.Text
+  issuedAt      DateTime? @map("issued_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  visit         Visit?   @relation(fields: [visitId], references: [id])
+  order         Order?   @relation(fields: [orderId], references: [id])
+  payments      Payment[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, branchId, status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  PARTIAL
+  VOIDED
+}
+model Payment {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  branchId        String   @map("branch_id")
+  invoiceId       String   @map("invoice_id")
+  method          PaymentMethod
+  state           PaymentState @default(AUTHORIZED)
+  amount          Decimal  @db.Decimal(12,2)
+  currency        String   @default("THB")
+  gateway         String?
+  gatewayRef      String?  @map("gateway_ref")
+  authorizedAt    DateTime? @map("authorized_at")
+  completedAt     DateTime? @map("completed_at")
+  settledAt       DateTime? @map("settled_at")
+  refundedAt      DateTime? @map("refunded_at")
+  refundOfId      String?  @map("refund_of_id") // back-link for refunds
+  failureReason   String?  @map("failure_reason") @db.Text
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId, branchId, state])
+  @@index([gatewayRef])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  QR_PROMPTPAY
+  TRANSFER
+  WALLET
+  OTHER
+}
+enum PaymentState {
+  AUTHORIZED
+  COMPLETED
+  SETTLED
+  FAILED
+  REFUNDED
+  VOIDED
+}
+// Immutable wallet (course package) ledger
+model WalletAccount {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  patientId     String   @map("patient_id")
+  productId     String   @map("product_id") // package SKU
+  expiresAt     DateTime? @map("expires_at")
+  balance       Int      @default(0) // denormalized cache; ledger is source of truth
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  entries       WalletLedger[]
+  @@index([tenantId, patientId])
+  @@map("wallet_accounts")
+}
+
+model WalletLedger {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  walletId      String   @map("wallet_id")
+  patientId     String   @map("patient_id")
+  entryType     WalletEntryType @map("entry_type")
+  delta         Int      // +N for purchase, -1 for use, +1 for reversal
+  balanceAfter  Int      @map("balance_after")
+  refType       String?  @map("ref_type")  // INVOICE, PROCEDURE
+  refId         String?  @map("ref_id")
+  reversalOfId  String?  @map("reversal_of_id")
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String?  @map("created_by")
+
+  wallet        WalletAccount @relation(fields: [walletId], references: [id])
+  patient       Patient       @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId, walletId, createdAt])
+  @@map("wallet_ledger")
+}
+
+enum WalletEntryType {
+  PURCHASE
+  USE
+  REVERSAL
+  ADJUSTMENT
+  EXPIRY
+}
+model Promotion {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  code          String
+  name          String
+  type          PromotionType
+  config        Json     // tier rules, bundle items, discount rules
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime? @map("ends_at")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  @@unique([tenantId, code])
+  @@map("promotions")
+}
+
+enum PromotionType {
+  TIER
+  BUNDLE
+  PACKAGE_DISCOUNT
+  VOUCHER
+}
+// =============================================================================
+// 6. INVENTORY: PRODUCT, BOM, STOCK LEDGER
+// =============================================================================
+
+model Product {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  sku           String
+  name          String
+  category      ProductCategory
+  unit          String   @default("pcs")
+  trackStock    Boolean  @default(true) @map("track_stock")
+  reorderLevel  Int      @default(0) @map("reorder_level")
+  attributes    Json?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  bomHeaders    BOM[]   @relation("BOMProduct")
+  bomComponents BOMItem[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, category])
+  @@map("products")
+}
+
+enum ProductCategory {
+  MEDICATION
+  SUPPLY
+  DEVICE
+  COSMETIC
+  COURSE
+  OTHER
+}
+// Bill of Materials: which components a procedure/product consumes
+model BOM {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  ownerType     BOMOwnerType @map("owner_type") // PROCEDURE or PRODUCT
+  ownerRef      String   @map("owner_ref")      // procedure_code or product_id
+  productId     String?  @map("product_id")     // optional FK if PRODUCT owner
+  version       Int      @default(1)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  product       Product? @relation("BOMProduct", fields: [productId], references: [id])
+  items         BOMItem[]
+  @@index([tenantId, ownerType, ownerRef])
+  @@map("boms")
+}
+
+enum BOMOwnerType {
+  PROCEDURE
+  PRODUCT
+}
+model BOMItem {
+  id          String  @id @default(cuid())
+  bomId       String  @map("bom_id")
+  componentProductId String @map("component_product_id")
+  qty         Decimal @db.Decimal(12,3)
+  unit        String  @default("pcs")
+
+  bom         BOM     @relation(fields: [bomId], references: [id])
+  component   Product @relation(fields: [componentProductId], references: [id])
+  @@map("bom_items")
+}
+
+// Immutable stock ledger
+model StockLedger {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  productId     String   @map("product_id")
+  entryType     StockEntryType @map("entry_type")
+  qty           Decimal  @db.Decimal(12,3)            // signed
+  balanceAfter  Decimal  @map("balance_after") @db.Decimal(12,3)
+  unitCost      Decimal? @map("unit_cost") @db.Decimal(12,2)
+  lotNo         String?  @map("lot_no")
+  expiresAt     DateTime? @map("expires_at")
+  refType       String?  @map("ref_type")  // PROCEDURE, ORDER, RECEIVE_PO, RECONCILE
+  refId         String?  @map("ref_id")
+  reversalOfId  String?  @map("reversal_of_id")
+  notes         String?  @db.Text
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, branchId, productId, createdAt])
+  @@map("stock_ledger")
+}
+
+enum StockEntryType {
+  RECEIVE
+  DISPENSE
+  BOM_USAGE
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT
+  REVERSAL
+  EXPIRY
+}
+model StockReconciliation {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  productId     String   @map("product_id")
+  systemQty     Decimal  @map("system_qty") @db.Decimal(12,3)
+  countedQty    Decimal  @map("counted_qty") @db.Decimal(12,3)
+  variance      Decimal  @db.Decimal(12,3)
+  reason        String?  @db.Text
+  overrideId    String?  @map("override_id") // BreakGlassOverride id when forced
+  performedBy   String   @map("performed_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, branchId, productId])
+  @@map("stock_reconciliations")
+}
+
+// =============================================================================
+// 7. DOCUMENTS, NOTIFICATIONS
+// =============================================================================
+
+model Document {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  type          DocumentType
+  refType       String?  @map("ref_type")  // PATIENT, INVOICE, PROCEDURE
+  refId         String?  @map("ref_id")
+  templateCode  String   @map("template_code")
+  templateVersion String @map("template_version")
+  storageKey    String   @map("storage_key") // S3 key
+  contentHash   String   @map("content_hash")
+  status        DocumentStatus @default(GENERATED)
+  signedUrl     String?  @map("signed_url")
+  signedUrlExp  DateTime? @map("signed_url_exp")
+  generatedBy   String?  @map("generated_by") // user or "system"
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, refType, refId])
+  @@map("documents")
+}
+
+enum DocumentType {
+  CONSENT
+  MEDICAL_CERT
+  E_RECEIPT
+  TAX_INVOICE
+  PRESCRIPTION
+  REPORT
+  OTHER
+}
+enum DocumentStatus {
+  REQUESTED
+  GENERATED
+  FAILED
+  ARCHIVED
+}
+model NotificationLog {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  channel       NotificationChannel
+  templateCode  String   @map("template_code")
+  recipientRef  String   @map("recipient_ref") // patient.id / phone / email / lineUserId
+  payload       Json
+  status        NotificationStatus @default(PENDING)
+  providerRef   String?  @map("provider_ref")
+  attempt       Int      @default(0)
+  lastError     String?  @map("last_error") @db.Text
+  sentAt        DateTime? @map("sent_at")
+  deliveredAt   DateTime? @map("delivered_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, status, channel])
+  @@map("notification_logs")
+}
+
+enum NotificationChannel {
+  LINE
+  SMS
+  EMAIL
+  PUSH
+  IN_APP
+}
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+// =============================================================================
+// 8. AI ASSISTIVE
+// =============================================================================
+
+model AIDraft {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  type          AIDraftType
+  refType       String?  @map("ref_type") // EMR, INTAKE
+  refId         String?  @map("ref_id")
+  inputHash     String   @map("input_hash") // hash of source (audio/text)
+  modelName     String   @map("model_name")
+  modelVersion  String   @map("model_version")
+  draft         Json
+  status        AIDraftStatus @default(PENDING)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  approvalLogs  AIApprovalLog[]
+  @@index([tenantId, refType, refId])
+  @@map("ai_drafts")
+}
+
+enum AIDraftType {
+  INTAKE_SUMMARY
+  VOICE_TO_NOTE
+  VISION_REPORT
+}
+enum AIDraftStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EDITED
+}
+model AIApprovalLog {
+  id          String   @id @default(cuid())
+  draftId     String   @map("draft_id")
+  reviewedBy  String   @map("reviewed_by")
+  action      AIApprovalAction
+  diff        Json?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  draft       AIDraft  @relation(fields: [draftId], references: [id])
+  @@map("ai_approval_logs")
+}
+
+enum AIApprovalAction {
+  APPROVE
+  REJECT
+  EDIT_AND_APPROVE
+}
+// =============================================================================
+// 9. RESILIENCE: OUTBOX, IDEMPOTENCY, DLQ
+// =============================================================================
+
+// Transactional Outbox: written in same DB tx as the source-of-truth change.
+// Relay worker reads, publishes to queue, then marks dispatched.
+model OutboxEvent {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  branchId        String?  @map("branch_id")
+  eventName       String   @map("event_name")
+  eventVersion    String   @map("event_version") @default("v1")
+  eventId         String   @unique @map("event_id") // idempotency key
+  correlationId   String?  @map("correlation_id")
+  causationId     String?  @map("causation_id")
+  payload         Json
+  metadata        Json
+  status          OutboxStatus @default(PENDING)
+  attempts        Int      @default(0)
+  lastError       String?  @map("last_error") @db.Text
+  availableAt     DateTime @default(now()) @map("available_at") // for delayed retry
+  dispatchedAt    DateTime? @map("dispatched_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([status, availableAt])
+  @@index([tenantId, eventName, createdAt])
+  @@map("outbox_events")
+}
+
+enum OutboxStatus {
+  PENDING
+  DISPATCHED
+  FAILED
+  DEAD
+}
+// Worker uses this to ensure each (event_id, handler) runs at most once.
+model ProcessedEvent {
+  eventId       String   @map("event_id")
+  handlerName   String   @map("handler_name")
+  status        ProcessedStatus
+  resultHash    String?  @map("result_hash")
+  error         String?  @db.Text
+  processedAt   DateTime @default(now()) @map("processed_at")
+
+  @@id([eventId, handlerName])
+  @@map("processed_events")
+}
+
+enum ProcessedStatus {
+  SUCCESS
+  FAILED
+}
+model DeadLetter {
+  id            String   @id @default(cuid())
+  tenantId      String?  @map("tenant_id")
+  queueName     String   @map("queue_name")
+  eventName     String   @map("event_name")
+  eventId       String   @map("event_id")
+  payload       Json
+  metadata      Json
+  error         String   @db.Text
+  attempts      Int
+  status        DLQStatus @default(NEW)
+  reprocessedAt DateTime? @map("reprocessed_at")
+  reprocessedBy String?   @map("reprocessed_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("dead_letters")
+}
+
+enum DLQStatus {
+  NEW
+  REPLAYED
+  DISCARDED
+}
+// =============================================================================
+// 10. SHIFT / END-OF-DAY
+// =============================================================================
+
+model Shift {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String   @map("branch_id")
+  openedBy      String   @map("opened_by")
+  closedBy      String?  @map("closed_by")
+  openedAt      DateTime @map("opened_at")
+  closedAt      DateTime? @map("closed_at")
+  cashOpening   Decimal  @map("cash_opening") @db.Decimal(12,2)
+  cashCounted   Decimal? @map("cash_counted") @db.Decimal(12,2)
+  cashExpected  Decimal? @map("cash_expected") @db.Decimal(12,2)
+  variance      Decimal? @db.Decimal(12,2)
+  notes         String?  @db.Text
+
+  @@index([tenantId, branchId, openedAt])
+  @@map("shifts")
+}
