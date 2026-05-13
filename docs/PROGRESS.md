@@ -4,7 +4,7 @@
 > [`ARCHITECTURE.md`](./ARCHITECTURE.md). Updated at the end of each delivery
 > phase.
 
-Last updated: **Stabilization sprint complete — token-validated auth, CORS allowlist, type cleanups**
+Last updated: **UX Sprint complete — AI Assistant (voice-to-SOAP), Manager Catalog CRUD, Order/Inventory UX redesign, Theme Refresh v2 (teal brand + light sidebar + dialog conventions)**
 
 ---
 
@@ -21,6 +21,7 @@ Last updated: **Stabilization sprint complete — token-validated auth, CORS all
 | ABAC authorization | ✅ | `authorize()` with `tenant`/`branch`/`self` scopes |
 | AES-256-GCM field encryption | ✅ | helper in EMR (Subjective/Plan/etc.) |
 | Backoffice UI shell (shadcn/ui, dark mode, i18n TH/EN, Cmd+K) | ✅ | Phase 5.5 — see ADR-0006 |
+| **Theme Refresh v2** (teal `#1bb59b` brand, animated gradient buttons, light sidebar, dialog conventions: backdrop blur + centered logo + confirm-only footer) | ✅ | see ADR-0006 Revision v2 |
 | Dev login (no real auth yet) | ⚠️ | header-based identity picker; real auth = Phase 6 |
 
 ---
@@ -41,7 +42,9 @@ Last updated: **Stabilization sprint complete — token-validated auth, CORS all
 | Event | Status |
 |---|---|
 | EMR draft (AI assistive — voice-to-note mock) | ✅ |
+| **AI Assistant in SOAP tab** (Web Speech API voice capture · transcript editing · heuristic SOAP splitter Thai/English · link accepted draft to `emr.signed`) | ✅ UX Sprint |
 | `emr.signed` (immutable + encrypted + version) | ✅ |
+| **Auto-bump visit status** `OPEN → IN_PROGRESS` on first clinical action (order.created or emr.signed) | ✅ UX Sprint |
 | `lab.ordered` / `lab.resulted` | ❌ schema only |
 | `document.requested` (PDF generation) | ✅ Phase C |
 | `document.generated` | ✅ Phase C |
@@ -103,9 +106,9 @@ Last updated: **Stabilization sprint complete — token-validated auth, CORS all
 |---|---|
 | Security, Compliance & Identity | ✅ ABAC + encryption + **token-validated auth** (Bearer Authorization → DB Session lookup per request, header spoofing rejected) + Audit Log viewer + Break-Glass UI + User CRUD + Role/Permission matrix viewer + **env-driven CORS allowlist**; ❌ Patient Merge Engine; ❌ MFA |
 | Document & Integration | ⚠️ PDF (zero-dep stub) + local storage ✅; LINE/SMS/Email queue ❌; Payment gateway adapter (QR PromptPay webhook) ❌ |
-| Clinical & AI | ✅ EMR signed/versioned + AI drafts; ❌ Lab/Order |
+| Clinical & AI | ✅ EMR signed/versioned + AI drafts + **AI Assistant in SOAP** (voice-to-note via Web Speech API + Thai/EN heuristic SOAP splitter + draft linking); ❌ Lab/Order |
 | Financial & Promotion | ✅ Wallet, Invoice, Payment (auth→complete→refund); ❌ Promotion engine, ❌ Doctor Fee/Commission |
-| Generic Resource & Inventory | ✅ Resource CRUD + UI (card grid by floor) + release/maintenance + auto-release on visit complete; BOM auto-consume (worker); stock ledger UI, manual receive/adjust; **Pharmacy dispense queue (cuts stock + emits `pharmacy.dispensed`)** |
+| Generic Resource & Inventory | ✅ Resource CRUD + UI (card grid by floor) + release/maintenance + auto-release on visit complete; BOM auto-consume (worker); stock ledger UI, manual receive/adjust; **Pharmacy dispense queue (cuts stock + emits `pharmacy.dispensed`)**; **Manager Catalog CRUD** (Products + BOMs UI, `catalog:manage` permission for MANAGER/ADMIN); **Seed expansion** (28 products across medications/supplies/cosmetics/courses + 6 BOMs for procedures) |
 
 ---
 
@@ -113,7 +116,7 @@ Last updated: **Stabilization sprint complete — token-validated auth, CORS all
 
 | App | Status |
 |---|---|
-| `apps/backoffice-web` (Desktop staff) | ✅ Real Login (6 demo users) · Role-filtered sidebar · Branch picker · Dashboard · Appointments · Visits (+Orders/Procedures/Billing/Complete) · Patients · Rooms & Resources · **Pharmacy** · AI Drafts · EMR Sign · Inventory · Audit Log · Break-Glass · **Admin Users + Roles** · DLQ |
+| `apps/backoffice-web` (Desktop staff) | ✅ Real Login (6 demo users) · Role-filtered sidebar (light, teal-accent) · Branch picker · **Dashboard** (redesigned KPI hero + timeline rows) · **Appointments** (timeline UX refresh) · Visits (+Orders with cart-style `NewOrderDialog` + ProductPicker + running subtotal · Procedures · Billing · Complete · **SOAP tab with AI Assistant**) · Patients · Rooms & Resources · **Pharmacy** · AI Drafts · EMR Sign · **Inventory** (KPI tiles + search + category chips + low-stock filter + visual stock bars + searchable StockActions) · **Manager / Catalog** (Products + BOMs CRUD) · Audit Log · Break-Glass · **Admin Users + Roles + Resources** · DLQ |
 | `apps/clinical-pad` (Tablet, touch) | ❌ |
 | `apps/patient-app` (LIFF/PWA — booking, history, course balance) | ❌ Phase 8 |
 
@@ -131,6 +134,7 @@ Last updated: **Stabilization sprint complete — token-validated auth, CORS all
 | **Phase 6.6 (Resource Engine UI)** | Multi-room seed, CRUD API, card-grid UI by floor, release, maintenance, auto-release on visit.complete, `resource.*` events | ✅ done |
 | **Phase 6.7 (Multi-role + Pharmacy + RBAC UI)** | 6 demo users seeded, role-filtered sidebar, branch picker, /pharmacy dispense queue (cuts stock), /admin/users + /admin/roles viewer, ADMIN → sysadmin-only + /admin/resources CRUD | ✅ done |
 | **Stabilization sprint** | Bearer token validated per request, env-driven CORS allowlist, `$queryRawUnsafe` → Prisma distinct, `SESSION_COOKIE_OPTIONS` helper, `getActorOrThrow`/`getBranchOrThrow` helpers, t:any → typed translator, `nav.admin` reorg | ✅ done |
+| **UX Sprint** | Auto-bump visit status on first clinical action · Seed expansion (28 products + 6 BOMs) · Manager Catalog CRUD (Products + BOMs + `catalog:manage`) · `NewOrderDialog` cart UX + ProductPicker + subtotal · Inventory page redesign (KPI tiles + filters + stock bars) + `ProductPicker` in StockActions · **AI Assistant in SOAP** (Web Speech API voice → transcript → heuristic SOAP splitter → link to `emr.signed`) · **Theme Refresh v2** (teal `#1bb59b` brand, animated gradient buttons, light sidebar with teal active pill, dialog conventions: backdrop-blur-md + centered logo header + confirm-only footer, swept 18 dialogs to drop Cancel buttons, Input/Select/Card/Tabs/PageHeader/Dashboard shell polish) | ✅ done |
 | **Phase 7 (Patient app — LIFF)** | self-service booking, history, course balance | pending |
 | **Phase 8 (CRM cron + Notification Layer)** | LINE/SMS, review request, rebooking, birthday | pending |
 | **Phase 9 (Observability + Prod)** | OpenTelemetry, Prometheus, CI/CD, Dockerfiles | pending |

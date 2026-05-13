@@ -26,7 +26,7 @@
 
 ## 🔐 Permission Matrix
 
-26 permissions จัดกลุ่มตาม resource:
+27 permissions จัดกลุ่มตาม resource:
 
 | Resource | Action | Scope | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -54,6 +54,7 @@
 | **resource** | release | branch | ✅ | ✅ | | ✅ | ✅ | |
 | **resource** | maintain | branch | ✅ | ✅ | | | | |
 | **pharmacy** | dispense | branch | ✅ | | | | | ✅ |
+| **catalog** | manage | tenant | ✅ | ✅ | | | | |
 | **audit** | read | tenant | ✅ | ✅ | | | | |
 | **break_glass** | approve | tenant | ✅ | ✅ | | | | |
 
@@ -94,6 +95,7 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | `/manager` Strategic Dashboard | | ✅ | | | | |
+| `/manager/catalog` Products + BOMs CRUD | ✅ | ✅ | | | | |
 | `/audit` | | ✅ | | | | |
 | `/break-glass` | | ✅ | | | | |
 
