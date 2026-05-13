@@ -113,9 +113,6 @@ export function CreateBreakGlassDialog() {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" variant="destructive" disabled={busy || reason.length < 10}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {t("approve")}

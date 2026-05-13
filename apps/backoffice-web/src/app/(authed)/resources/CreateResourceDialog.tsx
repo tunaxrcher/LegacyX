@@ -159,9 +159,6 @@ export function CreateResourceDialog() {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy || !code || !name}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {t("create")}

@@ -93,9 +93,6 @@ export default function IntakeTester() {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy || !text.trim()}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               <Sparkles className="h-4 w-4" />

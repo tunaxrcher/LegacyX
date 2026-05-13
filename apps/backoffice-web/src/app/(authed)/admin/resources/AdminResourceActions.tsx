@@ -164,9 +164,6 @@ function EditDialog({
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {tCommon("save")}
@@ -214,9 +211,6 @@ function DeleteDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-            {tCommon("cancel")}
-          </Button>
           <Button type="button" variant="destructive" onClick={submit} disabled={busy}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("delete_confirm")}

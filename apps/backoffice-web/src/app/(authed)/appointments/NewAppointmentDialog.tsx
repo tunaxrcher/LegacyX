@@ -153,14 +153,6 @@ export function NewAppointmentDialog() {
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              disabled={submitting}
-            >
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {tCommon("create")}

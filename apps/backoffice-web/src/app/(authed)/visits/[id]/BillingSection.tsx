@@ -359,9 +359,6 @@ function VoidInvoiceButton({ invoiceId }: { invoiceId: string }) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" variant="destructive" disabled={busy || reason.length < 3}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {t("void")}
@@ -480,9 +477,6 @@ function PaymentDialog({ invoiceId, due }: { invoiceId: string; due: number }) {
             </div>
           )}
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {t("pay_now")}
@@ -592,9 +586,6 @@ function RefundDialog({ payment }: { payment: Payment }) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" variant="destructive" disabled={busy || reason.length < 3}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {t("refund")}

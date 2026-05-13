@@ -185,9 +185,6 @@ function EditUserDialog({
             </Select>
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {tCommon("save")}
@@ -251,9 +248,6 @@ function ResetPasswordDialog({
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy || password.length < 8}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {tCommon("save")}
@@ -331,9 +325,6 @@ function AssignRolesDialog({
             })}
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {tCommon("save")}
@@ -411,9 +402,6 @@ function AssignBranchesDialog({
             })}
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {tCommon("save")}

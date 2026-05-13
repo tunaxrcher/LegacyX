@@ -343,9 +343,6 @@ function BomEditorDialog({
         )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-            {tCommon("cancel")}
-          </Button>
           <Button onClick={save} disabled={busy || loading}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {tCommon("save") ?? "Save"}

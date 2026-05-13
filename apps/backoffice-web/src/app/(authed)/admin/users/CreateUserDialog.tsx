@@ -172,9 +172,6 @@ export function CreateUserDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button
               type="submit"
               disabled={

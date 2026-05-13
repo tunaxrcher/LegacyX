@@ -155,9 +155,6 @@ function CompleteDialog({
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" disabled={busy}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {t("complete")}
@@ -217,9 +214,6 @@ function CancelDialog({ id }: { id: string }) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-              {tCommon("cancel")}
-            </Button>
             <Button type="submit" variant="destructive" disabled={busy || reason.length < 3}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {t("cancel")}
