@@ -201,74 +201,85 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
     <aside
       className={cn(
         "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] md:flex",
-        collapsed ? "w-[72px]" : "w-64"
+        collapsed ? "w-[76px]" : "w-[260px]"
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+      {/* Brand */}
+      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-gradient text-primary-foreground shadow-soft">
           <Stethoscope className="h-5 w-5" />
         </div>
         {!collapsed && (
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold">{tApp("name")}</span>
-            <span className="truncate text-[11px] text-sidebar-foreground/60">
+            <span className="truncate text-sm font-bold tracking-tight">{tApp("name")}</span>
+            <span className="truncate text-[11px] text-muted-foreground">
               {tApp("tagline")}
             </span>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-4 scrollbar-thin">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5 scrollbar-thin">
         {groups.map((group) => {
           const visible = group.items.filter((it) => canSee(it, roles));
           if (visible.length === 0) return null;
           return (
-          <div key={group.titleKey}>
-            {!collapsed && (
-              <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
-                {tNav(group.titleKey)}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {visible.map((item) => {
-                const Icon = item.icon;
-                const active =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      title={collapsed ? tNav(item.labelKey) : undefined}
-                      className={cn(
-                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                        collapsed && "justify-center px-2"
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="truncate">{tNav(item.labelKey)}</span>}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+            <div key={group.titleKey}>
+              {!collapsed && (
+                <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">
+                  {tNav(group.titleKey)}
+                </p>
+              )}
+              <ul className="space-y-1">
+                {visible.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    item.href === "/"
+                      ? pathname === "/"
+                      : pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        title={collapsed ? tNav(item.labelKey) : undefined}
+                        className={cn(
+                          "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                          active
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-soft"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                          collapsed && "justify-center px-0"
+                        )}
+                      >
+                        {/* Active indicator bar on the left */}
+                        {active && !collapsed && (
+                          <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-gradient" />
+                        )}
+                        <Icon
+                          className={cn(
+                            "h-[18px] w-[18px] shrink-0 transition-colors",
+                            active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                          )}
+                        />
+                        {!collapsed && <span className="truncate">{tNav(item.labelKey)}</span>}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           );
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-3">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-center text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          className="w-full justify-center text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
           onClick={() => setCollapsed((c) => !c)}
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+          {!collapsed && <span className="ml-1 text-xs">Collapse</span>}
         </Button>
       </div>
     </aside>

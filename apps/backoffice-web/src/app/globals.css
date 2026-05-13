@@ -54,12 +54,12 @@
     /* More rounded, modern */
     --radius: 0.875rem;
 
-    /* Sidebar stays dark for visual anchor, but with teal accent */
-    --sidebar-background: 220 28% 10%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-accent: 170 55% 20%;
-    --sidebar-accent-foreground: 170 80% 92%;
-    --sidebar-border: 220 20% 16%;
+    /* Sidebar: light, airy, SaaS-style. Teal tint on active item. */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 20%;
+    --sidebar-accent: 170 55% 94%;
+    --sidebar-accent-foreground: 170 74% 25%;
+    --sidebar-border: 214 20% 93%;
 
     /* Brand scale (teal) for dashboards, badges, etc */
     --brand-50:  168 56% 96%;

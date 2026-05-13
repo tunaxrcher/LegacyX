@@ -133,15 +133,17 @@ export default async function AppointmentsPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">
+                <CardTitle className="text-lg">
                   {new Intl.DateTimeFormat("th-TH", {
                     dateStyle: "full",
                   }).format(new Date())}
                 </CardTitle>
-                <CardDescription>{t("appointments.today_view")}</CardDescription>
+                <CardDescription>
+                  {todayList.data.length} {t("appointments.today_view")}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ol className="relative space-y-3 border-l border-border pl-6">
+                <ol className="relative space-y-3 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-border">
                   {todayList.data
                     .slice()
                     .sort(
@@ -150,29 +152,33 @@ export default async function AppointmentsPage() {
                         new Date(b.scheduledAt).getTime()
                     )
                     .map((a) => (
-                      <li key={a.id} className="relative">
-                        <span className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full border bg-background">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                        </span>
-                        <Card className="border-l-4 border-l-primary/40 transition-colors hover:bg-accent/30">
-                          <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <li key={a.id} className="relative flex items-start gap-4 pl-12">
+                        {/* Timeline dot */}
+                        <span className="absolute left-[14px] top-4 flex h-3 w-3 items-center justify-center rounded-full border-2 border-primary bg-background shadow-soft" />
+                        <div className="flex-1 rounded-2xl border border-border/70 bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-soft-lg">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-12 flex-col items-center justify-center rounded-md bg-primary/10 text-primary">
-                                <span className="text-[10px] font-medium uppercase">
+                              <div className="flex h-14 w-14 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                <Clock className="h-3 w-3 opacity-60" />
+                                <span className="text-xs font-bold tabular-nums leading-tight">
                                   {new Intl.DateTimeFormat("en-GB", {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   }).format(new Date(a.scheduledAt))}
                                 </span>
                               </div>
-                              <div>
-                                <div className="flex items-center gap-2 text-sm font-medium">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm font-semibold">
                                   <User className="h-3.5 w-3.5 text-muted-foreground" />
                                   {patientLabel(a.patient, a.patientId)}
                                 </div>
-                                <div className="mt-0.5 text-xs text-muted-foreground">
-                                  {a.durationMin} {t("common.loading") ? "min" : "min"} · {a.channel}
-                                  {a.reason ? ` · ${a.reason}` : ""}
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>{a.durationMin} min</span>
+                                  <span>·</span>
+                                  <Badge variant="outline" className="h-5 px-1.5 font-normal">
+                                    {a.channel}
+                                  </Badge>
+                                  {a.reason ? <span className="truncate">· {a.reason}</span> : null}
                                 </div>
                               </div>
                             </div>
@@ -185,8 +191,8 @@ export default async function AppointmentsPage() {
                               )}
                               <StatusBadge status={a.status} t={t} />
                             </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
                       </li>
                     ))}
                 </ol>

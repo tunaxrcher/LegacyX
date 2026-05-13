@@ -15,10 +15,10 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
   if (!session) redirect("/login");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <Sidebar roles={session.roles ?? []} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-md md:px-8">
           <Breadcrumbs />
           <div className="ml-auto flex items-center gap-2">
             <BranchPicker session={session} />
@@ -28,7 +28,7 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
             <UserMenu session={session} />
           </div>
         </header>
-        <main className="flex-1 overflow-x-hidden px-4 py-6 md:px-8 md:py-8">
+        <main className="flex-1 overflow-x-hidden px-4 py-8 md:px-8 md:py-10">
           <div className="mx-auto w-full max-w-7xl animate-fade-in">{children}</div>
         </main>
       </div>
