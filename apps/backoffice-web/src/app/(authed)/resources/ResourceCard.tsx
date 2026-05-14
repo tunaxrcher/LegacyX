@@ -89,6 +89,15 @@ export function ResourceCard({ resource }: { resource: ResourceRow }) {
   const visit = resource.activeReservation?.visit;
   const subtype = resource.attributes?.subtype ?? resource.type;
 
+  // Transfer is only meaningful while the visit is still active. Backend
+  // (`assignRoom`) blocks COMPLETED/CANCELLED with a 409, so we mirror that
+  // policy in the UI to prevent confusing failure dialogs.
+  const visitInactive =
+    visit?.status === "COMPLETED" || visit?.status === "CANCELLED";
+  const transferDisabledReason = visitInactive
+    ? t(`transfer_blocked_${visit?.status?.toLowerCase()}` as never)
+    : null;
+
   return (
     <div className={`rounded-lg border p-4 transition-all ${CARD_BG[resource.status]}`}>
       <div className="flex items-start justify-between">
@@ -148,20 +157,42 @@ export function ResourceCard({ resource }: { resource: ResourceRow }) {
               </Button>
             )}
             <div className="grid grid-cols-2 gap-2">
-              {visit && (
-                <Button asChild variant="outline" size="sm" className="justify-center">
-                  <Link href={`/visits/${visit.id}?action=transfer`}>
+              {visit &&
+                (visitInactive ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="justify-center"
+                    disabled
+                    title={transferDisabledReason ?? undefined}
+                  >
                     <ArrowRightLeft className="h-3.5 w-3.5" />
                     {t("transfer")}
-                  </Link>
-                </Button>
-              )}
+                  </Button>
+                ) : (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="justify-center"
+                  >
+                    <Link href={`/visits/${visit.id}?action=transfer`}>
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      {t("transfer")}
+                    </Link>
+                  </Button>
+                ))}
               <ReleaseDialog
                 onConfirm={release}
                 busy={releasing}
                 fullWidth={!visit}
               />
             </div>
+            {transferDisabledReason && (
+              <p className="-mt-1 text-[11px] italic text-muted-foreground">
+                {transferDisabledReason}
+              </p>
+            )}
           </>
         ) : resource.status === "AVAILABLE" ? (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">

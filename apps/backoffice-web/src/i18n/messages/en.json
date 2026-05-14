@@ -618,6 +618,8 @@
     "retired": "Retired",
     "release": "Release",
     "transfer": "Transfer",
+    "transfer_blocked_completed": "Visit is closed — release the room instead",
+    "transfer_blocked_cancelled": "Visit was cancelled — release the room instead",
     "open_visit": "Open visit",
     "release_desc": "Free the room for the next case — written to audit log",
     "release_reason": "Reason (optional)",

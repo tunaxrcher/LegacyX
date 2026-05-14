@@ -618,6 +618,8 @@
     "retired": "ปลดประจำการ",
     "release": "จ่ายห้อง",
     "transfer": "ย้ายห้อง",
+    "transfer_blocked_completed": "เคสปิดแล้ว — ใช้ปุ่มจ่ายห้องแทน",
+    "transfer_blocked_cancelled": "เคสถูกยกเลิก — ใช้ปุ่มจ่ายห้องแทน",
     "open_visit": "ดูเคส",
     "release_desc": "ปลดล็อกห้องเพื่อใช้กับเคสถัดไป — บันทึก audit",
     "release_reason": "เหตุผล (ไม่บังคับ)",
