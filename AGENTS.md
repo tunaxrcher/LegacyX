@@ -46,6 +46,14 @@ packages/types              Cross-app DTOs (Zod)
 3. **ABAC on every mutation.** Call `authorize(ctx, { resource, action,
    target })` before writing. Scope (`tenant` / `branch` / `self`) comes
    from the seed `ROLE_MATRIX`.
+   - **Role allowlist** (Phase Q SoD): some resources need an extra
+     guard *beyond* ABAC. ADMIN and MANAGER both hold `user:write:tenant`
+     but a Manager must not be able to escalate themselves; the service
+     layer enforces a static allowlist. Pattern lives in
+     `apps/api-server/src/modules/admin/admin-users.service.ts`
+     (`getAssignableRoleCodes` / `getVisibleRoleCodes`). Any new
+     identity-touching action (lock / unlock / reset / branch-assign)
+     MUST also call `assertCanManageTargetRole`.
 4. **Idempotency in workers.** Every handler must check `ProcessedEvent`
    before acting and skip if already processed.
 5. **Immutable data.** EMR (after sign), Wallet ledger, Stock ledger,

@@ -14,9 +14,9 @@ import { clientApi } from "@/lib/clientApi";
 
 interface Props {
   /** Role codes from the current session — used to gate the irreversible
-   *  `Anonymise` action. Server-side ABAC still enforces the real check
-   *  (`pdpa:anonymize:tenant`); this is purely so the UI does not appear to
-   *  promise something the API will reject. */
+   *  `Anonymise` action. Both MANAGER and ADMIN now hold
+   *  `pdpa:anonymize:tenant`; users with neither role see the action
+   *  disabled (defense-in-depth — the server enforces the real check). */
   roles: string[];
 }
 
@@ -40,7 +40,7 @@ interface PatientSummary {
 export function PdpaActionBar({ roles }: Props) {
   const router = useRouter();
   const t = useTranslations();
-  const canAnonymise = roles.includes("ADMIN");
+  const canAnonymise = roles.some((r) => r === "ADMIN" || r === "MANAGER");
 
   const [patient, setPatient] = React.useState<PatientOption | null>(null);
   const [summary, setSummary] = React.useState<PatientSummary | null>(null);
@@ -79,7 +79,7 @@ export function PdpaActionBar({ roles }: Props) {
           manifest: unknown;
           archive: { key: string; sha256: string; size: number };
         };
-      }>("/api/v1/admin/pdpa/export", {
+      }>("/api/v1/manager/pdpa/export", {
         patient_id: patient.id,
         reason: reason.trim(),
       });
@@ -112,7 +112,7 @@ export function PdpaActionBar({ roles }: Props) {
     if (!window.confirm(t("pdpa.anonymize_confirm"))) return;
     setBusy("anonymize");
     try {
-      await clientApi.post("/api/v1/admin/pdpa/anonymize", {
+      await clientApi.post("/api/v1/manager/pdpa/anonymize", {
         patient_id: patient.id,
         reason: reason.trim(),
       });
@@ -190,7 +190,9 @@ export function PdpaActionBar({ roles }: Props) {
           {t("pdpa.anonymize")}
         </Button>
         <span className="ml-2 text-[11px] text-muted-foreground">
-          {canAnonymise ? t("pdpa.action_help_admin") : t("pdpa.action_help_manager")}
+          {canAnonymise
+            ? t("pdpa.action_help_authorized")
+            : t("pdpa.action_help_unauthorized")}
         </span>
       </div>
     </div>

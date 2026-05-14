@@ -15,11 +15,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/utils";
-import { CreateUserDialog } from "./CreateUserDialog";
-import { UserRowActions } from "./UserRowActions";
+import { CreateUserDialog } from "../../admin/users/CreateUserDialog";
+import { UserRowActions } from "../../admin/users/UserRowActions";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Manager Staff Management.
+ *
+ * Hits the same `/api/v1/admin/users` and `/api/v1/admin/roles` endpoints
+ * as the admin page, but the api-server's `admin-users.service.ts` applies
+ * a Separation-of-Duties filter:
+ *
+ *   • For MANAGER actors, the user list returns only DOCTOR / NURSE /
+ *     RECEPTION / PHARMACIST + peer MANAGERs (read-only). Mutations are
+ *     limited to the operational subset — Managers cannot create / edit
+ *     other Managers, and ADMIN rows are invisible.
+ *
+ * That allows us to reuse the admin-side dialogs verbatim — they already
+ * receive `actorRoles` and trim their own dropdowns to match what the
+ * server will accept.
+ */
 type AdminUser = {
   id: string;
   phone: string | null;
@@ -43,7 +59,7 @@ const STATUS_VARIANT: Record<AdminUser["status"], "success" | "muted" | "destruc
   LOCKED: "destructive",
 };
 
-export default async function AdminUsersPage() {
+export default async function ManagerStaffPage() {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
@@ -59,17 +75,16 @@ export default async function AdminUsersPage() {
   const users = usersRes.data;
   const roles = rolesRes.data;
   const allBranches = session.branches ?? [];
+  const actorRoles = session.roles ?? [];
 
   const active = users.filter((u) => u.status === "ACTIVE").length;
   const locked = users.filter((u) => u.status === "LOCKED").length;
 
-  const actorRoles = session.roles ?? [];
-
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("admin_users.title")}
-        description={t("admin_users.subtitle")}
+        title={t("manager_staff.title")}
+        description={t("manager_staff.subtitle")}
         actions={
           <CreateUserDialog
             roles={roles.map((r) => ({ code: r.code, name: r.name }))}

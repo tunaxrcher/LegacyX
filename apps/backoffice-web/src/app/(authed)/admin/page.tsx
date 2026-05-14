@@ -11,6 +11,8 @@ import {
   Database,
   ArrowUpRight,
   ActivitySquare,
+  Building2,
+  Info,
 } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
@@ -62,22 +64,19 @@ export default async function AdminOverview() {
   const apiOk = health?.status === "ok";
   const dbCheck = health?.checks?.db;
 
+  // Admin landing tiles, ordered by what a sysadmin worries about most:
+  // (1) live system health, (2) DLQ failures (operational pain), (3) user
+  // base size, (4) role/permission sanity. Branches is a stub for the CRUD
+  // we add in Phase C3.
+  const totalBranches = (session.branches ?? []).length;
   const tiles = [
     {
-      labelKey: "admin_overview.users",
-      value: totalUsers,
-      sub: t("admin_overview.active_x", { count: activeUsers }),
-      href: "/admin/users",
-      Icon: UserCog,
-      tone: "info" as const,
-    },
-    {
-      labelKey: "admin_overview.roles",
-      value: totalRoles,
-      sub: t("admin_overview.locked_x", { count: lockedUsers }),
-      href: "/admin/roles",
-      Icon: Key,
-      tone: "muted" as const,
+      labelKey: "admin_overview.system_health",
+      value: apiOk ? "OK" : "DOWN",
+      sub: `DB ${dbCheck?.ms ?? "—"}ms`,
+      href: "/settings",
+      Icon: ActivitySquare,
+      tone: apiOk ? ("success" as const) : ("destructive" as const),
     },
     {
       labelKey: "admin_overview.dlq",
@@ -88,12 +87,20 @@ export default async function AdminOverview() {
       tone: dlqDepth > 0 ? ("destructive" as const) : ("muted" as const),
     },
     {
-      labelKey: "admin_overview.system_health",
-      value: apiOk ? "OK" : "DOWN",
-      sub: `DB ${dbCheck?.ms ?? "—"}ms`,
-      href: "/settings",
-      Icon: ActivitySquare,
-      tone: apiOk ? ("success" as const) : ("destructive" as const),
+      labelKey: "admin_overview.users",
+      value: totalUsers,
+      sub: t("admin_overview.active_x", { count: activeUsers }),
+      href: "/admin/users",
+      Icon: UserCog,
+      tone: "info" as const,
+    },
+    {
+      labelKey: "admin_overview.branches",
+      value: totalBranches,
+      sub: t("admin_overview.locked_x", { count: lockedUsers }),
+      href: "/admin/branches",
+      Icon: Building2,
+      tone: "muted" as const,
     },
   ];
 
@@ -113,10 +120,20 @@ export default async function AdminOverview() {
                 ? t("admin_overview.system_ok")
                 : t("admin_overview.system_down")}
             </Badge>
-            <Button asChild size="sm">
-              <Link href="/admin/users">
-                <UserCog className="h-4 w-4" />
-                {t("admin_overview.cta_new_user")}
+            <Button
+              asChild
+              size="sm"
+              variant={dlqDepth > 0 ? "destructive" : "default"}
+            >
+              <Link href={dlqDepth > 0 ? "/dlq" : "/settings"}>
+                {dlqDepth > 0 ? (
+                  <AlertOctagon className="h-4 w-4" />
+                ) : (
+                  <Settings className="h-4 w-4" />
+                )}
+                {dlqDepth > 0
+                  ? t("admin_overview.cta_open_dlq")
+                  : t("admin_overview.cta_open_settings")}
               </Link>
             </Button>
           </>
@@ -170,6 +187,17 @@ export default async function AdminOverview() {
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">
             <QuickAction
+              href="/dlq"
+              icon={AlertOctagon}
+              label={t("nav.dlq")}
+              tone={dlqDepth > 0 ? "destructive" : undefined}
+            />
+            <QuickAction
+              href="/settings"
+              icon={Settings}
+              label={t("nav.settings")}
+            />
+            <QuickAction
               href="/admin/users"
               icon={UserCog}
               label={t("nav.admin_users")}
@@ -180,15 +208,9 @@ export default async function AdminOverview() {
               label={t("nav.admin_roles")}
             />
             <QuickAction
-              href="/dlq"
-              icon={AlertOctagon}
-              label={t("nav.dlq")}
-              tone={dlqDepth > 0 ? "destructive" : undefined}
-            />
-            <QuickAction
-              href="/settings"
-              icon={Settings}
-              label={t("nav.settings")}
+              href="/admin/branches"
+              icon={Building2}
+              label={t("nav.admin_branches")}
             />
           </CardContent>
         </Card>

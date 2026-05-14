@@ -59,9 +59,9 @@ export default async function PatientMergePage() {
   const [dupsRes, logsRes] = await Promise.all([
     apiJson<{ data: DupGroup[] }>(
       session,
-      "/api/v1/admin/patients/duplicates?limit=20",
+      "/api/v1/manager/patients/duplicates?limit=20",
     ).catch(() => ({ data: [] as DupGroup[] })),
-    apiJson<{ data: MergeLog[] }>(session, "/api/v1/admin/patients/merge").catch(
+    apiJson<{ data: MergeLog[] }>(session, "/api/v1/manager/patients/merge").catch(
       () => ({ data: [] as MergeLog[] }),
     ),
   ]);

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@legacyx/db";
-import { BadRequest, Conflict, NotFound } from "../../shared/errors";
+import { BadRequest, Conflict, Forbidden, NotFound } from "../../shared/errors";
 import { authorize, invalidatePermissionCache } from "../../shared/auth";
 import { hashPassword } from "../../shared/password";
 import { normalizePhone, searchableHash } from "@legacyx/db";
@@ -21,9 +21,85 @@ import type { RequestContext } from "../../shared/context";
  *   • Avatar URL is optional and uploaded via the `/api/v1/uploads/avatar`
  *     route, which writes to DO Spaces.
  *
+ * Role separation (Phase Q):
+ *   • Both ADMIN and MANAGER hold `user:write:tenant` — but MANAGER cannot
+ *     escalate. The role-allowlist below is the SoD guardrail.
+ *
+ *      ADMIN   → may create / edit MANAGER, DOCTOR, NURSE, RECEPTION,
+ *                PHARMACIST (all non-ADMIN roles; ADMIN itself is
+ *                provisioned via the seed only).
+ *      MANAGER → may create / edit DOCTOR, NURSE, RECEPTION, PHARMACIST.
+ *                MANAGER and ADMIN are off-limits (no peer-edit, no
+ *                self-promotion). They CAN _list_ other MANAGERs as peers
+ *                but every mutation enforces the allowlist server-side.
+ *
  * The legacy `UserRole` table is still maintained (kept as a 1-row mirror of
  * `primaryRoleCode`) so existing role-aware code keeps working unchanged.
  */
+
+/** Operational, non-privileged roles a Manager may create/edit. */
+const MANAGER_ASSIGNABLE_ROLES = ["DOCTOR", "NURSE", "RECEPTION", "PHARMACIST"] as const;
+/** Roles a Manager may *see* in the list (peers + operational staff). */
+const MANAGER_VISIBLE_ROLES = ["MANAGER", ...MANAGER_ASSIGNABLE_ROLES] as const;
+
+/** Look up the actor's primary role code (cached path is fine — `User` row). */
+async function getActorRoleCode(ctx: RequestContext): Promise<string | null> {
+  if (!ctx.actor.id) return null;
+  const u = await prisma.user.findFirst({
+    where: { id: ctx.actor.id, tenantId: ctx.tenantId },
+    select: { primaryRoleCode: true },
+  });
+  return u?.primaryRoleCode ?? null;
+}
+
+/**
+ * Roles whose users this actor may LIST. Always excludes ADMIN unless the
+ * actor is themselves ADMIN (ADMINs are not surfaced to managers).
+ */
+export function getVisibleRoleCodes(actorRoleCode: string | null): readonly string[] {
+  if (actorRoleCode === "ADMIN") {
+    return ["ADMIN", "MANAGER", ...MANAGER_ASSIGNABLE_ROLES];
+  }
+  if (actorRoleCode === "MANAGER") return MANAGER_VISIBLE_ROLES;
+  return [];
+}
+
+/**
+ * Roles this actor may CREATE / ASSIGN to a user. Stricter than visibility
+ * — Manager can see their peers but cannot create another Manager.
+ */
+export function getAssignableRoleCodes(
+  actorRoleCode: string | null,
+): readonly string[] {
+  if (actorRoleCode === "ADMIN") {
+    // ADMIN may assign any non-ADMIN role. ADMIN itself is seed-only.
+    return ["MANAGER", ...MANAGER_ASSIGNABLE_ROLES];
+  }
+  if (actorRoleCode === "MANAGER") return MANAGER_ASSIGNABLE_ROLES;
+  return [];
+}
+
+function assertCanAssign(actorRoleCode: string | null, targetRoleCode: string) {
+  const allowed = getAssignableRoleCodes(actorRoleCode);
+  if (!allowed.includes(targetRoleCode)) {
+    throw Forbidden(
+      `Role ${actorRoleCode ?? "(none)"} may not assign role ${targetRoleCode}`,
+    );
+  }
+}
+
+function assertCanManageTargetRole(
+  actorRoleCode: string | null,
+  targetCurrentRole: string | null,
+) {
+  if (!targetCurrentRole) return;
+  const allowed = getAssignableRoleCodes(actorRoleCode);
+  if (!allowed.includes(targetCurrentRole)) {
+    throw Forbidden(
+      `Role ${actorRoleCode ?? "(none)"} may not modify users with role ${targetCurrentRole}`,
+    );
+  }
+}
 
 // ---- DTOs --------------------------------------------------------------
 
@@ -60,8 +136,20 @@ export const ResetPasswordDto = z.object({
 export async function listUsers(ctx: RequestContext) {
   await authorize(ctx, { resource: "user", action: "read", target: {} });
 
+  // SoD filter — managers must not see ADMIN rows. Empty allowlist (= no
+  // visible roles) returns nothing; that path is only reachable if the
+  // actor somehow holds `user:read` without being ADMIN/MANAGER.
+  const actorRole = await getActorRoleCode(ctx);
+  const visibleRoles = getVisibleRoleCodes(actorRole);
+
   const users = await prisma.user.findMany({
-    where: { tenantId: ctx.tenantId, deletedAt: null },
+    where: {
+      tenantId: ctx.tenantId,
+      deletedAt: null,
+      ...(visibleRoles.length > 0
+        ? { primaryRoleCode: { in: [...visibleRoles] } }
+        : {}),
+    },
     orderBy: [{ status: "asc" }, { fullName: "asc" }],
   });
 
@@ -114,8 +202,15 @@ export async function listUsers(ctx: RequestContext) {
 
 export async function listRolesWithPermissions(ctx: RequestContext) {
   await authorize(ctx, { resource: "user", action: "read", target: {} });
+  // Same SoD rule — Manager doesn't get to enumerate ADMIN's permissions
+  // even read-only; nothing actionable comes from showing it.
+  const actorRole = await getActorRoleCode(ctx);
+  const visibleRoles = getVisibleRoleCodes(actorRole);
   const roles = await prisma.role.findMany({
-    where: { tenantId: ctx.tenantId },
+    where: {
+      tenantId: ctx.tenantId,
+      ...(visibleRoles.length > 0 ? { code: { in: [...visibleRoles] } } : {}),
+    },
     orderBy: { code: "asc" },
   });
   const rolePerms = await prisma.rolePermission.findMany({
@@ -172,6 +267,11 @@ export async function createUser(
   if (input.role_code === "ADMIN") {
     throw BadRequest("ADMIN role cannot be assigned from the UI");
   }
+
+  // SoD allowlist — MANAGER may only create operational staff (DOCTOR /
+  // NURSE / RECEPTION / PHARMACIST). Admin may create those + MANAGER.
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanAssign(actorRole, input.role_code);
 
   // Validate role exists in this tenant.
   const role = await prisma.role.findFirst({
@@ -255,6 +355,12 @@ export async function updateUser(
   });
   if (!u) throw NotFound(`User ${userId} not found`);
 
+  // SoD — Manager cannot edit users whose role they couldn't have created in
+  // the first place (so a Manager cannot lower the permissions of an ADMIN
+  // to "lock them out", nor edit a peer Manager).
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
+
   // Build the patch + check role/phone collisions when those fields change.
   let newRole: { id: string; code: string } | null = null;
   if (input.role_code && input.role_code !== u.primaryRoleCode) {
@@ -262,6 +368,9 @@ export async function updateUser(
     if (input.role_code === "ADMIN") {
       throw BadRequest("ADMIN role cannot be assigned from the UI");
     }
+    // SoD — and the new role must also be assignable by the actor (no
+    // sneaky promote-to-MANAGER by a junior Manager).
+    assertCanAssign(actorRole, input.role_code);
     const role = await prisma.role.findFirst({
       where: { tenantId: ctx.tenantId, code: input.role_code },
     });
@@ -357,6 +466,8 @@ export async function assignBranches(
     where: { id: userId, tenantId: ctx.tenantId },
   });
   if (!u) throw NotFound(`User ${userId} not found`);
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
 
   const branches = input.branch_ids.length
     ? await prisma.branch.findMany({
@@ -407,6 +518,8 @@ export async function resetUserPassword(
     where: { id: userId, tenantId: ctx.tenantId, deletedAt: null },
   });
   if (!u) throw NotFound(`User ${userId} not found`);
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
 
   await prisma.user.update({
     where: { id: userId },
@@ -428,4 +541,85 @@ export async function resetUserPassword(
     },
   });
   return { ok: true };
+}
+
+/**
+ * Quick admin recovery actions (Phase Q):
+ *
+ *   • unlockUser — flips status LOCKED → ACTIVE. Useful when a user gets
+ *     locked out by repeated bad-OTP attempts (today the lockout transition
+ *     happens manually; once the auth flow tracks failed-attempt counters it
+ *     will be set automatically and this action becomes the standard way out).
+ *   • revokeUserSessions — invalidates every active session for the user.
+ *     Replaces the missing "force logout" / "phone got stolen" workflow that
+ *     would otherwise require a password reset (which we don't always want
+ *     for OTP-only users).
+ *
+ * Both share the same SoD rule: an actor may only run them on a user whose
+ * role they could have created. Audit log is mandatory.
+ */
+export async function unlockUser(ctx: RequestContext, userId: string) {
+  await authorize(ctx, { resource: "user", action: "write", target: {} });
+  if (!ctx.actor.id) throw BadRequest("Authenticated user required");
+
+  const u = await prisma.user.findFirst({
+    where: { id: userId, tenantId: ctx.tenantId, deletedAt: null },
+  });
+  if (!u) throw NotFound(`User ${userId} not found`);
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
+
+  if (u.status !== "LOCKED") {
+    // No-op so the UI is idempotent — nothing to undo.
+    return { ok: true, changed: false, status: u.status };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { status: "ACTIVE" },
+  });
+  await prisma.auditLog.create({
+    data: {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actor.id,
+      action: "user.unlock",
+      resourceType: "User",
+      resourceId: userId,
+      correlationId: ctx.correlationId,
+      before: { status: "LOCKED" } as object,
+      after: { status: "ACTIVE" } as object,
+    },
+  });
+  invalidatePermissionCache(ctx.tenantId, userId);
+  return { ok: true, changed: true, status: "ACTIVE" as const };
+}
+
+export async function revokeUserSessions(ctx: RequestContext, userId: string) {
+  await authorize(ctx, { resource: "user", action: "write", target: {} });
+  if (!ctx.actor.id) throw BadRequest("Authenticated user required");
+
+  const u = await prisma.user.findFirst({
+    where: { id: userId, tenantId: ctx.tenantId, deletedAt: null },
+  });
+  if (!u) throw NotFound(`User ${userId} not found`);
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
+
+  const result = await prisma.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actor.id,
+      action: "user.revoke_sessions",
+      resourceType: "User",
+      resourceId: userId,
+      correlationId: ctx.correlationId,
+      after: { revokedSessions: result.count } as object,
+    },
+  });
+  return { ok: true, revoked: result.count };
 }

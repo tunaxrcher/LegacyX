@@ -28,6 +28,7 @@ import {
   GitMerge,
   ScrollText,
   Tag,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,12 @@ const groups: NavGroup[] = [
         icon: Package,
         roles: ["MANAGER"],
       },
+      {
+        href: "/manager/staff",
+        labelKey: "nav.manager_staff",
+        icon: UserCog,
+        roles: ["MANAGER"],
+      },
     ],
   },
   // Manager — Marketing & growth (Phase O onwards)
@@ -169,16 +176,16 @@ const groups: NavGroup[] = [
         roles: ["MANAGER"],
       },
       {
-        href: "/admin/patients",
+        href: "/manager/patients/merge",
         labelKey: "nav.patient_merge",
         icon: GitMerge,
         roles: ["MANAGER"],
       },
       {
-        href: "/admin/pdpa",
+        href: "/manager/pdpa",
         labelKey: "nav.pdpa",
         icon: ScrollText,
-        roles: ["MANAGER", "ADMIN"],
+        roles: ["MANAGER"],
       },
     ],
   },
@@ -230,6 +237,12 @@ const groups: NavGroup[] = [
         href: "/admin/roles",
         labelKey: "nav.admin_roles",
         icon: Key,
+        roles: ["ADMIN"],
+      },
+      {
+        href: "/admin/branches",
+        labelKey: "nav.admin_branches",
+        icon: Building2,
         roles: ["ADMIN"],
       },
       {

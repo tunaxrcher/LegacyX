@@ -111,9 +111,11 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 | `/manager` Strategic Dashboard | | ✅ | | | | |
 | `/manager/catalog` Products + BOMs CRUD | | ✅ | | | | |
 | `/manager/eod` End-of-Day (Shift · Settle · Recon) | | ✅ | | | ✅ | |
+| `/manager/staff` Staff Management (Doctor / Nurse / Reception / Pharmacist) | | ✅ | | | | |
 | `/audit` | | ✅ | | | | |
 | `/break-glass` | | ✅ | | | | |
-| `/admin/pdpa` PDPA / DSR (Export = MANAGER+ADMIN · Anonymise = ADMIN only) | ✅ | ✅ | | | | |
+| `/manager/patients/merge` Patient merge dashboard | | ✅ | | | | |
+| `/manager/pdpa` PDPA / DSR (Export + Anonymise — both MANAGER) | | ✅ | | | | |
 
 ### 🏗️ Clinic Setup (MANAGER — tenant-level configuration)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
@@ -125,18 +127,31 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 ### ⚙️ System Admin (ADMIN-only universe)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| `/admin` System Overview (KPIs · users · DLQ · health) | ✅ | | | | | |
-| `/admin/users` Users (phone + single role + avatar) | ✅ | | | | | |
+| `/admin` System Overview (health · DLQ · users · branches) | ✅ | | | | | |
+| `/admin/users` Users (system-level — assign **MANAGER** + Unlock + Revoke sessions) | ✅ | | | | | |
 | `/admin/roles` Roles & permissions | ✅ | | | | | |
+| `/admin/branches` Branch CRUD (`branch:write:tenant`) | ✅ | | | | | |
 | `/dlq` Dead-letter queue | ✅ | | | | | |
 | `/settings` System settings | ✅ | | | | | |
 
-> 🔐 **PDPA URL nuance**: `/admin/pdpa` lives under the `/admin/*` URL prefix
-> for historical reasons but is now part of the **Finance & Insights** group
-> (MANAGER + ADMIN). The page itself disables the `Anonymise` button for
-> non-ADMIN sessions and the API also enforces `pdpa:anonymize:tenant`
-> server-side, so the ABAC contract is intact even though the URL still
-> says `admin/`.
+> 🔐 **Role-allowlist (Phase Q)**: Both ADMIN and MANAGER hold
+> `user:write:tenant`, but the api-server enforces a service-layer guard
+> (`apps/api-server/src/modules/admin/admin-users.service.ts`):
+>
+> | Actor | May create / edit | May NOT touch |
+> | --- | --- | --- |
+> | **ADMIN** | MANAGER, DOCTOR, NURSE, RECEPTION, PHARMACIST | ADMIN (seed-only) |
+> | **MANAGER** | DOCTOR, NURSE, RECEPTION, PHARMACIST | MANAGER, ADMIN |
+>
+> The list endpoint also filters: a Manager cannot _see_ ADMIN rows; they
+> can see other MANAGERs as peers but every mutation against a Manager row
+> returns 403. Same rule applies to `unlock`, `revoke-sessions`, password
+> reset, and branch assignment.
+>
+> 🔐 **PDPA scope**: PDPA Export + Anonymise are now both MANAGER actions
+> (under `/manager/pdpa`). ADMIN keeps `pdpa:anonymize:tenant` as a
+> recovery escape hatch but the everyday DSR workflow lives with the
+> business owner, not IT.
 
 > 🛋️ Note: **2 หน้าแยกสำหรับห้อง** —
 > - `/resources` = card grid · งานรายวัน · Release / Transfer · (MANAGER/NURSE/RECEPTION)

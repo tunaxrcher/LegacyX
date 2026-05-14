@@ -73,7 +73,7 @@ export function MergeDialog({ group }: { group: Group }) {
     }
     setBusy(true);
     try {
-      await clientApi.post("/api/v1/admin/patients/merge", {
+      await clientApi.post("/api/v1/manager/patients/merge", {
         from_patient_id: fromId,
         into_patient_id: intoId,
         reason: reason.trim(),

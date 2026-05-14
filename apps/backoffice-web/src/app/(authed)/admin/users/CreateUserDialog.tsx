@@ -39,23 +39,33 @@ type Branch = { id: string; code: string; name: string };
  *   • Optional avatar uploader.
  *   • Password is optional — phone+OTP is the canonical login. Field is kept
  *     for back-compat with tests that hit the legacy endpoint.
+ *
+ * Phase Q — role-allowlist:
+ *   • The list of selectable roles is derived from `actorRoles` (the calling
+ *     user's role codes from session). The server enforces the same rules,
+ *     this is just so the dropdown matches what the API will accept.
  */
 export function CreateUserDialog({
   roles,
   branches,
+  actorRoles,
 }: {
   roles: Role[];
   branches: Branch[];
+  /** Role codes from session.roles — drives which roles appear in dropdown. */
+  actorRoles?: string[];
 }) {
   const router = useRouter();
   const t = useTranslations("admin_users");
   // ADMIN is a system role provisioned at install time — not assignable from
-  // the UI. Filter it out so the dropdown can never accidentally elevate a
-  // user to global administrator.
-  const assignableRoles = React.useMemo(
-    () => roles.filter((r) => r.code !== "ADMIN"),
-    [roles],
-  );
+  // the UI. MANAGER may only assign operational roles; ADMIN may assign
+  // MANAGER + operational roles. The server enforces the same rules.
+  const assignableRoles = React.useMemo(() => {
+    const isAdmin = actorRoles?.includes("ADMIN") ?? false;
+    const operational = ["DOCTOR", "NURSE", "RECEPTION", "PHARMACIST"];
+    const allowed = new Set<string>(isAdmin ? ["MANAGER", ...operational] : operational);
+    return roles.filter((r) => allowed.has(r.code));
+  }, [roles, actorRoles]);
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [phone, setPhone] = React.useState("");

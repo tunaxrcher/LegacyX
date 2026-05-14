@@ -52,6 +52,9 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   // Identity
   { resource: "user", action: "read", scope: "tenant" },
   { resource: "user", action: "write", scope: "tenant" },
+  // Branch CRUD (ADMIN only — see ROLE_MATRIX). Read is implicit via the
+  // session's branch list, so only the write permission is enforced.
+  { resource: "branch", action: "write", scope: "tenant" },
   // Patient
   { resource: "patient", action: "read", scope: "branch" },
   { resource: "patient", action: "write", scope: "branch" },
@@ -96,13 +99,14 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   { resource: "audit", action: "read", scope: "tenant" },
   { resource: "break_glass", action: "approve", scope: "tenant" },
   // Phase K — PDPA / Data Subject Rights. Tenant-scoped.
-  //   - export   → MANAGER + ADMIN. Read-only, often-used customer-service
-  //     action; MANAGER already holds `patient:merge` + `audit:read` so this
-  //     does not expand their PII blast radius and removes the operational
-  //     bottleneck of routing every DSR request through a sysadmin.
-  //   - anonymize → ADMIN only. Irreversible mutation that destroys the
-  //     identifying fields permanently; kept under "two-person rule"
-  //     (MANAGER raises the DSR ticket → ADMIN executes).
+  //   - export    → MANAGER. Read-only DSR delivery (≤30-day legal SLA);
+  //     MANAGER already holds `patient:merge` + `audit:read` so this does
+  //     not expand their PII blast radius.
+  //   - anonymize → MANAGER (irreversible business decision — clinic owner
+  //     responds to the data-subject's request to be forgotten). UI gates
+  //     it behind a confirmation + reason ≥ 8 chars and audit-logs every
+  //     run; ADMIN keeps the same permission as a system-recovery escape
+  //     hatch but in normal operation this is a Manager action.
   { resource: "pdpa", action: "export", scope: "tenant" },
   { resource: "pdpa", action: "anonymize", scope: "tenant" },
   // Phase O — Promotion / voucher engine. CRUD is a tenant-wide config
@@ -122,7 +126,12 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
 const ROLE_MATRIX: Record<string, string[]> = {
   ADMIN: PERMISSIONS.map((p) => `${p.resource}:${p.action}:${p.scope}`),
   MANAGER: [
+    // Phase Q — Manager owns operational staff lifecycle. The api-server
+    // service layer enforces a *role-allowlist* (DOCTOR / NURSE / RECEPTION /
+    // PHARMACIST only) so a Manager can never escalate themselves or create
+    // another ADMIN / MANAGER / sysadmin. Privilege creation stays with ADMIN.
     "user:read:tenant",
+    "user:write:tenant",
     "patient:read:branch",
     // Phase K — Manager runs the duplicate-detection / merge UI. Doctor or
     // Reception cannot merge (high-impact, cross-branch action).
@@ -156,10 +165,13 @@ const ROLE_MATRIX: Record<string, string[]> = {
     // Phase M — Lab read for oversight; result is a separate sub-flow
     // they don't normally do themselves.
     "lab:read:branch",
-    // Phase K — PDPA DSR. Manager handles the customer-facing "give me a
-    // copy of my data" request (≤30 day legal SLA). Anonymise is held back
-    // to ADMIN because it is irreversible.
+    // Phase K — PDPA DSR. Manager handles BOTH the "give me a copy of my
+    // data" (export, ≤30-day legal SLA) and the "forget me" (anonymise).
+    // Anonymise is irreversible so the UI requires a typed reason ≥ 8 chars
+    // and a confirm dialog; every action is audit-logged with the actor.
+    // ADMIN retains the same permission but only as a recovery escape hatch.
     "pdpa:export:tenant",
+    "pdpa:anonymize:tenant",
   ],
   DOCTOR: [
     "patient:read:branch",
@@ -372,6 +384,51 @@ async function main() {
       fullName: "Dr. Dual (Manager side)",
       password: "dual123!",
       roleCode: "MANAGER",
+    },
+    // Phase Q — System-Owner dual-role demo. The clinic owner often wears
+    // BOTH the Admin (system) and Manager (business) hats; this account lets
+    // them pick on each login. Useful when QA-ing SoD: log in as ADMIN to
+    // review system tiles, then re-login as MANAGER to verify the staff
+    // management/PDPA/finance flows look right.
+    {
+      phone: "0900000000",
+      fullName: "Owner-Admin (System side)",
+      password: "owner123!",
+      roleCode: "ADMIN",
+    },
+    {
+      phone: "0900000000",
+      fullName: "Owner-Manager (Business side)",
+      password: "owner123!",
+      roleCode: "MANAGER",
+    },
+    // Phase Q — All-Ops demo. Same phone registered as every operational
+    // role so a single QA session can quickly cycle through DOCTOR / NURSE
+    // / RECEPTION / PHARMACIST without juggling test accounts. The role
+    // picker on the login screen lets you switch.
+    {
+      phone: "0999999999",
+      fullName: "All-Ops (Doctor side)",
+      password: "allops123!",
+      roleCode: "DOCTOR",
+    },
+    {
+      phone: "0999999999",
+      fullName: "All-Ops (Nurse side)",
+      password: "allops123!",
+      roleCode: "NURSE",
+    },
+    {
+      phone: "0999999999",
+      fullName: "All-Ops (Reception side)",
+      password: "allops123!",
+      roleCode: "RECEPTION",
+    },
+    {
+      phone: "0999999999",
+      fullName: "All-Ops (Pharmacist side)",
+      password: "allops123!",
+      roleCode: "PHARMACIST",
     },
   ];
 

@@ -208,8 +208,9 @@ Gateway ตัดยอดเข้าบัญชีจริง → payment.se
 - `/manager/notifications` — Notification log + KPIs (Phase 8, MANAGER)
 - `/manager/resources` + `/manager/services` — Tenant configuration (rooms / catalog, MANAGER)
 - `/manager/eod` + `/manager/catalog` + `/manager/promotions` — Operations (MANAGER)
-- `/admin/patients` — Patient Merge dashboard (Phase K, MANAGER)
-- `/admin/pdpa` — DSR Export / Anonymise (Phase K · Export = MANAGER+ADMIN, Anonymise = ADMIN only)
+- `/manager/patients/merge` — Patient Merge dashboard (Phase K · MANAGER · moved out of `/admin/*` in Phase Q)
+- `/manager/pdpa` — DSR Export / Anonymise (Phase K · MANAGER for both actions · moved out of `/admin/*` in Phase Q · ADMIN retains the permission as a recovery escape hatch)
+- `/admin/branches` — Branch CRUD (Phase Q · ADMIN · `branch:write:tenant`)
 - `/admin` + `/admin/users` + `/admin/roles` + `/settings` — system admin (Phase H, ADMIN)
 
 **Pre-deploy hardening** — ดู `docs/PRODUCTION_HARDENING.md` (13-section checklist: secrets / MySQL / Redis / encryption / auth / network / observability / backups / CI-CD / containers / PWA / PDPA / smoke-tests)
@@ -221,8 +222,8 @@ Gateway ตัดยอดเข้าบัญชีจริง → payment.se
 
 **🛡️ PDPA Compliance Layer (Phase K)**
 - **Consent Snapshot** — `POST /api/v1/patients/[id]/consents` เก็บ `content_hash` (SHA-256) ทุกฉบับเพื่อพิสูจน์ tamper-evidence + ออก `consent.signed` outbox event ที่ chain ไป `document.requested` เพื่อ render PDF อัตโนมัติ. มี 5 templates ที่รองรับ: `CONSENT_GENERAL`, `CONSENT_LASER`, `CONSENT_INJECTION`, `CONSENT_PHOTO`, `CONSENT_DATA`
-- **Patient Merge Engine** — `/admin/patients` หน้าแสดง duplicate candidates (group by `phoneHash` หรือ `firstName + lastName + dob`) พร้อม MergeDialog ที่ขอ reason ≥ 8 chars (PDPA Article 30) → transactional move ของ appointments / visits / invoices / wallets / EMR / consents / labs / orders / procedures / pharmacy / **patient photos** ไปยัง surviving record + tombstone แหล่งเดิมเป็น `MERGED` + บันทึก `PatientMergeLog` เพื่อย้อนรอย
-- **DSR (Data Subject Rights)** — `/admin/pdpa` มี 2 actions: (1) **Export PII** (`pdpa:export:tenant` — MANAGER + ADMIN) → คืน decrypted JSON manifest เป็น download (ครอบคลุม name / phone / email / national-id / appointments / visits / invoices / payments / wallets / consents / EMR / procedures / pharmacy / documents / notifications), (2) **Anonymise** (`pdpa:anonymize:tenant` — ADMIN only, irreversible) → แทน identifying fields ด้วย `anon-<sha8>` pseudonym + soft-delete patient photos แต่เก็บ ledger rows ไว้สำหรับ retention 7 ปี ของกฎหมายภาษี. UI ใช้ `PatientCombobox` + summary card ก่อนกดเพื่อกัน operator เลือกคนผิด
+- **Patient Merge Engine** — `/manager/patients/merge` หน้าแสดง duplicate candidates (group by `phoneHash` หรือ `firstName + lastName + dob`) พร้อม MergeDialog ที่ขอ reason ≥ 8 chars (PDPA Article 30) → transactional move ของ appointments / visits / invoices / wallets / EMR / consents / labs / orders / procedures / pharmacy / **patient photos** ไปยัง surviving record + tombstone แหล่งเดิมเป็น `MERGED` + บันทึก `PatientMergeLog` เพื่อย้อนรอย
+- **DSR (Data Subject Rights)** — `/manager/pdpa` มี 2 actions: (1) **Export PII** (`pdpa:export:tenant` — MANAGER) → คืน decrypted JSON manifest เป็น download (ครอบคลุม name / phone / email / national-id / appointments / visits / invoices / payments / wallets / consents / EMR / procedures / pharmacy / documents / notifications), (2) **Anonymise** (`pdpa:anonymize:tenant` — MANAGER, irreversible) → แทน identifying fields ด้วย `anon-<sha8>` pseudonym + soft-delete patient photos แต่เก็บ ledger rows ไว้สำหรับ retention 7 ปี ของกฎหมายภาษี. UI ใช้ `PatientCombobox` + summary card ก่อนกดเพื่อกัน operator เลือกคนผิด. ADMIN ยังถือ `pdpa:anonymize:tenant` ไว้เป็น recovery escape hatch แต่งาน DSR ปกติเป็นของ MANAGER
 - ทุก action ออก `pdpa.exported` / `pdpa.anonymized` events + เขียน audit log แท็ก `pdpa_action: true` เพื่อให้ regulator filter ได้
 
 **📄 Document Engine v2 (Phase L)**

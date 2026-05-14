@@ -10,6 +10,8 @@ import {
   KeyRound,
   Building2,
   Loader2,
+  Unlock,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,14 +59,20 @@ export function UserRowActions({
   user,
   allRoles,
   allBranches,
+  actorRoles,
 }: {
   user: AdminUser;
   allRoles: Array<{ code: string; name: string }>;
   allBranches: Array<{ id: string; code: string; name: string }>;
+  /** Role codes from session.roles — passed through to dialogs for SoD. */
+  actorRoles?: string[];
 }) {
   const t = useTranslations("admin_users");
   const router = useRouter();
   const [mode, setMode] = React.useState<Mode>(null);
+  const [busyAction, setBusyAction] = React.useState<
+    "unlock" | "revoke" | null
+  >(null);
 
   const close = () => setMode(null);
   const onDone = () => {
@@ -72,12 +80,55 @@ export function UserRowActions({
     router.refresh();
   };
 
+  async function unlock() {
+    if (!confirm(t("unlock_confirm"))) return;
+    setBusyAction("unlock");
+    try {
+      const res = await clientApi.post<{
+        data: { changed: boolean; status: string };
+      }>(`/api/v1/admin/users/${user.id}/unlock`, {});
+      if (res.data.changed) {
+        toast.success(t("unlock_success"));
+      } else {
+        toast.message(t("unlock_noop"));
+      }
+      router.refresh();
+    } catch (err) {
+      toast.error(String((err as Error).message ?? err));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function revokeSessions() {
+    if (!confirm(t("revoke_sessions_confirm"))) return;
+    setBusyAction("revoke");
+    try {
+      const res = await clientApi.post<{ data: { revoked: number } }>(
+        `/api/v1/admin/users/${user.id}/revoke-sessions`,
+        {},
+      );
+      toast.success(
+        t("revoke_sessions_success", { count: res.data.revoked }),
+      );
+      router.refresh();
+    } catch (err) {
+      toast.error(String((err as Error).message ?? err));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4" />
+            {busyAction ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreHorizontal className="h-4 w-4" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -92,6 +143,19 @@ export function UserRowActions({
           <DropdownMenuItem onClick={() => setMode("password")}>
             <KeyRound className="h-4 w-4" /> {t("reset_password")}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={unlock}
+            disabled={user.status !== "LOCKED" || busyAction !== null}
+          >
+            <Unlock className="h-4 w-4" /> {t("unlock")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={revokeSessions}
+            disabled={busyAction !== null}
+          >
+            <LogOut className="h-4 w-4" /> {t("revoke_sessions")}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -99,6 +163,7 @@ export function UserRowActions({
         <EditUserDialog
           user={user}
           allRoles={allRoles}
+          actorRoles={actorRoles}
           onDone={onDone}
           onCancel={close}
         />
@@ -121,25 +186,29 @@ export function UserRowActions({
 function EditUserDialog({
   user,
   allRoles,
+  actorRoles,
   onDone,
   onCancel,
 }: {
   user: AdminUser;
   allRoles: Array<{ code: string; name: string }>;
+  actorRoles?: string[];
   onDone: () => void;
   onCancel: () => void;
 }) {
   const t = useTranslations("admin_users");
   const tCommon = useTranslations("common");
-  // ADMIN can't be assigned from the UI — but if the user *already* has it
-  // (system-provisioned), keep it in the list so we don't force a change.
-  const assignableRoles = React.useMemo(
-    () =>
-      allRoles.filter(
-        (r) => r.code !== "ADMIN" || r.code === user.primaryRoleCode,
-      ),
-    [allRoles, user.primaryRoleCode],
-  );
+  // SoD-aware role list — same rule as CreateUserDialog. We always KEEP the
+  // user's current role in the list so editing other fields doesn't force
+  // a role change (and so a Manager editing a junior user without changing
+  // their role still gets a valid Select state).
+  const assignableRoles = React.useMemo(() => {
+    const isAdmin = actorRoles?.includes("ADMIN") ?? false;
+    const operational = ["DOCTOR", "NURSE", "RECEPTION", "PHARMACIST"];
+    const allowed = new Set<string>(isAdmin ? ["MANAGER", ...operational] : operational);
+    if (user.primaryRoleCode) allowed.add(user.primaryRoleCode);
+    return allRoles.filter((r) => allowed.has(r.code));
+  }, [allRoles, actorRoles, user.primaryRoleCode]);
   const [fullName, setFullName] = React.useState(user.fullName);
   const [phone, setPhone] = React.useState(user.phone ?? "");
   const [roleCode, setRoleCode] = React.useState(

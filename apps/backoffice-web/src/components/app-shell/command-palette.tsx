@@ -19,6 +19,11 @@ import {
   Box,
   Tags,
   ShieldAlert,
+  ShieldCheck,
+  GitMerge,
+  UserCog,
+  Key,
+  Building2,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -127,14 +132,35 @@ export function CommandPalette() {
             <CommandItem onSelect={() => go("/manager/notifications")}>
               <Bell /> {t("nav.manager_notifications")}
             </CommandItem>
+            <CommandItem onSelect={() => go("/manager/patients/merge")}>
+              <GitMerge /> {t("nav.patient_merge")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/pdpa")}>
+              <ScrollText /> {t("nav.pdpa")}
+            </CommandItem>
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading={t("nav.admin")}>
+          <CommandGroup heading={t("nav.compliance")}>
             <CommandItem onSelect={() => go("/audit")}>
-              <ScrollText /> {t("nav.audit")}
+              <ShieldCheck /> {t("nav.audit")}
             </CommandItem>
             <CommandItem onSelect={() => go("/break-glass")}>
               <ShieldAlert /> {t("nav.break_glass")}
+            </CommandItem>
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading={t("nav.admin")}>
+            <CommandItem onSelect={() => go("/admin")}>
+              <LayoutDashboard /> {t("nav.admin_overview")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/admin/users")}>
+              <UserCog /> {t("nav.admin_users")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/admin/roles")}>
+              <Key /> {t("nav.admin_roles")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/admin/branches")}>
+              <Building2 /> {t("nav.admin_branches")}
             </CommandItem>
             <CommandItem onSelect={() => go("/dlq")}>
               <AlertOctagon /> {t("nav.dlq")}
