@@ -40,12 +40,26 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const perPage = Math.min(
-      100,
+      500,
       Math.max(1, Number(url.searchParams.get("perPage") ?? 20)),
     );
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
     const status = url.searchParams.get("status");
+    const doctorId = url.searchParams.get("doctor_id");
+    const q = (url.searchParams.get("q") ?? "").trim();
+
+    // Comma-separated lists are accepted for multi-select filters; the
+    // singular form (one value) still works because `.split(",")` returns a
+    // single-element array.
+    const statuses = (status ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const doctorIds = (doctorId ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const where: Record<string, unknown> = {
       tenantId: ctx.tenantId,
@@ -57,7 +71,18 @@ export async function GET(req: NextRequest) {
         ...(to ? { lte: new Date(to) } : {}),
       };
     }
-    if (status) where.status = status;
+    if (statuses.length === 1) where.status = statuses[0];
+    else if (statuses.length > 1) where.status = { in: statuses };
+    if (doctorIds.length === 1) where.doctorId = doctorIds[0];
+    else if (doctorIds.length > 1) where.doctorId = { in: doctorIds };
+    if (q) {
+      where.OR = [
+        { reason: { contains: q } },
+        { patient: { firstName: { contains: q } } },
+        { patient: { lastName: { contains: q } } },
+        { patient: { hn: { contains: q } } },
+      ];
+    }
 
     const [total, rows] = await Promise.all([
       prisma.appointment.count({ where }),
@@ -72,8 +97,25 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // Resolve doctor names in one batch (no FK relation in schema).
+    const resolvedDoctorIds = Array.from(
+      new Set(rows.map((r) => r.doctorId).filter((x): x is string => !!x)),
+    );
+    const doctors = resolvedDoctorIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: resolvedDoctorIds } },
+          select: { id: true, fullName: true },
+        })
+      : [];
+    const doctorMap = new Map(doctors.map((d) => [d.id, d.fullName]));
+
     return NextResponse.json({
-      data: rows,
+      data: rows.map((r) => ({
+        ...r,
+        doctor: r.doctorId
+          ? { id: r.doctorId, fullName: doctorMap.get(r.doctorId) ?? null }
+          : null,
+      })),
       pagination: { page, perPage, total },
       correlation_id: ctx.correlationId,
     });
