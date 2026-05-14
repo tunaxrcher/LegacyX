@@ -7,9 +7,16 @@ const log = logger.child({ handler: "appointment-created" });
 
 /**
  * Reaction to `appointment.created`:
- *   1. Insert a NotificationLog row (LINE confirmation — Phase 4 will actually send).
- *   2. Insert/upgrade ResourceReservation (HELD) for the appointment window.
- *      For now we pick the first available ROOM in the branch as a placeholder.
+ *   - Insert a NotificationLog row (LINE/SMS confirmation — dispatcher in
+ *     Phase 8 actually sends).
+ *
+ * Room reservation is NOT auto-created here. Rooms are assigned explicitly:
+ *   - by reception at check-in (`POST /visits/check-in` with `room_resource_id`),
+ *   - or after-the-fact via `assignRoom` on `/visits/<id>`.
+ *
+ * Auto-picking a placeholder room used to mislead the UI into showing
+ * "Treatment Room 1 (legacy)" on every brand-new appointment, even when the
+ * receptionist had explicitly skipped room selection.
  */
 async function run(env: HandlerEnvelope): Promise<void> {
   const payload = AppointmentEvents.AppointmentCreatedV1Payload.parse(env.payload);
@@ -18,7 +25,6 @@ async function run(env: HandlerEnvelope): Promise<void> {
 
   log.info({ appt: payload.appointment_id, patient: payload.patient_id }, "processing");
 
-  // 1) Notification — enqueue as PENDING (real channel send will be Phase 4)
   await prisma.notificationLog.create({
     data: {
       tenantId: tenant_id,
@@ -33,30 +39,6 @@ async function run(env: HandlerEnvelope): Promise<void> {
       status: "PENDING",
     },
   });
-
-  // 2) Resource Reservation — pick a free ROOM
-  const room = await prisma.resource.findFirst({
-    where: { tenantId: tenant_id, branchId: branch_id, type: "ROOM", status: "AVAILABLE" },
-    orderBy: { code: "asc" },
-  });
-  if (room) {
-    const startsAt = new Date(payload.scheduled_at);
-    const endsAt = new Date(startsAt.getTime() + payload.duration_min * 60_000);
-    await prisma.resourceReservation.create({
-      data: {
-        tenantId: tenant_id,
-        branchId: branch_id,
-        resourceId: room.id,
-        appointmentId: payload.appointment_id,
-        startsAt,
-        endsAt,
-        status: "HELD",
-      },
-    });
-    log.info({ resource: room.code, appt: payload.appointment_id }, "reserved");
-  } else {
-    log.warn({ branch_id }, "no AVAILABLE ROOM resource to reserve");
-  }
 }
 
 export const appointmentCreatedHandler: Handler = {

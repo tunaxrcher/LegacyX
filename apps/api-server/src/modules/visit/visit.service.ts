@@ -52,7 +52,21 @@ export async function checkInAppointment(ctx: RequestContext, input: CheckInInpu
       data: { status: "CHECKED_IN" },
     });
 
-    // Optional: create a 30-min held room reservation
+    // Release any pre-existing HELD reservations on this appointment (e.g.
+    // from older worker logic that auto-HELD a placeholder room). Without
+    // this, a check-in without explicit room selection would still display
+    // a stale "currentRoom" badge in the UI.
+    await tx.resourceReservation.updateMany({
+      where: {
+        tenantId: ctx.tenantId,
+        appointmentId: appt.id,
+        status: "HELD",
+      },
+      data: { status: "RELEASED" },
+    });
+
+    // Create a CONFIRMED reservation only when the receptionist explicitly
+    // picked a room.
     if (input.room_resource_id) {
       const res = await tx.resource.findFirst({
         where: {
