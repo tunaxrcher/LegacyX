@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -33,15 +34,17 @@ export default async function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6 -mt-8">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center space-y-3">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-primary-gradient flex items-center justify-center shadow-soft-lg">
-              <span className="text-2xl text-white font-bold">L</span>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{tApp("name")}</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {tApp("tagline")}
-              </p>
-            </div>
+            <Image
+              src="/logo.png"
+              alt={tApp("name")}
+              width={1000}
+              height={234}
+              priority
+              className="mx-auto h-14 w-auto object-contain"
+            />
+            <p className="text-sm text-muted-foreground mt-1">
+              {tApp("tagline")}
+            </p>
           </div>
 
           <div className="rounded-2xl border bg-card p-6 shadow-soft space-y-5">
@@ -64,7 +67,7 @@ export default async function LoginPage() {
       </div>
 
       <p className="text-center text-xs text-muted-foreground pb-safe-bottom px-4 pb-4">
-        © {new Date().getFullYear()} LegacyX Clinic
+        © {new Date().getFullYear()} {tApp("name")}
       </p>
     </div>
   );

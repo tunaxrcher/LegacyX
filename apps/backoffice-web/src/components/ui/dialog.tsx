@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Stethoscope, X } from "lucide-react";
@@ -70,9 +70,14 @@ const DialogHeader = ({ className, children, hideLogo, ...props }: DialogHeaderP
     {...props}
   >
     {!hideLogo && (
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-gradient text-primary-foreground shadow-soft">
-        <Stethoscope className="h-5 w-5" />
-      </div>
+      <Image
+      src="/icon-512.svg"
+      alt="logo"
+      width={1000}
+      height={234}
+      priority
+      className="h-12 w-auto object-contain"
+    />
     )}
     <div className="flex w-full flex-col gap-1.5">{children}</div>
   </div>

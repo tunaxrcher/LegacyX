@@ -1,5 +1,6 @@
+import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { Stethoscope, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ShieldCheck, Sparkles, Users } from "lucide-react";
 import LoginForm from "./LoginForm";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +36,17 @@ export default async function LoginPage() {
       {/* Brand panel */}
       <section className="relative hidden flex-col justify-between bg-sidebar p-12 text-sidebar-foreground lg:flex">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.15),transparent_50%)]" />
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Stethoscope className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-base font-semibold">{tApp("name")}</div>
-            <div className="text-xs text-sidebar-foreground/60">{tApp("tagline")}</div>
+        <div className="relative">
+          <Image
+            src="/logo.png"
+            alt={tApp("name")}
+            width={1000}
+            height={234}
+            priority
+            className="h-12 w-auto object-contain"
+          />
+          <div className="mt-2 text-xs text-sidebar-foreground/60">
+            {tApp("tagline")}
           </div>
         </div>
 
@@ -73,12 +78,14 @@ export default async function LoginPage() {
       <section className="flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-6">
           <div className="space-y-2 lg:hidden">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <Stethoscope className="h-4 w-4" />
-              </div>
-              <span className="text-base font-semibold">{tApp("name")}</span>
-            </div>
+            <Image
+              src="/logo.png"
+              alt={tApp("name")}
+              width={1000}
+              height={234}
+              priority
+              className="h-9 w-auto object-contain"
+            />
           </div>
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">{tLogin("title")}</h1>

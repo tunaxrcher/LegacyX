@@ -256,8 +256,7 @@ export default function LoginForm({ tenants, defaultTenantSlug }: Props) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
+            <DialogTitle className="text-center">
               {t("otp_title")}
             </DialogTitle>
             <DialogDescription>

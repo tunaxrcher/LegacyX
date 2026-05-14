@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import {
@@ -56,6 +57,7 @@ const CATEGORY_THEME: Record<
 export default async function WelcomePage() {
   const session = getPatientSession();
   const t = await getTranslations("welcome");
+  const tApp = await getTranslations("app");
   const locale = await getLocale();
 
   let categories: Category[] = [];
@@ -84,7 +86,14 @@ export default async function WelcomePage() {
 
       {/* Hero */}
       <section className="text-center mb-8">
-        <h1 className="text-4xl font-black tracking-tight">LEGACYX</h1>
+        <Image
+          src="/logo.png"
+          alt={tApp("name")}
+          width={1000}
+          height={234}
+          priority
+          className="mx-auto h-14 w-auto object-contain"
+        />
         <p className="text-[11px] text-muted-foreground mt-2 max-w-xs mx-auto leading-relaxed font-medium tracking-wider">
           {t("hero_subtitle")}
         </p>

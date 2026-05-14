@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,7 +12,6 @@ import {
   Sparkles,
   AlertOctagon,
   Settings,
-  Stethoscope,
   Activity,
   Package,
   ShieldCheck,
@@ -241,18 +241,29 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
       )}
     >
       {/* Brand */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-gradient text-primary-foreground shadow-soft">
-          <Stethoscope className="h-5 w-5" />
-        </div>
-        {!collapsed && (
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-bold tracking-tight">{tApp("name")}</span>
-            <span className="truncate text-[11px] text-muted-foreground">
-              {tApp("tagline")}
-            </span>
-          </div>
+      <div
+        className={cn(
+          "flex h-16 items-center border-b border-sidebar-border",
+          collapsed ? "justify-center px-2" : "px-4",
         )}
+      >
+        <Link
+          href="/"
+          aria-label={tApp("name")}
+          className="flex min-w-0 items-center"
+        >
+          <Image
+            src="/logo.png"
+            alt={tApp("name")}
+            width={1000}
+            height={234}
+            priority
+            className={cn(
+              "h-auto w-auto object-contain",
+              collapsed ? "max-h-9 max-w-[52px]" : "max-h-10 max-w-[200px]",
+            )}
+          />
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5 scrollbar-thin">
@@ -319,7 +330,7 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
           onClick={() => setCollapsed((c) => !c)}
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-          {!collapsed && <span className="ml-1 text-xs">Collapse</span>}
+          {!collapsed && <span className="ml-1 text-xs"></span>}
         </Button>
       </div>
     </aside>

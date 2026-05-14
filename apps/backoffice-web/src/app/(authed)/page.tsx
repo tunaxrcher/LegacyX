@@ -124,16 +124,6 @@ export default async function Dashboard() {
                 <CircleAlert className="h-3.5 w-3.5" /> API unreachable
               </Badge>
             )}
-            <Button asChild variant="outline" size="sm">
-              <Link href="/ai-drafts">
-                <Sparkles className="h-4 w-4" /> {t("dashboard.quick_review_drafts")}
-              </Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/appointments">
-                <Plus className="h-4 w-4" /> {t("dashboard.quick_book")}
-              </Link>
-            </Button>
           </>
         }
       />
