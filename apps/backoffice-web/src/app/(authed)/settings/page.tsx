@@ -16,8 +16,8 @@ export default async function SettingsPage() {
       <PageHeader title={t("nav.settings")} />
       <EmptyState
         icon={<Settings className="h-5 w-5" />}
-        title="Settings coming soon"
-        description="Phase 6 will add real authentication, role/permission management, branch and resource configuration."
+        title="ตั้งค่าระบบกำลังพัฒนา"
+        description="Development in progress"
       />
     </div>
   );
