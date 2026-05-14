@@ -9,9 +9,6 @@ import { ChevronRight, Home } from "lucide-react";
 const labelMap: Record<string, string> = {
   appointments: "nav.appointments",
   patients: "nav.patients",
-  "ai-drafts": "nav.ai_drafts",
-  emr: "nav.clinical",
-  sign: "nav.emr_sign",
   dlq: "nav.dlq",
   settings: "nav.settings",
 };

@@ -20,6 +20,8 @@
  *   `https://{bucket}.{region-host}/{key}`
  * which is what DO publishes for objects with `ACL: public-read`.
  */
+import { promises as fs } from "fs";
+import * as path from "path";
 import {
   PutObjectCommand,
   S3Client,
@@ -27,6 +29,34 @@ import {
 } from "@aws-sdk/client-s3";
 
 let _client: S3Client | null = null;
+
+/** True when the four S3_* env vars are all present. Cheap, no SDK call. */
+export function isS3Configured(): boolean {
+  return Boolean(
+    process.env.S3_ENDPOINT &&
+      process.env.S3_BUCKET &&
+      process.env.S3_ACCESS_KEY &&
+      process.env.S3_SECRET_KEY,
+  );
+}
+
+/**
+ * In dev / quick-start setups where the operator hasn't pointed at MinIO or
+ * DigitalOcean Spaces yet we transparently switch to a local-disk fallback
+ * so the upload UX still works. In production (`NODE_ENV=production`) this
+ * mode is rejected — devs MUST configure real object storage.
+ */
+function localStorageDir(): string {
+  return (
+    process.env.LOCAL_STORAGE_DIR ?? path.join(process.cwd(), ".local-uploads")
+  );
+}
+
+export function isLocalStorageMode(): boolean {
+  if (isS3Configured()) return false;
+  if (process.env.NODE_ENV === "production") return false;
+  return true;
+}
 
 type S3Cfg = {
   endpoint: string;
@@ -92,11 +122,41 @@ export function getBucket(): string {
 }
 
 export function buildPublicUrl(key: string): string {
+  if (isLocalStorageMode()) {
+    return `/api/v1/uploads/${key.replace(/^\/+/, "")}`;
+  }
   const cfg = readEnv();
   if (cfg.forcePathStyle) {
     return `${cfg.endpoint}/${cfg.bucket}/${key.replace(/^\/+/, "")}`;
   }
   return `https://${cfg.bucket}.${cfg.regionHost}/${key.replace(/^\/+/, "")}`;
+}
+
+/**
+ * Read a previously uploaded object back from disk. Only used when running
+ * in `isLocalStorageMode()`. Returns Buffer + content-type guess.
+ */
+export async function readLocalObject(
+  key: string,
+): Promise<{ body: Buffer; contentType: string } | null> {
+  if (!isLocalStorageMode()) return null;
+  const safe = key.replace(/\.\.+/g, "").replace(/^\/+/, "");
+  const fullPath = path.join(localStorageDir(), safe);
+  try {
+    const body = await fs.readFile(fullPath);
+    const ext = path.extname(safe).toLowerCase();
+    const contentType =
+      ext === ".png"
+        ? "image/png"
+        : ext === ".webp"
+          ? "image/webp"
+          : ext === ".jpg" || ext === ".jpeg"
+            ? "image/jpeg"
+            : "application/octet-stream";
+    return { body, contentType };
+  } catch {
+    return null;
+  }
 }
 
 export type PutObjectOptions = Omit<
@@ -129,6 +189,24 @@ export async function putObject(
   body: Buffer | Uint8Array,
   options: PutObjectOptions = {},
 ): Promise<string> {
+  // Local-disk fallback for dev. Writes to `${LOCAL_STORAGE_DIR}/${key}`
+  // (default `.local-uploads/`) and returns the relative URL to be served
+  // by `/api/v1/uploads/[...]`.
+  if (isLocalStorageMode()) {
+    try {
+      const safeKey = key.replace(/^\/+/, "").replace(/\.\.+/g, "");
+      const fullPath = path.join(localStorageDir(), safeKey);
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, Buffer.from(body));
+      return buildPublicUrl(safeKey);
+    } catch (err) {
+      const e = err as { message?: string };
+      throw new S3UploadError(
+        `Local upload failed: ${e.message ?? "unknown"}`,
+        { name: "LocalFsError" },
+      );
+    }
+  }
   try {
     const client = getClient();
     const bucket = getBucket();

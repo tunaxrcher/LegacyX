@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -10,6 +11,9 @@ import {
   Loader2,
   Check,
   CircleDot,
+  Stethoscope,
+  ArrowRightLeft,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +45,8 @@ export type ResourceRow = {
     status: string;
     appointmentId: string | null;
     occupant: { name: string; hn: string } | null;
+    doctor: { id: string; name: string | null } | null;
+    visit: { id: string; status: string } | null;
   } | null;
 };
 
@@ -79,6 +85,8 @@ export function ResourceCard({ resource }: { resource: ResourceRow }) {
   }
 
   const occupant = resource.activeReservation?.occupant;
+  const doctor = resource.activeReservation?.doctor;
+  const visit = resource.activeReservation?.visit;
   const subtype = resource.attributes?.subtype ?? resource.type;
 
   return (
@@ -96,11 +104,17 @@ export function ResourceCard({ resource }: { resource: ResourceRow }) {
 
       <div className="mt-3 text-sm">
         {occupant ? (
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             <div className="font-medium text-foreground">{occupant.name}</div>
             <div className="text-[10px] font-mono text-muted-foreground">
               {occupant.hn} · {t("in_use")}
             </div>
+            {doctor?.name && (
+              <div className="flex items-center gap-1 pt-1 text-xs text-muted-foreground">
+                <Stethoscope className="h-3 w-3" />
+                {doctor.name}
+              </div>
+            )}
           </div>
         ) : resource.status === "MAINTENANCE" ? (
           <div className="flex items-center gap-1.5 text-xs italic text-warning">
@@ -117,9 +131,38 @@ export function ResourceCard({ resource }: { resource: ResourceRow }) {
         )}
       </div>
 
-      <div className="mt-3 border-t pt-3">
+      <div className="mt-3 space-y-2 border-t pt-3">
         {resource.status === "OCCUPIED" && resource.activeReservation ? (
-          <ReleaseDialog onConfirm={release} busy={releasing} />
+          <>
+            {visit && (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="w-full justify-center"
+              >
+                <Link href={`/visits/${visit.id}`}>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {t("open_visit")}
+                </Link>
+              </Button>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {visit && (
+                <Button asChild variant="outline" size="sm" className="justify-center">
+                  <Link href={`/visits/${visit.id}?action=transfer`}>
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    {t("transfer")}
+                  </Link>
+                </Button>
+              )}
+              <ReleaseDialog
+                onConfirm={release}
+                busy={releasing}
+                fullWidth={!visit}
+              />
+            </div>
+          </>
         ) : resource.status === "AVAILABLE" ? (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <CircleDot className="h-3 w-3" />
@@ -136,9 +179,11 @@ export function ResourceCard({ resource }: { resource: ResourceRow }) {
 function ReleaseDialog({
   onConfirm,
   busy,
+  fullWidth,
 }: {
   onConfirm: (reason?: string) => Promise<void>;
   busy: boolean;
+  fullWidth?: boolean;
 }) {
   const t = useTranslations("resources");
   const tCommon = useTranslations("common");
@@ -158,7 +203,7 @@ function ReleaseDialog({
         <Button
           variant="outline"
           size="sm"
-          className="w-full justify-center"
+          className={fullWidth ? "w-full justify-center" : "justify-center"}
           disabled={busy}
         >
           <DoorOpen className="h-3.5 w-3.5" />

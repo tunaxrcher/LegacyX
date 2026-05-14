@@ -20,6 +20,11 @@ export const CloseShiftDto = z.object({
   notes: z.string().max(500).optional(),
 });
 
+export const UpdateShiftDto = z.object({
+  cash_opening: decString.optional(),
+  notes: z.string().max(500).optional(),
+});
+
 /** Cash methods that flow through the till. CARD/QR/TRANSFER settle directly
  *  to the bank so they do NOT count against the cash drawer expected amount. */
 const CASH_METHODS: Array<"CASH" | "OTHER"> = ["CASH", "OTHER"];
@@ -121,6 +126,69 @@ export async function openShift(
   });
 
   return created;
+}
+
+/**
+ * Patch an OPEN shift — used by MANAGER (or the cashier who opened) to
+ * correct a typo in `cash_opening` or extend `notes`. Closed shifts are
+ * immutable for audit reasons.
+ */
+export async function updateShift(
+  ctx: RequestContext,
+  shiftId: string,
+  input: z.infer<typeof UpdateShiftDto>,
+) {
+  if (!ctx.branchId) throw BadRequest("Branch context required");
+  await authorize(ctx, {
+    resource: "shift",
+    action: "open",
+    target: { branchId: ctx.branchId },
+  });
+  if (!ctx.actor.id) throw BadRequest("Authenticated user required");
+  const actorId: string = ctx.actor.id;
+
+  const shift = await prisma.shift.findFirst({
+    where: { id: shiftId, tenantId: ctx.tenantId, branchId: ctx.branchId },
+  });
+  if (!shift) throw NotFound(`Shift ${shiftId} not found`);
+  if (shift.closedAt) {
+    throw Conflict("Cannot edit a closed shift — closed shifts are immutable");
+  }
+  if (input.cash_opening !== undefined && input.cash_opening.lt(0)) {
+    throw BadRequest("cash_opening must be >= 0");
+  }
+  if (input.cash_opening === undefined && input.notes === undefined) {
+    return shift;
+  }
+
+  const updated = await prisma.shift.update({
+    where: { id: shift.id },
+    data: {
+      cashOpening: input.cash_opening ?? undefined,
+      notes: input.notes ?? undefined,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: ctx.tenantId,
+      branchId: ctx.branchId,
+      actorUserId: actorId,
+      action: "shift.update",
+      resourceType: "Shift",
+      resourceId: shift.id,
+      correlationId: ctx.correlationId,
+      before: {
+        cash_opening: shift.cashOpening.toString(),
+        notes: shift.notes,
+      } as object,
+      after: {
+        cash_opening: updated.cashOpening.toString(),
+        notes: updated.notes,
+      } as object,
+    },
+  });
+  return updated;
 }
 
 async function computeExpectedCash(

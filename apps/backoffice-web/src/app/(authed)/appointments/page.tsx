@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { NewAppointmentDialog } from "./NewAppointmentDialog";
 import { CheckInDialog } from "./CheckInDialog";
+import { AppointmentRowActions } from "./AppointmentRowActions";
 
 type Patient = { id: string; hn: string; firstName: string; lastName: string } | null;
 type Appt = {
@@ -189,6 +190,14 @@ export default async function AppointmentsPage() {
                                   patientLabel={patientLabel(a.patient, a.patientId)}
                                 />
                               )}
+                              <AppointmentRowActions
+                                appointmentId={a.id}
+                                status={a.status}
+                                scheduledAt={a.scheduledAt}
+                                durationMin={a.durationMin}
+                                doctorId={a.doctorId}
+                                reason={a.reason}
+                              />
                               <StatusBadge status={a.status} t={t} />
                             </div>
                           </div>
@@ -222,6 +231,9 @@ export default async function AppointmentsPage() {
                       <TableHead>Channel</TableHead>
                       <TableHead>{t("common.status")}</TableHead>
                       <TableHead>{t("appointments.notes")}</TableHead>
+                      <TableHead className="w-[120px] text-right">
+                        {t("common.actions")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -245,6 +257,16 @@ export default async function AppointmentsPage() {
                         </TableCell>
                         <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
                           {a.reason ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AppointmentRowActions
+                            appointmentId={a.id}
+                            status={a.status}
+                            scheduledAt={a.scheduledAt}
+                            durationMin={a.durationMin}
+                            doctorId={a.doctorId}
+                            reason={a.reason}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

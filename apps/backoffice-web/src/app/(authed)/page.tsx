@@ -3,14 +3,13 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import {
   CalendarDays,
-  Sparkles,
   AlertOctagon,
   Activity,
   ArrowUpRight,
   CheckCircle2,
   CircleAlert,
   Plus,
-  FileSignature,
+  Users,
 } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
@@ -25,8 +24,6 @@ type ApptItem = { id: string; status: string; scheduledAt: string };
 type ApptList = { data: ApptItem[]; pagination: { total: number } };
 type DlqItem = { id: string; eventName: string; firstFailedAt: string };
 type DlqList = { data: DlqItem[] };
-type DraftItem = { id: string; kind: string; status: string; createdAt: string };
-type DraftList = { data: DraftItem[] };
 
 function startOfDayISO() {
   const d = new Date();
@@ -56,7 +53,7 @@ export default async function Dashboard() {
 
   const t = await getTranslations();
 
-  const [health, apptsAll, apptsToday, dlq, drafts] = await Promise.all([
+  const [health, apptsAll, apptsToday, dlq] = await Promise.all([
     apiJson<Health>(session, "/api/health").catch(() => null),
     apiJson<ApptList>(session, "/api/v1/appointments?perPage=1").catch(() => null),
     apiJson<ApptList>(
@@ -66,13 +63,11 @@ export default async function Dashboard() {
       )}&to=${encodeURIComponent(endOfDayISO())}&perPage=20`
     ).catch(() => null),
     apiJson<DlqList>(session, "/api/admin/dlq").catch(() => null),
-    apiJson<DraftList>(session, "/api/v1/ai/drafts").catch(() => null),
   ]);
 
   const apptTodayCount = apptsToday?.data?.length ?? 0;
   const apptTotal = apptsAll?.pagination?.total ?? 0;
   const dlqCount = dlq?.data?.length ?? 0;
-  const draftPending = drafts?.data?.filter((d) => d.status === "PENDING").length ?? 0;
   const apiOk = health?.status === "ok";
 
   const kpis = [
@@ -91,11 +86,11 @@ export default async function Dashboard() {
       href: "/appointments",
     },
     {
-      key: "kpi_ai_drafts_pending",
-      value: draftPending,
-      icon: Sparkles,
-      tone: draftPending > 0 ? ("warning" as const) : ("muted" as const),
-      href: "/ai-drafts",
+      key: "kpi_visits_today",
+      value: apptTodayCount,
+      icon: Users,
+      tone: "muted" as const,
+      href: "/visits",
     },
     {
       key: "kpi_dlq",
@@ -145,7 +140,6 @@ export default async function Dashboard() {
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-xl",
                       k.tone === "info" && "bg-primary/10 text-primary",
-                      k.tone === "warning" && "bg-warning/15 text-warning",
                       k.tone === "destructive" && "bg-destructive/10 text-destructive",
                       k.tone === "muted" && "bg-muted text-muted-foreground"
                     )}
@@ -241,13 +235,13 @@ export default async function Dashboard() {
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-12 w-full justify-start">
-              <Link href="/emr/sign">
-                <FileSignature className="h-4 w-4" /> {t("dashboard.quick_sign_emr")}
+              <Link href="/visits">
+                <Activity className="h-4 w-4" /> {t("dashboard.quick_open_visit")}
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-12 w-full justify-start">
-              <Link href="/ai-drafts">
-                <Sparkles className="h-4 w-4" /> {t("dashboard.quick_review_drafts")}
+              <Link href="/patients">
+                <Users className="h-4 w-4" /> {t("dashboard.quick_register_patient")}
               </Link>
             </Button>
           </CardContent>

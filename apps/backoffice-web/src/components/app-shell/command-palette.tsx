@@ -7,8 +7,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  Sparkles,
-  FileSignature,
+  Activity,
   AlertOctagon,
   Settings,
   Search,
@@ -90,11 +89,8 @@ export function CommandPalette() {
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading={t("nav.clinical")}>
-            <CommandItem onSelect={() => go("/ai-drafts")}>
-              <Sparkles /> {t("nav.ai_drafts")}
-            </CommandItem>
-            <CommandItem onSelect={() => go("/emr/sign")}>
-              <FileSignature /> {t("nav.emr_sign")}
+            <CommandItem onSelect={() => go("/visits")}>
+              <Activity /> {t("nav.visits")}
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />

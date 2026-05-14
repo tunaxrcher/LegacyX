@@ -4,7 +4,15 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Plus, FileText, Beaker, ArrowRight, Loader2 } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Beaker,
+  ArrowRight,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -55,6 +63,19 @@ const STATUS_VARIANT: Record<LabOrder["status"], "info" | "warning" | "success" 
   CANCELLED: "muted",
 };
 
+// Panels used at this clinic — shown as quick picks. Code (UPPERCASE) goes
+// into the panel field; the human-readable label is just for the picker.
+const COMMON_PANELS: Array<{ code: string; label: string; labelTh: string }> = [
+  { code: "CBC", label: "Complete Blood Count", labelTh: "ตรวจความสมบูรณ์ของเม็ดเลือด" },
+  { code: "LIPID", label: "Lipid Profile", labelTh: "ตรวจไขมันในเลือด" },
+  { code: "FBS", label: "Fasting Blood Sugar", labelTh: "ตรวจน้ำตาลในเลือดอดอาหาร" },
+  { code: "HBA1C", label: "Hemoglobin A1c", labelTh: "ตรวจน้ำตาลสะสม 3 เดือน" },
+  { code: "TSH", label: "Thyroid Stimulating Hormone", labelTh: "ตรวจไทรอยด์" },
+  { code: "LFT", label: "Liver Function Test", labelTh: "ตรวจการทำงานของตับ" },
+  { code: "RFT", label: "Renal Function Test", labelTh: "ตรวจการทำงานของไต" },
+  { code: "URINE", label: "Urinalysis", labelTh: "ตรวจปัสสาวะ" },
+];
+
 export function LabsSection({
   visitId,
   patientId,
@@ -93,47 +114,128 @@ export function LabsSection({
           description={t("labs.empty_desc") ?? "Order a panel to track collection and results"}
         />
       ) : (
+        <div className="space-y-2">
+          {orders.map((o) => (
+            <LabOrderRow
+              key={o.id}
+              order={o}
+              canCollect={canCollect}
+              canResult={canResult}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LabOrderRow({
+  order,
+  canCollect,
+  canResult,
+}: {
+  order: LabOrder;
+  canCollect: boolean;
+  canResult: boolean;
+}) {
+  const t = useTranslations();
+  const [expanded, setExpanded] = React.useState(order.status === "RESULTED");
+  const panelMeta = COMMON_PANELS.find((p) => p.code === order.panel);
+
+  return (
+    <div className="rounded-md border bg-background">
+      <div className="flex flex-wrap items-center gap-3 p-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm font-semibold">{order.panel}</span>
+            {panelMeta && (
+              <span className="text-xs text-muted-foreground">
+                · {panelMeta.labelTh}
+              </span>
+            )}
+            <Badge variant={STATUS_VARIANT[order.status] ?? "muted"}>
+              {order.status}
+            </Badge>
+          </div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {t("labs.ordered_at") ?? "Ordered"} {formatDateTime(order.createdAt)}
+            {order.notes ? ` · ${order.notes}` : ""}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <LabRowActions
+            order={order}
+            canCollect={canCollect}
+            canResult={canResult}
+          />
+          {order.results.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded((s) => !s)}
+            >
+              {expanded ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+              {order.results.length} {t("labs.reading") ?? "reading"}
+              {order.results.length > 1 ? "s" : ""}
+            </Button>
+          )}
+        </div>
+      </div>
+      {expanded && order.results.length > 0 && (
+        <div className="border-t bg-muted/30 p-3">
+          {order.results.map((r) => (
+            <ResultDisplay key={r.id} result={r} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultDisplay({ result }: { result: LabResult }) {
+  const t = useTranslations();
+  const entries = Object.entries(result.payload ?? {});
+  return (
+    <div className="space-y-2">
+      <div className="text-[11px] font-medium text-muted-foreground">
+        {t("labs.resulted_at") ?? "Resulted at"} {formatDateTime(result.resultedAt)}
+      </div>
+      {entries.length === 0 ? (
+        <div className="text-xs italic text-muted-foreground">
+          {t("labs.no_payload") ?? "No structured payload"}
+        </div>
+      ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("labs.panel") ?? "Panel"}</TableHead>
-              <TableHead>{t("common.status") ?? "Status"}</TableHead>
-              <TableHead>{t("labs.ordered_at") ?? "Ordered"}</TableHead>
-              <TableHead>{t("labs.results") ?? "Results"}</TableHead>
-              <TableHead className="text-right">{t("common.actions") ?? "Actions"}</TableHead>
+              <TableHead>{t("labs.test") ?? "Test"}</TableHead>
+              <TableHead>{t("labs.value") ?? "Value"}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.map((o) => (
-              <TableRow key={o.id}>
-                <TableCell className="font-medium">{o.panel}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_VARIANT[o.status] ?? "muted"}>{o.status}</Badge>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime(o.createdAt)}
-                </TableCell>
-                <TableCell>
-                  {o.results.length > 0 ? (
-                    <div className="flex items-center gap-1 text-xs">
-                      <FileText className="h-3 w-3" />
-                      {o.results.length} reading{o.results.length > 1 ? "s" : ""}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right space-x-1">
-                  <LabRowActions
-                    order={o}
-                    canCollect={canCollect}
-                    canResult={canResult}
-                  />
-                </TableCell>
+            {entries.map(([k, v]) => (
+              <TableRow key={k}>
+                <TableCell className="font-mono text-xs">{k}</TableCell>
+                <TableCell className="font-mono text-xs">{String(v)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+      )}
+      {result.fileUrl && (
+        <a
+          href={result.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <FileText className="h-3 w-3" />
+          {t("labs.open_pdf") ?? "Open PDF"}
+        </a>
       )}
     </div>
   );
@@ -195,6 +297,23 @@ function NewLabOrderDialog({
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="panel">{t("labs.panel") ?? "Panel"}</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {COMMON_PANELS.map((p) => (
+                <button
+                  key={p.code}
+                  type="button"
+                  onClick={() => setPanel(p.code)}
+                  title={p.labelTh}
+                  className={`inline-flex h-7 items-center rounded-full border px-3 text-xs font-medium transition-colors ${
+                    panel === p.code
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-input bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {p.code}
+                </button>
+              ))}
+            </div>
             <Input
               id="panel"
               value={panel}
@@ -205,7 +324,7 @@ function NewLabOrderDialog({
               required
             />
             <p className="text-[11px] text-muted-foreground">
-              {t("labs.panel_hint") ?? "Common: CBC, LIPID, FBS, HBA1C, TSH, LFT, RFT"}
+              {t("labs.panel_hint") ?? "Pick a chip above or type a custom panel code."}
             </p>
           </div>
           <div className="space-y-2">

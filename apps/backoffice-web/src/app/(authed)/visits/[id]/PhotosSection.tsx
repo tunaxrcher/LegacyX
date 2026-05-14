@@ -251,7 +251,43 @@ function UploadPhotoDialog({
   const [region, setRegion] = React.useState("");
   const [note, setNote] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+
+  // Build/cleanup an object URL when the user picks a file so we can show a
+  // live preview before they commit to upload.
+  React.useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  function reset() {
+    setFile(null);
+    setRegion("");
+    setNote("");
+    setPreviewUrl(null);
+  }
+
+  function pickFile(picked: File | null) {
+    if (!picked) {
+      setFile(null);
+      return;
+    }
+    if (picked.size > 8 * 1024 * 1024) {
+      toast.error(t("photos.file_too_large") ?? "File too large (max 8 MB)");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(picked.type)) {
+      toast.error(t("photos.unsupported_type") ?? "Unsupported file type");
+      return;
+    }
+    setFile(picked);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -272,14 +308,26 @@ function UploadPhotoDialog({
         body: fd,
       });
       if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt);
+        // Try to surface the structured error our API returns. Falls back to
+        // status text so the user always gets *something* useful.
+        let message = `${res.status} ${res.statusText}`;
+        try {
+          const body = (await res.json()) as {
+            error?: { code?: string; message?: string };
+          };
+          if (body?.error?.message) {
+            message = body.error.code
+              ? `[${body.error.code}] ${body.error.message}`
+              : body.error.message;
+          }
+        } catch {
+          /* not JSON */
+        }
+        throw new Error(message);
       }
       toast.success(t("photos.uploaded") ?? "Photo uploaded");
       setOpen(false);
-      setFile(null);
-      setRegion("");
-      setNote("");
+      reset();
       router.refresh();
     } catch (err) {
       toast.error(t("photos.upload_failed") ?? "Upload failed", {
@@ -291,7 +339,13 @@ function UploadPhotoDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) reset();
+      }}
+    >
       <DialogTrigger asChild>
         <Button>
           <Camera className="h-4 w-4" />
@@ -303,7 +357,7 @@ function UploadPhotoDialog({
           <DialogTitle>{t("photos.upload") ?? "Upload Photo"}</DialogTitle>
           <DialogDescription>
             {t("photos.upload_desc") ??
-              "JPEG / PNG / WebP up to 8 MB · stored privately in S3"}
+              "JPEG / PNG / WebP up to 8 MB · stored privately"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
@@ -330,21 +384,38 @@ function UploadPhotoDialog({
                 id="region"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                placeholder="left cheek / forehead"
+                placeholder={t("photos.region_placeholder") ?? "left cheek / forehead"}
                 maxLength={80}
               />
             </div>
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="file">{t("photos.file") ?? "Image file"}</Label>
             <Input
               id="file"
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
               required
             />
+            {previewUrl && (
+              <div className="relative overflow-hidden rounded-lg border bg-muted/40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="preview"
+                  className="max-h-72 w-full object-contain"
+                />
+                {file && (
+                  <div className="border-t bg-background/80 px-2 py-1 text-xs text-muted-foreground">
+                    {file.name} · {(file.size / 1024).toFixed(1)} KB
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="note">{t("photos.note") ?? "Staff note"}</Label>
             <Textarea

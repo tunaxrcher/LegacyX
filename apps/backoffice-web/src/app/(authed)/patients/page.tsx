@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PatientSearch } from "./PatientSearch";
+import { NewPatientDialog } from "./NewPatientDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,19 @@ export default async function PatientsPage({
     `/api/v1/patients?q=${encodeURIComponent(q)}&limit=50`
   ).catch(() => ({ data: [] as Patient[] }));
 
+  const canWrite =
+    Array.isArray(session.roles) &&
+    session.roles.some((r) =>
+      ["MANAGER", "DOCTOR", "RECEPTION"].includes(r),
+    );
+
   return (
     <div className="space-y-6">
-      <PageHeader title={t("patients.title")} description={t("patients.subtitle")} />
+      <PageHeader
+        title={t("patients.title")}
+        description={t("patients.subtitle")}
+        actions={canWrite ? <NewPatientDialog /> : null}
+      />
 
       <PatientSearch defaultValue={q} />
 

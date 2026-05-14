@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import {
   TrendingUp,
   Users,
-  Sparkles,
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
@@ -133,31 +132,6 @@ export default async function ManagerDashboardPage() {
           tone={kpis.lowStockCount > 0 ? "warning" : "muted"}
         />
       </div>
-
-      {/* AI drafts pending strip */}
-      {kpis.aiPending > 0 && (
-        <Card>
-          <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-info" />
-              <div>
-                <div className="text-sm font-medium">
-                  {t("manager.ai_pending_title", { n: kpis.aiPending })}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {t("manager.ai_pending_desc")}
-                </div>
-              </div>
-            </div>
-            <a
-              href="/ai-drafts"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              {t("manager.review")} <ArrowUpRight className="h-3 w-3" />
-            </a>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Daily revenue bar chart */}

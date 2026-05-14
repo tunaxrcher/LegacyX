@@ -92,12 +92,26 @@ export async function searchCatalog(
   ctx: RequestContext,
   args: { type?: string; q?: string; limit?: number },
 ): Promise<CatalogItem[]> {
-  // Reading the catalog requires being able to write orders (clinical staff).
-  await authorize(ctx, {
-    resource: "order",
-    action: "write",
-    target: { branchId: ctx.branchId },
-  });
+  // Two legitimate consumers:
+  //   1. DOCTOR uses the picker inside `/visits/<id> → New Order` → needs
+  //      `order:write` (creating orders).
+  //   2. MANAGER uses it inside `/manager/catalog → BOM editor` to browse the
+  //      list of procedures whose BOMs they can edit → has `catalog:manage`
+  //      but NOT `order:write`. Without this allowance MANAGER would see
+  //      "No procedures in catalog".
+  // Accept either permission — both are tenant/branch scoped staff actions.
+  try {
+    await authorize(ctx, {
+      resource: "order",
+      action: "write",
+      target: { branchId: ctx.branchId },
+    });
+  } catch {
+    await authorize(ctx, {
+      resource: "catalog",
+      action: "manage",
+    });
+  }
 
   const limit = Math.min(args.limit ?? 20, 50);
   const q = (args.q ?? "").trim();

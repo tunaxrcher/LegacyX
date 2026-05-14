@@ -28,6 +28,7 @@ import { OverviewPanel } from "./OverviewPanel";
 import { MedicalCertButton } from "./MedicalCertButton";
 import { LabsSection, type LabOrder } from "./LabsSection";
 import { PhotosSection, type PatientPhoto } from "./PhotosSection";
+import { AssignRoomDialog } from "./AssignRoomDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +191,17 @@ export default async function VisitDetailPage({ params }: { params: { id: string
   const allProcedures = orders.flatMap((o) => o.procedures);
   const existingEmr = emrRes.data;
 
+  // Resolve procedureCode → human-readable name via Service catalog (ABAC:
+  // appointment:read covers everyone who would ever land on this page). The
+  // map is also reused for the orders tab to label "PROCEDURE" rows.
+  const servicesRes = await apiJson<{
+    data: Array<{ code: string; name: string; nameTh: string; procedureCode: string | null }>;
+  }>(session, `/api/v1/services?active=false`).catch(() => ({ data: [] }));
+  const procNameMap = new Map<string, string>();
+  for (const s of servicesRes.data) {
+    if (s.procedureCode) procNameMap.set(s.procedureCode, s.nameTh || s.name);
+  }
+
   // Patient wallets for course-based completion
   let patientWallets: Array<{
     id: string;
@@ -298,28 +310,39 @@ export default async function VisitDetailPage({ params }: { params: { id: string
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("orders.item_type")}</TableHead>
-                      <TableHead>{t("orders.ref")}</TableHead>
                       <TableHead>{t("orders.description")}</TableHead>
                       <TableHead className="text-right">{t("orders.qty")}</TableHead>
                       <TableHead className="text-right">{t("orders.total")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {o.items.map((it) => (
-                      <TableRow key={it.id}>
-                        <TableCell>
-                          <Badge variant="outline">{it.itemType}</Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{it.refId}</TableCell>
-                        <TableCell>{it.description}</TableCell>
-                        <TableCell className="text-right">
-                          {Number(it.qty).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {Number(it.total).toLocaleString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {o.items.map((it) => {
+                      const resolvedName =
+                        it.itemType === "PROCEDURE"
+                          ? (procNameMap.get(it.refId) ?? it.description)
+                          : it.description;
+                      return (
+                        <TableRow key={it.id}>
+                          <TableCell>
+                            <Badge variant="outline">{it.itemType}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <div className="text-sm">{resolvedName}</div>
+                              <div className="font-mono text-[11px] text-muted-foreground">
+                                {it.refId}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {Number(it.qty).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {Number(it.total).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -349,7 +372,16 @@ export default async function VisitDetailPage({ params }: { params: { id: string
           <TableBody>
             {allProcedures.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="font-mono text-xs">{p.procedureCode}</TableCell>
+                <TableCell>
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">
+                      {procNameMap.get(p.procedureCode) ?? p.notes ?? p.procedureCode}
+                    </div>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      {p.procedureCode}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <Badge variant={PROC_STATUS_VARIANT[p.status] ?? "secondary"}>
                     {t.has(`procedures.status.${p.status}`)
@@ -391,7 +423,15 @@ export default async function VisitDetailPage({ params }: { params: { id: string
   // Phase M & S — fetch labs + photos in parallel (already after main data
   // load to keep the critical path narrow). Failures here gracefully fall
   // back to empty arrays rather than 500-ing the visit page.
-  const [labRes, photoRes] = visit.patient
+  type RoomResource = {
+    id: string;
+    code: string;
+    name: string;
+    activeReservation: {
+      appointmentId: string | null;
+    } | null;
+  };
+  const [labRes, photoRes, roomRes] = visit.patient
     ? await Promise.all([
         apiJson<{ data: LabOrder[] }>(
           session,
@@ -401,8 +441,21 @@ export default async function VisitDetailPage({ params }: { params: { id: string
           session,
           `/api/v1/patients/${visit.patient.id}/photos?visit_id=${visit.id}`,
         ).catch(() => ({ data: [] as PatientPhoto[] })),
+        apiJson<{ data: RoomResource[] }>(session, `/api/v1/resources?type=ROOM`).catch(
+          () => ({ data: [] as RoomResource[] }),
+        ),
       ])
-    : [{ data: [] as LabOrder[] }, { data: [] as PatientPhoto[] }];
+    : [
+        { data: [] as LabOrder[] },
+        { data: [] as PatientPhoto[] },
+        { data: [] as RoomResource[] },
+      ];
+
+  const currentRoom = visit.appointment
+    ? roomRes.data.find(
+        (r) => r.activeReservation?.appointmentId === visit.appointment!.id,
+      )
+    : undefined;
 
   const labs = visit.patient ? (
     <LabsSection
@@ -429,8 +482,15 @@ export default async function VisitDetailPage({ params }: { params: { id: string
       <PageHeader
         title={`${t("visits.title")}: ${patientLabel}`}
         description={
-          <span className="font-mono text-xs">
-            HN {visit.patient?.hn ?? "—"} · {visit.id}
+          <span className="flex flex-wrap items-center gap-2 font-mono text-xs">
+            <span>
+              HN {visit.patient?.hn ?? "—"} · {visit.id}
+            </span>
+            {currentRoom && (
+              <span className="rounded-md bg-info/10 px-2 py-0.5 text-info">
+                🚪 {currentRoom.name} ({currentRoom.code})
+              </span>
+            )}
           </span>
         }
         actions={
@@ -452,6 +512,16 @@ export default async function VisitDetailPage({ params }: { params: { id: string
                 ? t(`visits.status.${visit.status}` as never)
                 : visit.status}
             </Badge>
+            {visit.status !== "COMPLETED" && visit.status !== "CANCELLED" && (
+              <AssignRoomDialog
+                visitId={visit.id}
+                currentRoomId={currentRoom?.id ?? null}
+                appointmentId={visit.appointment?.id ?? null}
+                currentRoomLabel={
+                  currentRoom ? `${currentRoom.name} (${currentRoom.code})` : null
+                }
+              />
+            )}
             {canWriteEmr && <MedicalCertButton visitId={visit.id} />}
             {visit.status !== "COMPLETED" && visit.status !== "CANCELLED" && (
               <CompleteVisitButton visitId={visit.id} />

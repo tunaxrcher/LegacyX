@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Package, Syringe, Gift, Sparkles } from "lucide-react";
+import { Package, Syringe, Gift, Sparkles, Info } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -52,14 +52,36 @@ export default async function ManagerCatalogPage() {
           <TabsTrigger value="products">{t("tab_products")}</TabsTrigger>
           <TabsTrigger value="boms">{t("tab_boms")}</TabsTrigger>
         </TabsList>
-        <TabsContent value="products">
+        <TabsContent value="products" className="space-y-3">
+          <HelpBanner
+            title={t("help_reorder_title")}
+            body={t("help_reorder_body")}
+          />
           <ProductsPanel initialProducts={products} />
         </TabsContent>
-        <TabsContent value="boms">
+        <TabsContent value="boms" className="space-y-3">
+          <HelpBanner
+            title={t("help_bom_title")}
+            body={t("help_bom_body")}
+          />
           <BomsPanel procedures={procedures} allProducts={allProducts} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function HelpBanner({ title, body }: { title: string; body: string }) {
+  return (
+    <Card className="border-info/30 bg-info/5">
+      <CardContent className="flex items-start gap-3 p-3 text-sm">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+        <div className="space-y-0.5">
+          <div className="font-semibold text-info">{title}</div>
+          <p className="text-xs text-muted-foreground">{body}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -23,6 +23,7 @@ import { BadRequest, Conflict, NotFound } from "../../shared/errors";
 import { writeWithOutbox } from "../../shared/outbox";
 import { encryptField, searchableHash } from "../../shared/crypto";
 import { signPatientJwt } from "../../shared/jwt";
+import { nextHN } from "../../shared/hn";
 import type { RequestContext } from "../../shared/context";
 
 // =============================================================================
@@ -278,19 +279,6 @@ function splitFullName(full: string): { firstName: string; lastName: string } {
   if (parts.length === 0) return { firstName: full, lastName: "" };
   const [first, ...rest] = parts;
   return { firstName: first ?? full, lastName: rest.join(" ") };
-}
-
-async function nextHN(tenantId: string): Promise<string> {
-  // Simple sequential HN allocation. Production would use a dedicated counter
-  // row + advisory lock to avoid collisions under heavy concurrency.
-  const last = await prisma.patient.findFirst({
-    where: { tenantId, hn: { startsWith: "HN-" } },
-    orderBy: { hn: "desc" },
-    select: { hn: true },
-  });
-  const lastNum = last?.hn?.replace(/^HN-/, "");
-  const n = lastNum ? parseInt(lastNum, 10) + 1 : 1;
-  return `HN-${n.toString().padStart(7, "0")}`;
 }
 
 export async function publicBook(input: PublicBookInput, correlationId: string) {

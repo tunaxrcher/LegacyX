@@ -112,6 +112,146 @@ export async function checkInAppointment(ctx: RequestContext, input: CheckInInpu
   });
 }
 
+export const AssignRoomDto = z.object({
+  room_resource_id: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+export type AssignRoomInput = z.infer<typeof AssignRoomDto>;
+
+/**
+ * Move a visit into a (different) room.
+ *
+ *   - If the visit currently has no active reservation: create a fresh
+ *     CONFIRMED reservation for the supplied room and flip its status to
+ *     OCCUPIED. Used when reception checked in without picking a room.
+ *   - If the visit already occupies a room: close the previous reservation
+ *     (CONSUMED) and free the previous resource, then create a new
+ *     reservation for the new room. Used for inter-room transfers.
+ *
+ * The destination room must be AVAILABLE (or already assigned to this visit
+ * — caller is allowed to "re-confirm" the same room).
+ */
+export async function assignRoom(
+  ctx: RequestContext,
+  visitId: string,
+  input: AssignRoomInput,
+) {
+  if (!ctx.branchId) throw BadRequest("Branch context required (x-branch-id)");
+  await authorize(ctx, {
+    resource: "appointment",
+    action: "write",
+    target: { branchId: ctx.branchId },
+  });
+
+  return writeWithOutbox(ctx, async (tx) => {
+    const visit = await tx.visit.findFirst({
+      where: { id: visitId, tenantId: ctx.tenantId, branchId: ctx.branchId! },
+    });
+    if (!visit) throw NotFound(`Visit ${visitId} not found`);
+    if (visit.status === "COMPLETED" || visit.status === "CANCELLED") {
+      throw Conflict(`Cannot assign room to a ${visit.status} visit`);
+    }
+    if (!visit.appointmentId) {
+      throw BadRequest("Visit has no appointment (cannot reserve a room)");
+    }
+
+    const room = await tx.resource.findFirst({
+      where: {
+        id: input.room_resource_id,
+        tenantId: ctx.tenantId,
+        branchId: ctx.branchId!,
+        deletedAt: null,
+      },
+    });
+    if (!room) throw NotFound(`Resource ${input.room_resource_id} not found`);
+    if (room.status === "MAINTENANCE" || room.status === "RETIRED") {
+      throw Conflict(`Resource is ${room.status}`);
+    }
+
+    // Close the previous reservation if there is one and free its resource.
+    const prev = await tx.resourceReservation.findFirst({
+      where: {
+        appointmentId: visit.appointmentId,
+        status: { in: ["HELD", "CONFIRMED"] },
+      },
+    });
+    const now = new Date();
+    if (prev && prev.resourceId !== input.room_resource_id) {
+      await tx.resourceReservation.update({
+        where: { id: prev.id },
+        data: { status: "CONSUMED", endsAt: now },
+      });
+      await tx.resource.updateMany({
+        where: { id: prev.resourceId, status: "OCCUPIED" },
+        data: { status: "AVAILABLE" },
+      });
+    }
+
+    // No-op if the request was for the same room and a reservation exists.
+    if (prev && prev.resourceId === input.room_resource_id) {
+      return {
+        result: {
+          visitId,
+          resourceId: prev.resourceId,
+          reused: true,
+          transferred: false,
+        },
+        events: [],
+      };
+    }
+
+    // Verify the new room isn't already occupied by someone else.
+    if (room.status === "OCCUPIED") {
+      const someone = await tx.resourceReservation.findFirst({
+        where: {
+          resourceId: room.id,
+          status: { in: ["HELD", "CONFIRMED"] },
+        },
+      });
+      if (someone && someone.appointmentId !== visit.appointmentId) {
+        throw Conflict("Selected room is currently occupied");
+      }
+    }
+
+    const ends = new Date(now.getTime() + 60 * 60_000); // default 60 min hold
+    await tx.resourceReservation.create({
+      data: {
+        tenantId: ctx.tenantId,
+        branchId: ctx.branchId!,
+        resourceId: room.id,
+        appointmentId: visit.appointmentId,
+        startsAt: now,
+        endsAt: ends,
+        status: "CONFIRMED",
+      },
+    });
+    await tx.resource.update({
+      where: { id: room.id },
+      data: { status: "OCCUPIED" },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        tenantId: ctx.tenantId,
+        branchId: ctx.branchId,
+        actorUserId: ctx.actor.id ?? null,
+        action: prev ? "visit.transfer_room" : "visit.assign_room",
+        resourceType: "Visit",
+        resourceId: visit.id,
+        correlationId: ctx.correlationId,
+        reason: input.reason ?? null,
+        before: prev ? { resourceId: prev.resourceId } : undefined,
+        after: { resourceId: room.id },
+      },
+    });
+
+    return {
+      result: { visitId, resourceId: room.id, transferred: !!prev, reused: false },
+      events: [],
+    };
+  });
+}
+
 export async function startVisit(ctx: RequestContext, visitId: string) {
   await authorize(ctx, {
     resource: "appointment",

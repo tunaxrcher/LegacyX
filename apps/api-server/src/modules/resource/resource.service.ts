@@ -116,11 +116,36 @@ export async function listResourcesWithStatus(
         where: { id: { in: apptIds } },
         select: {
           id: true,
+          doctorId: true,
           patient: { select: { firstName: true, lastName: true, hn: true } },
         },
       })
     : [];
   const apptMap = new Map(appts.map((a) => [a.id, a]));
+
+  // Resolve doctor names + visit ids for appointment ids in one batch
+  const doctorIds = Array.from(
+    new Set(appts.map((a) => a.doctorId).filter((x): x is string => !!x)),
+  );
+  const doctors = doctorIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: doctorIds } },
+        select: { id: true, fullName: true },
+      })
+    : [];
+  const doctorMap = new Map(doctors.map((d) => [d.id, d.fullName]));
+
+  const visits = apptIds.length
+    ? await prisma.visit.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          appointmentId: { in: apptIds },
+          status: { in: ["OPEN", "IN_PROGRESS"] },
+        },
+        select: { id: true, appointmentId: true, status: true },
+      })
+    : [];
+  const visitByAppt = new Map(visits.map((v) => [v.appointmentId!, v]));
 
   const reservationByResource = new Map(
     activeReservations.map((r) => [r.resourceId, r]),
@@ -137,6 +162,10 @@ export async function listResourcesWithStatus(
           hn: appt.patient.hn,
         }
       : null;
+    const doctor = appt?.doctorId
+      ? { id: appt.doctorId, name: doctorMap.get(appt.doctorId) ?? null }
+      : null;
+    const visit = appt?.id ? visitByAppt.get(appt.id) ?? null : null;
     // Effective status: if occupied by an active reservation, prefer OCCUPIED
     const effectiveStatus =
       r.status === "AVAILABLE" && reservation ? "OCCUPIED" : r.status;
@@ -157,6 +186,8 @@ export async function listResourcesWithStatus(
             status: reservation.status,
             appointmentId: reservation.appointmentId,
             occupant,
+            doctor,
+            visit: visit ? { id: visit.id, status: visit.status } : null,
           }
         : null,
     };

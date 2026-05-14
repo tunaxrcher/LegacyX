@@ -91,18 +91,11 @@ const groups: NavGroup[] = [
     ],
   },
   // Clinical work — doctors, nurses, pharmacists
+  // (AI Assistant is now inside the SOAP tab; the old /ai-drafts viewer was
+  // removed in C2 of the UX cleanup pass.)
   {
     titleKey: "nav.clinical",
     items: [
-      {
-        href: "/ai-drafts",
-        labelKey: "nav.ai_drafts",
-        icon: Sparkles,
-        roles: ["MANAGER", "DOCTOR"],
-      },
-      // EMR sign-off now lives inside the Visit detail page (SOAP tab).
-      // Standalone /emr/sign page is deprecated but still reachable for
-      // legacy linking. Removed from sidebar for better UX.
       {
         href: "/pharmacy",
         labelKey: "nav.pharmacy",
@@ -123,7 +116,7 @@ const groups: NavGroup[] = [
       },
     ],
   },
-  // Manager scope — financial insights, governance, oversight
+  // Manager — Finance & operational dashboards
   {
     titleKey: "nav.finance",
     items: [
@@ -134,17 +127,35 @@ const groups: NavGroup[] = [
         roles: ["MANAGER"],
       },
       {
-        href: "/manager/catalog",
-        labelKey: "nav.manager_catalog",
-        icon: Package,
-        roles: ["MANAGER"],
-      },
-      {
         href: "/manager/eod",
         labelKey: "nav.manager_eod",
         icon: Banknote,
         roles: ["MANAGER", "RECEPTION"],
       },
+      {
+        href: "/manager/catalog",
+        labelKey: "nav.manager_catalog",
+        icon: Package,
+        roles: ["MANAGER"],
+      },
+    ],
+  },
+  // Manager — Marketing & growth (Phase O onwards)
+  {
+    titleKey: "nav.marketing",
+    items: [
+      {
+        href: "/manager/promotions",
+        labelKey: "nav.promotions",
+        icon: Tag,
+        roles: ["MANAGER"],
+      },
+    ],
+  },
+  // Manager — Compliance & audit (PDPA, audit log, break-glass, dedupe)
+  {
+    titleKey: "nav.compliance",
+    items: [
       {
         href: "/audit",
         labelKey: "nav.audit",
@@ -157,26 +168,12 @@ const groups: NavGroup[] = [
         icon: ShieldAlert,
         roles: ["MANAGER"],
       },
-      // Phase K — Patient deduplication. MANAGER scope per ROLE_MATRIX
-      // (`patient:merge:tenant`). Doctor/Reception cannot merge.
       {
         href: "/admin/patients",
         labelKey: "nav.patient_merge",
         icon: GitMerge,
         roles: ["MANAGER"],
       },
-      // Phase O — Promotion engine. MANAGER owns campaigns; reception just
-      // redeems them via /api/v1/invoices/:id/apply-promo.
-      {
-        href: "/manager/promotions",
-        labelKey: "nav.promotions",
-        icon: Tag,
-        roles: ["MANAGER"],
-      },
-      // Phase K — PDPA Data Subject Rights. Manager runs the customer-
-      // facing flow (export); the irreversible anonymise button on the page
-      // is gated to ADMIN by the page itself. ADMIN also sees this entry
-      // because they may need to execute the anonymise step.
       {
         href: "/admin/pdpa",
         labelKey: "nav.pdpa",

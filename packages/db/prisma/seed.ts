@@ -6,7 +6,12 @@
  * Run: pnpm db:seed
  */
 import { PrismaClient, Prisma } from "@prisma/client";
-import { randomBytes, scryptSync } from "node:crypto";
+import {
+  createCipheriv,
+  createHash,
+  randomBytes,
+  scryptSync,
+} from "node:crypto";
 // Import from the package's own src so seed and runtime hash phones identically.
 // If you ever see "login: phone not found" right after seeding, suspect this
 // drift first.
@@ -23,6 +28,24 @@ function hashPassword(plain: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(plain, salt, 64, { N, r, p });
   return `scrypt$${N}$${r}$${p}$${salt.toString("hex")}$${hash.toString("hex")}`;
+}
+
+// Mirror of apps/api-server/src/shared/crypto.ts — keep in sync. Seed needs to
+// write phoneEnc/emailEnc that the runtime can later decrypt via the same
+// ENCRYPTION_MASTER_KEY. Algorithm: AES-256-GCM, "v1:" + base64(iv||tag||ct).
+function encryptField(plaintext: string): string {
+  const raw = process.env.ENCRYPTION_MASTER_KEY;
+  if (!raw) {
+    throw new Error(
+      "ENCRYPTION_MASTER_KEY not set — required to seed encrypted patient PII.",
+    );
+  }
+  const key = createHash("sha256").update(raw).digest();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ct = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return "v1:" + Buffer.concat([iv, tag, ct]).toString("base64");
 }
 
 const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
@@ -638,23 +661,166 @@ async function main() {
   }
   console.log(`  ✓ Resources: ${ROOM_TEMPLATE.length + 1} per branch (rooms + laser)`);
 
-  // ----- Sample Patient -----
-  await prisma.patient.upsert({
-    where: { tenantId_hn: { tenantId: tenant.id, hn: "HN-0000001" } },
-    update: { lineUserId: "U_demo_line_0000001" },
-    create: {
-      tenantId: tenant.id,
+  // ----- Sample Patients -----
+  // A small but realistic mix so the backoffice search / appointment booking
+  // / EMR demo flows have meaningful data right after `pnpm db:seed`.
+  //   * Branches alternate between Sukhumvit (br_01) and Thonglor (br_02)
+  //   * Genders mixed; ages span 20s-60s for clinical realism
+  //   * `phone` (when present) is encrypted at rest (phoneEnc) AND indexed via
+  //     phoneHash so guest-booking / OTP lookup / dedupe all work.
+  //   * `lineUserId` populated for two patients to exercise the LINE LIFF flow
+  //     (one verified, one unverified).
+  type SeedPatient = {
+    hn: string;
+    firstName: string;
+    lastName: string;
+    gender: "MALE" | "FEMALE" | "OTHER" | "UNDISCLOSED";
+    dob: string; // ISO date
+    branchIdx: 0 | 1; // index into `branches`
+    phone?: string; // raw, will be normalised + hashed + encrypted
+    email?: string;
+    nickname?: string;
+    lineUserId?: string;
+    bloodType?: string;
+    allergies?: string[];
+    chronicConditions?: string[];
+    verificationStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED";
+  };
+
+  const PATIENT_SEED: SeedPatient[] = [
+    // Original demo patient — kept for backwards compatibility with any test
+    // fixtures that hardcode HN-0000001.
+    {
       hn: "HN-0000001",
       firstName: "Demo",
       lastName: "Patient",
       gender: "FEMALE",
-      dob: new Date("1990-05-15"),
-      homeBranchId: branches[0]!.id,
+      dob: "1990-05-15",
+      branchIdx: 0,
       lineUserId: "U_demo_line_0000001",
-      status: "ACTIVE",
+      verificationStatus: "VERIFIED",
     },
-  });
-  console.log(`  ✓ Demo Patient: HN-0000001 (LINE: U_demo_line_0000001)`);
+    {
+      hn: "HN-0000002",
+      firstName: "สมชาย",
+      lastName: "ใจดี",
+      nickname: "ชาย",
+      gender: "MALE",
+      dob: "1985-03-22",
+      branchIdx: 0,
+      phone: "0812345678",
+      email: "somchai.j@example.com",
+      bloodType: "O+",
+      allergies: ["Penicillin"],
+      chronicConditions: ["Hypertension"],
+      verificationStatus: "VERIFIED",
+    },
+    {
+      hn: "HN-0000003",
+      firstName: "พิมพ์ใจ",
+      lastName: "วงศ์สวัสดิ์",
+      nickname: "พิม",
+      gender: "FEMALE",
+      dob: "1995-11-08",
+      branchIdx: 1,
+      phone: "0898765432",
+      email: "pim.w@example.com",
+      lineUserId: "U_demo_line_0000003",
+      bloodType: "A+",
+      allergies: ["Lidocaine"],
+      verificationStatus: "VERIFIED",
+    },
+    {
+      hn: "HN-0000004",
+      firstName: "อรุณรัตน์",
+      lastName: "ทองเจริญ",
+      nickname: "อร",
+      gender: "FEMALE",
+      dob: "1978-07-30",
+      branchIdx: 0,
+      phone: "0865551234",
+      bloodType: "B+",
+      chronicConditions: ["Diabetes Type 2", "Hyperlipidemia"],
+      verificationStatus: "PENDING",
+    },
+    {
+      hn: "HN-0000005",
+      firstName: "ธนกร",
+      lastName: "พิทักษ์ชาติ",
+      nickname: "บอส",
+      gender: "MALE",
+      dob: "2000-01-19",
+      branchIdx: 1,
+      phone: "0823334455",
+      email: "thanakorn.p@example.com",
+      bloodType: "AB-",
+      verificationStatus: "UNVERIFIED",
+    },
+    {
+      hn: "HN-0000006",
+      firstName: "Jennifer",
+      lastName: "Anderson",
+      nickname: "Jen",
+      gender: "FEMALE",
+      dob: "1992-09-12",
+      branchIdx: 1,
+      phone: "0911112222",
+      email: "jen.anderson@example.com",
+      bloodType: "O-",
+      allergies: ["Shellfish", "Aspirin"],
+      verificationStatus: "VERIFIED",
+    },
+  ];
+
+  for (const p of PATIENT_SEED) {
+    const branchId = branches[p.branchIdx]!.id;
+    const phone = p.phone ? normalizePhone(p.phone) : null;
+    const phoneHash = phone ? searchableHash(tenant.id, phone) : null;
+    const phoneEnc = phone ? encryptField(phone) : null;
+    const emailEnc = p.email ? encryptField(p.email) : null;
+    const nicknameEnc = p.nickname ? encryptField(p.nickname) : null;
+    const verificationStatus = p.verificationStatus ?? "UNVERIFIED";
+
+    await prisma.patient.upsert({
+      where: { tenantId_hn: { tenantId: tenant.id, hn: p.hn } },
+      update: {
+        firstName: p.firstName,
+        lastName: p.lastName,
+        gender: p.gender,
+        dob: new Date(p.dob),
+        homeBranchId: branchId,
+        phoneEnc,
+        phoneHash,
+        emailEnc,
+        nicknameEnc,
+        bloodType: p.bloodType ?? null,
+        allergies: p.allergies ?? Prisma.DbNull,
+        chronicConditions: p.chronicConditions ?? Prisma.DbNull,
+        lineUserId: p.lineUserId ?? null,
+        verificationStatus,
+      },
+      create: {
+        tenantId: tenant.id,
+        hn: p.hn,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        gender: p.gender,
+        dob: new Date(p.dob),
+        homeBranchId: branchId,
+        phoneEnc,
+        phoneHash,
+        emailEnc,
+        nicknameEnc,
+        bloodType: p.bloodType ?? null,
+        allergies: p.allergies ?? Prisma.DbNull,
+        chronicConditions: p.chronicConditions ?? Prisma.DbNull,
+        lineUserId: p.lineUserId ?? null,
+        verificationStatus,
+        status: "ACTIVE",
+      },
+    });
+  }
+  console.log(`  ✓ Patients: ${PATIENT_SEED.length} (HN-0000001..${PATIENT_SEED.at(-1)!.hn})`);
 
   // ----- Patient-facing Service Catalog -----
   // 3 categories matching image 1 (Dental / Beauty & Spa / Wellness).

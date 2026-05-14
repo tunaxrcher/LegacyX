@@ -3,8 +3,29 @@ import { prisma } from "@legacyx/db";
 import { getRequestContext } from "../../../../shared/context";
 import { toErrorResponse } from "../../../../shared/errors";
 import { authorize } from "../../../../shared/auth";
+import {
+  CreatePatientDto,
+  createPatient,
+} from "../../../../modules/patient/patient.service";
 
 export const dynamic = "force-dynamic";
+
+export async function POST(req: NextRequest) {
+  let correlationId: string | undefined;
+  try {
+    const ctx = await getRequestContext();
+    correlationId = ctx.correlationId;
+    const body = await req.json();
+    const dto = CreatePatientDto.parse(body);
+    const created = await createPatient(ctx, dto);
+    return NextResponse.json(
+      { data: created, correlation_id: correlationId },
+      { status: 201 },
+    );
+  } catch (err) {
+    return toErrorResponse(err, correlationId);
+  }
+}
 
 export async function GET(req: NextRequest) {
   let correlationId: string | undefined;

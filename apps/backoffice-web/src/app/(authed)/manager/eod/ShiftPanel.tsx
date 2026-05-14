@@ -12,6 +12,8 @@ import {
   TrendingDown,
   CheckCircle2,
   Loader2,
+  Pencil,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -186,9 +188,11 @@ function OpenShiftCard({
   onClosed: () => void;
 }) {
   const t = useTranslations("eod");
+  const router = useRouter();
   const expected = shift.cashExpectedLive ?? "0";
   const cashOpening = shift.cashOpening;
   const totalExpected = (Number(cashOpening) + Number(expected)).toString();
+  const elapsed = useElapsed(shift.openedAt);
 
   return (
     <Card>
@@ -205,8 +209,22 @@ function OpenShiftCard({
                 {shift.openedBy.slice(-8)}
               </code>
             </div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-medium text-info">
+              <Clock className="h-3 w-3" />
+              {t("running_for")} {elapsed}
+            </div>
           </div>
-          <CloseShiftDialog shift={shift} totalExpected={totalExpected} onClosed={onClosed} />
+          <div className="flex items-center gap-2">
+            <EditShiftDialog
+              shift={shift}
+              onUpdated={() => router.refresh()}
+            />
+            <CloseShiftDialog
+              shift={shift}
+              totalExpected={totalExpected}
+              onClosed={onClosed}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-4">
@@ -448,6 +466,105 @@ function Row({
       </div>
       <div className={`font-mono tabular-nums ${colour}`}>{value}</div>
     </div>
+  );
+}
+
+function useElapsed(iso: string): string {
+  const [tick, setTick] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const ms = tick - new Date(iso).getTime();
+  const totalMin = Math.max(0, Math.floor(ms / 60_000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function EditShiftDialog({
+  shift,
+  onUpdated,
+}: {
+  shift: ShiftDto;
+  onUpdated: () => void;
+}) {
+  const t = useTranslations("eod");
+  const tCommon = useTranslations("common");
+  const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [cashOpening, setCashOpening] = React.useState(shift.cashOpening);
+  const [notes, setNotes] = React.useState(shift.notes ?? "");
+
+  React.useEffect(() => {
+    if (open) {
+      setCashOpening(shift.cashOpening);
+      setNotes(shift.notes ?? "");
+    }
+  }, [open, shift]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await clientApi.patch(`/api/v1/shifts/${shift.id}`, {
+        cash_opening: cashOpening,
+        notes: notes || undefined,
+      });
+      toast.success(t("edit_success"));
+      setOpen(false);
+      onUpdated();
+    } catch (err) {
+      toast.error(t("edit_failed"), {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Pencil className="h-3.5 w-3.5" />
+          {tCommon("edit")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("edit_shift")}</DialogTitle>
+          <DialogDescription>{t("edit_shift_desc")}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">{t("cash_opening")}</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={cashOpening}
+              onChange={(e) => setCashOpening(e.target.value)}
+              className="font-mono"
+            />
+            <div className="text-[11px] text-muted-foreground">
+              {t("cash_opening_hint")}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">{tCommon("notes")}</Label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={busy}>
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              {tCommon("save")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

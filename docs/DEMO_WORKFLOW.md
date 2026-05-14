@@ -98,6 +98,68 @@ Login = **Phone + OTP**. Dev OTP สำหรับทุกเบอร์: `12
 
 ---
 
+## 🎬 Scenario A2 — NURSE 4 รูปแบบเคส
+
+NURSE มี role-locked UI: **อ่านเฉพาะ** SOAP/Order/Billing tabs, มีปุ่มเฉพาะ Start/Complete หัตถการ + เก็บ lab + record result + อัปโหลดรูป AFTER. ต่อไปนี้คือ 4 รูปแบบเคสที่ควรทดสอบให้ครบ:
+
+### A2-1 · เคสตรวจอย่างเดียว (consult-only)
+
+DOCTOR สั่ง consult-only — ไม่มี order, ไม่มีหัตถการ.
+
+| # | role | ทำอะไร |
+|---|---|---|
+| 1 | RECEPTION | check-in → assign Room 101 |
+| 2 | DOCTOR | บันทึก SOAP + sign EMR (`emr.signed`) |
+| 3 | NURSE | เปิด `/visits/<id>` — แสดงเฉพาะข้อมูลอ่านอย่างเดียว · tab หัตถการว่าง · tab Order ว่าง |
+| 4 | RECEPTION | รับเงิน (consult fee) → ปิดเคส |
+
+**ตรวจ**: NURSE ไม่เห็นปุ่มแก้ EMR/Order/Billing.
+
+### A2-2 · เคสมี Order ยา (medication only)
+
+DOCTOR สั่ง paracetamol 500mg × 20 tab — ไม่มีหัตถการ.
+
+| # | role | ทำอะไร |
+|---|---|---|
+| 1 | DOCTOR | `+ New Order` → MEDICATION · MED-PARA · 1 box · 50 ฿ |
+| 2 | NURSE | เปิด visit detail → ดูชื่อยาที่ tab Order (แสดง "Paracetamol 500mg" ไม่ใช่ "MED-PARA") |
+| 3 | NURSE | ไม่มีปุ่ม Start/Complete (เพราะไม่มี procedure) |
+| 4 | RECEPTION | รับชำระ → ปิดเคส |
+| 5 | PHARMACIST | `/pharmacy` → เห็น order รอจ่าย → ดูรายละเอียด → จ่ายยา |
+
+**ตรวจ**: หัตถการ tab ว่าง, Order tab แสดงชื่อยาเต็ม + รหัสเล็กใต้ชื่อ.
+
+### A2-3 · เคสมีหัตถการ + ตัด BOM (typical procedure)
+
+| # | role | ทำอะไร |
+|---|---|---|
+| 1 | DOCTOR | `+ New Order` → PROCEDURE · `PROC_BTX_FACE` · 1 ครั้ง · 5,000 ฿ |
+| 2 | DOCTOR | sign EMR |
+| 3 | NURSE | tab หัตถการ → กด **Start** บนแถว `Botox Full Face` (แสดงชื่อชัด ไม่ใช่ `PROC_BTX_FACE` อย่างเดียว) → ✅ `procedure.started` |
+| 4 | NURSE | กด **Complete** เมื่อทำเสร็จ → ✅ `procedure.completed` |
+| 5 | Worker | อ่าน BOM → ตัด BTX-100U −0.5 vial, NEEDLE-30G −4 pcs, GAUZE-PK −1 pack → ✅ 3 × `inventory.adjusted` |
+| 6 | NURSE | Open `/inventory/<BTX-100U id>` — เห็นแถว `BOM_USAGE -0.5` |
+| 7 | RECEPTION | รับชำระ → ปิดเคส |
+
+### A2-4 · เคสมี Lab + ภาพ Before/After (clinical-rich)
+
+| # | role | ทำอะไร |
+|---|---|---|
+| 1 | DOCTOR | สั่ง Lab `CBC` (กดชิป CBC) + Procedure `PROC_FACIAL_BASIC` |
+| 2 | DOCTOR | tab Photos → upload **BEFORE** photo (preview ก่อนกด upload) |
+| 3 | NURSE | tab Labs → row CBC → กด **Collected** → กด **To Lab** → กด **Record Result** → กรอก `WBC: 7.4` etc. → ✅ `lab.resulted` (chain → `document.requested` LAB_REPORT PDF) |
+| 4 | NURSE | tab หัตถการ → Start → Complete |
+| 5 | NURSE | tab Photos → upload **AFTER** photo |
+| 6 | DOCTOR | tab Labs → row expanded แสดงค่าผล + ลิงก์ PDF |
+| 7 | DOCTOR | เปิด AI Analyze บนรูป (ถ้ามี Gemini key) |
+
+**ตรวจ**:
+- NURSE สามารถ collect/result lab ได้ (มี `lab:collect` + `lab:result`).
+- รูป Before/After preview ก่อน upload + ดาวน์โหลด/ดูได้ทั้ง local mode + S3 mode.
+- หัตถการแสดงชื่อเต็ม.
+
+---
+
 ## 🎬 Scenario B — จ่ายยา (Pharmacy flow)
 
 ลูกค้าได้รับใบสั่งยา paracetamol 1 กล่อง
