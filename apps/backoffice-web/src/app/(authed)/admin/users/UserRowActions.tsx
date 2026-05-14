@@ -12,6 +12,8 @@ import {
   Loader2,
   Unlock,
   LogOut,
+  UserMinus,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,7 +73,7 @@ export function UserRowActions({
   const router = useRouter();
   const [mode, setMode] = React.useState<Mode>(null);
   const [busyAction, setBusyAction] = React.useState<
-    "unlock" | "revoke" | null
+    "unlock" | "revoke" | "retire" | "reactivate" | null
   >(null);
 
   const close = () => setMode(null);
@@ -119,6 +121,33 @@ export function UserRowActions({
     }
   }
 
+  async function retire() {
+    if (!confirm(t("retire_confirm", { name: user.fullName }))) return;
+    setBusyAction("retire");
+    try {
+      await clientApi.post(`/api/v1/admin/users/${user.id}/retire`, {});
+      toast.success(t("retire_success"));
+      router.refresh();
+    } catch (err) {
+      toast.error(String((err as Error).message ?? err));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function reactivate() {
+    setBusyAction("reactivate");
+    try {
+      await clientApi.post(`/api/v1/admin/users/${user.id}/reactivate`, {});
+      toast.success(t("reactivate_success"));
+      router.refresh();
+    } catch (err) {
+      toast.error(String((err as Error).message ?? err));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -156,6 +185,25 @@ export function UserRowActions({
           >
             <LogOut className="h-4 w-4" /> {t("revoke_sessions")}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {user.status === "INACTIVE" ? (
+            <DropdownMenuItem
+              onClick={reactivate}
+              disabled={busyAction !== null}
+            >
+              <UserCheck className="h-4 w-4 text-success" />
+              {t("reactivate")}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={retire}
+              disabled={busyAction !== null}
+              className="text-destructive focus:text-destructive"
+            >
+              <UserMinus className="h-4 w-4" />
+              {t("retire")}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

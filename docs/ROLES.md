@@ -62,6 +62,7 @@
 | **resource** | write | branch | ✅ | ✅ | | | | |
 | **resource** | release | branch | ✅ | ✅ | | ✅ | ✅ | |
 | **resource** | maintain | branch | ✅ | ✅ | | | | |
+| **pharmacy** | read | branch | ✅ | ✅ | | | | ✅ |
 | **pharmacy** | dispense | branch | ✅ | | | | | ✅ |
 | **catalog** | manage | tenant | ✅ | ✅ | | | | |
 | **audit** | read | tenant | ✅ | ✅ | | | | |
@@ -96,7 +97,7 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | `/visits/<id>` SOAP note + AI Assistant + EMR signature (inline action) | | ✅ | ✅ | ✅ | | |
-| `/pharmacy` | | | | | | ✅ |
+| `/pharmacy` (read-only oversight for MANAGER) | | ✅ | | | | ✅ |
 
 > EMR signing is no longer a dedicated page. It happens inline on `/visits/<id>` → SOAP tab → "Sign" button (DOCTOR-only, scoped to `emr:sign:self`). AI drafts are integrated directly into the AI Assistant — pending drafts appear via "Load draft" inside the SOAP tab; no `/ai-drafts` page exists anymore.
 

@@ -90,7 +90,9 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   { resource: "resource", action: "write", scope: "branch" },
   { resource: "resource", action: "release", scope: "branch" },
   { resource: "resource", action: "maintain", scope: "branch" },
-  // Pharmacy
+  // Pharmacy — read is the queue/oversight view (MANAGER + PHARMACIST);
+  // dispense is the actual write (PHARMACIST only).
+  { resource: "pharmacy", action: "read", scope: "branch" },
   { resource: "pharmacy", action: "dispense", scope: "branch" },
   // Catalog master data (products, courses, BOMs) — tenant-wide config, not
   // per-branch stock. Distinct from `inventory:write` which is for stock moves.
@@ -165,6 +167,8 @@ const ROLE_MATRIX: Record<string, string[]> = {
     // Phase M — Lab read for oversight; result is a separate sub-flow
     // they don't normally do themselves.
     "lab:read:branch",
+    // Pharmacy queue read for oversight. Dispense itself is PHARMACIST-only.
+    "pharmacy:read:branch",
     // Phase K — PDPA DSR. Manager handles BOTH the "give me a copy of my
     // data" (export, ≤30-day legal SLA) and the "forget me" (anonymise).
     // Anonymise is irreversible so the UI requires a typed reason ≥ 8 chars
@@ -239,6 +243,7 @@ const ROLE_MATRIX: Record<string, string[]> = {
   ],
   PHARMACIST: [
     "patient:read:branch",
+    "pharmacy:read:branch",
     "pharmacy:dispense:branch",
     // Pharmacist needs to verify invoice is paid before handing out medication.
     "payment:read:branch",

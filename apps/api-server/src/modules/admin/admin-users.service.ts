@@ -594,6 +594,121 @@ export async function unlockUser(ctx: RequestContext, userId: string) {
   return { ok: true, changed: true, status: "ACTIVE" as const };
 }
 
+/**
+ * Retire (soft-deactivate) a user — typical "พนักงานลาออก" flow.
+ *
+ * We deliberately do NOT expose a hard-delete from the UI. The User row
+ * is referenced from Visit (doctor), EMR notes (signed_by), AuditLog
+ * (actor), Session, ResourceReservation (created_by), Payment (received_by)
+ * etc. — destroying it would either orphan FKs or wipe audit trails that
+ * the law requires us to keep for 7 years.
+ *
+ * What we DO:
+ *   • flip `status` to INACTIVE so the user disappears from the active
+ *     KPI count and cannot log in
+ *   • revoke every active session so the user is signed out everywhere
+ *   • write a `user.retire` audit row + invalidate the permission cache
+ *
+ * Reverse with `reactivateUser` (status INACTIVE → ACTIVE). That round-
+ * trip is fully non-destructive — no data is lost in either direction.
+ */
+export async function retireUser(ctx: RequestContext, userId: string) {
+  await authorize(ctx, { resource: "user", action: "write", target: {} });
+  if (!ctx.actor.id) throw BadRequest("Authenticated user required");
+
+  const u = await prisma.user.findFirst({
+    where: { id: userId, tenantId: ctx.tenantId, deletedAt: null },
+  });
+  if (!u) throw NotFound(`User ${userId} not found`);
+  // SoD — same allowlist as everywhere else; managers cannot retire ADMIN
+  // or peer Manager rows.
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
+  // Belt-and-braces self-retire guard. The actor allowlist already blocks
+  // a Manager from retiring another Manager (including themselves), but
+  // an ADMIN could theoretically retire themselves and lock themselves
+  // out of their own tenant. Refuse explicitly.
+  if (u.id === ctx.actor.id) {
+    throw BadRequest("You cannot retire your own account");
+  }
+
+  if (u.status === "INACTIVE") {
+    return { ok: true, changed: false, status: u.status };
+  }
+
+  const sessions = await prisma.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { status: "INACTIVE" },
+  });
+  await prisma.auditLog.create({
+    data: {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actor.id,
+      action: "user.retire",
+      resourceType: "User",
+      resourceId: userId,
+      correlationId: ctx.correlationId,
+      before: { status: u.status } as object,
+      after: {
+        status: "INACTIVE",
+        revokedSessions: sessions.count,
+      } as object,
+    },
+  });
+  invalidatePermissionCache(ctx.tenantId, userId);
+  return {
+    ok: true,
+    changed: true,
+    status: "INACTIVE" as const,
+    revokedSessions: sessions.count,
+  };
+}
+
+/**
+ * Reverse of `retireUser` — flips an INACTIVE user back to ACTIVE so they
+ * can log in again. Common when staff come back after a leave or rehire.
+ * Does NOT touch sessions (those were revoked at retire time and a fresh
+ * login will mint new ones via the normal phone+OTP flow).
+ */
+export async function reactivateUser(ctx: RequestContext, userId: string) {
+  await authorize(ctx, { resource: "user", action: "write", target: {} });
+  if (!ctx.actor.id) throw BadRequest("Authenticated user required");
+
+  const u = await prisma.user.findFirst({
+    where: { id: userId, tenantId: ctx.tenantId, deletedAt: null },
+  });
+  if (!u) throw NotFound(`User ${userId} not found`);
+  const actorRole = await getActorRoleCode(ctx);
+  assertCanManageTargetRole(actorRole, u.primaryRoleCode);
+
+  if (u.status === "ACTIVE") {
+    return { ok: true, changed: false, status: u.status };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { status: "ACTIVE" },
+  });
+  await prisma.auditLog.create({
+    data: {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actor.id,
+      action: "user.reactivate",
+      resourceType: "User",
+      resourceId: userId,
+      correlationId: ctx.correlationId,
+      before: { status: u.status } as object,
+      after: { status: "ACTIVE" } as object,
+    },
+  });
+  invalidatePermissionCache(ctx.tenantId, userId);
+  return { ok: true, changed: true, status: "ACTIVE" as const };
+}
+
 export async function revokeUserSessions(ctx: RequestContext, userId: string) {
   await authorize(ctx, { resource: "user", action: "write", target: {} });
   if (!ctx.actor.id) throw BadRequest("Authenticated user required");

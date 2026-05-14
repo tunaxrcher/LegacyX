@@ -589,7 +589,12 @@
     "unlock_noop": "Account is already active — nothing to unlock.",
     "revoke_sessions": "Force log out (revoke sessions)",
     "revoke_sessions_confirm": "Revoke ALL active sessions for this user? They will need to log in again.",
-    "revoke_sessions_success": "Revoked {count} session(s)"
+    "revoke_sessions_success": "Revoked {count} session(s)",
+    "retire": "Retire (deactivate)",
+    "retire_confirm": "Retire {name}? They will be set INACTIVE and signed out everywhere. Their work history (visits, EMR signatures, audit log) is preserved. You can reactivate at any time.",
+    "retire_success": "Staff retired",
+    "reactivate": "Reactivate",
+    "reactivate_success": "Staff reactivated"
   },
   "manager_staff": {
     "title": "Staff Management",

@@ -62,6 +62,11 @@ export default async function PharmacyPage() {
   const pending = rows.filter((r) => !r.dispense || r.dispense.status !== "DISPENSED");
   const completed = rows.filter((r) => r.dispense?.status === "DISPENSED");
 
+  // Pharmacy oversight is open to MANAGER, but only PHARMACIST may actually
+  // hit the dispense action (server still enforces this — the FE flag below
+  // just hides the button so MANAGER doesn't get a 403 toast on click).
+  const canDispense = (session.roles ?? []).includes("PHARMACIST");
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -84,7 +89,7 @@ export default async function PharmacyPage() {
               description={t("pharmacy.empty_desc")}
             />
           ) : (
-            <PharmacyTable rows={pending} t={t} canDispense />
+            <PharmacyTable rows={pending} t={t} canDispense={canDispense} />
           )}
         </CardContent>
       </Card>

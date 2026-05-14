@@ -101,7 +101,8 @@ const groups: NavGroup[] = [
         href: "/pharmacy",
         labelKey: "nav.pharmacy",
         icon: PillBottle,
-        roles: ["PHARMACIST"],
+        // MANAGER has read-only oversight (no dispense button).
+        roles: ["MANAGER", "PHARMACIST"],
       },
     ],
   },
@@ -117,7 +118,9 @@ const groups: NavGroup[] = [
       },
     ],
   },
-  // Manager — Finance & operational dashboards
+  // Manager — Finance & operational dashboards.
+  // Pure money-flow stuff — KPIs, end-of-day reconciliation. Configuration
+  // (catalog, staff, rooms, services) lives in "clinic_setup" below.
   {
     titleKey: "nav.finance",
     items: [
@@ -132,18 +135,6 @@ const groups: NavGroup[] = [
         labelKey: "nav.manager_eod",
         icon: Banknote,
         roles: ["MANAGER", "RECEPTION"],
-      },
-      {
-        href: "/manager/catalog",
-        labelKey: "nav.manager_catalog",
-        icon: Package,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/staff",
-        labelKey: "nav.manager_staff",
-        icon: UserCog,
-        roles: ["MANAGER"],
       },
     ],
   },
@@ -189,9 +180,11 @@ const groups: NavGroup[] = [
       },
     ],
   },
-  // Clinic configuration — Manager owns the day-to-day business setup
-  // (rooms, services, notifications). NOT shown to ADMIN — admin is for
-  // system configuration only (users / roles / DLQ / system settings).
+  // Clinic configuration — Manager owns the day-to-day business setup.
+  // "Things you configure once and tweak occasionally": rooms, services,
+  // products/courses (catalog), staff accounts, notification templates.
+  // NOT shown to ADMIN — admin is for system configuration only
+  // (users / roles / branches / DLQ / system settings).
   {
     titleKey: "nav.clinic_setup",
     items: [
@@ -205,6 +198,18 @@ const groups: NavGroup[] = [
         href: "/manager/services",
         labelKey: "nav.manager_services",
         icon: Sparkles,
+        roles: ["MANAGER"],
+      },
+      {
+        href: "/manager/catalog",
+        labelKey: "nav.manager_catalog",
+        icon: Package,
+        roles: ["MANAGER"],
+      },
+      {
+        href: "/manager/staff",
+        labelKey: "nav.manager_staff",
+        icon: UserCog,
         roles: ["MANAGER"],
       },
       {

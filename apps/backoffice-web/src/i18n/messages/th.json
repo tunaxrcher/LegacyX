@@ -589,7 +589,12 @@
     "unlock_noop": "บัญชีใช้งานได้อยู่แล้ว — ไม่มีอะไรต้องปลดล็อก",
     "revoke_sessions": "บังคับออกจากระบบ (ยกเลิก sessions)",
     "revoke_sessions_confirm": "ยกเลิก session ที่ใช้งานอยู่ทั้งหมดของผู้ใช้คนนี้? เขาจะต้อง login ใหม่",
-    "revoke_sessions_success": "ยกเลิก {count} session(s) แล้ว"
+    "revoke_sessions_success": "ยกเลิก {count} session(s) แล้ว",
+    "retire": "ปลดประจำการ",
+    "retire_confirm": "ปลดประจำการ {name}? บัญชีจะถูกตั้งเป็น INACTIVE และถูก logout ทุกที่ · ประวัติงาน (visit, ลายเซ็น EMR, audit log) ยังคงอยู่ครบ · กลับมาเปิดใช้งานใหม่ได้ตลอด",
+    "retire_success": "ปลดประจำการเรียบร้อย",
+    "reactivate": "เปิดใช้งานอีกครั้ง",
+    "reactivate_success": "เปิดใช้งานเรียบร้อย"
   },
   "manager_staff": {
     "title": "จัดการพนักงาน",

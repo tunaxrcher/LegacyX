@@ -22,9 +22,12 @@ export const DispenseOrderDto = z.object({
  */
 export async function listPharmacyQueue(ctx: RequestContext) {
   if (!ctx.branchId) throw BadRequest("Branch context required");
+  // Read is wider than dispense — MANAGER may oversee the queue (no
+  // dispense rights), PHARMACIST has both. The dispense write below
+  // still gates on `pharmacy:dispense:branch` separately.
   await authorize(ctx, {
     resource: "pharmacy",
-    action: "dispense",
+    action: "read",
     target: { branchId: ctx.branchId },
   });
 
