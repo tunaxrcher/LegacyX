@@ -37,7 +37,8 @@
     "settings": "ตั้งค่า",
     "patient_merge": "รวมเวชระเบียนซ้ำ",
     "pdpa": "PDPA / สิทธิ์ข้อมูล",
-    "promotions": "โปรโมชัน"
+    "promotions": "โปรโมชัน",
+    "workflow": "Workflow คู่มือใช้งาน"
   },
   "break_glass": {
     "title": "Break-Glass Override",
@@ -1187,5 +1188,29 @@
     "replay_failed": "Retry ไม่สำเร็จ",
     "empty_title": "ระบบทำงานปกติ ✨",
     "empty_desc": "ไม่มีเหตุการณ์ที่ล้มเหลวในตอนนี้"
+  },
+  "workflow": {
+    "title": "Workflow — แต่ละ Role ทำงานร่วมกันยังไง",
+    "subtitle": "ไล่จากคนไข้จองคิว → เข้าคลินิก → ออก เห็นทุกแอ็คชันและ Event ตลอดเส้นทาง",
+    "tab_all": "ทั้งหมด",
+    "event_tooltip": "Outbox event ที่ระบบยิงในขั้นนี้",
+    "footer_hint": "อ่านแบบละเอียดได้ที่ docs/ARCHITECTURE.md และ docs/ROLES.md ในโปรเจกต์",
+    "legend": {
+      "title": "วิธีอ่านแผนภาพ",
+      "body": "ทุก step มี Role ที่เกี่ยวข้อง (สีตามตารางด้านล่าง) + คำอธิบายสั้น + Event ที่ระบบยิง + ลิงก์ไปหน้าจริง"
+    },
+    "platform": {
+      "title": "เบื้องหลัง — Platform Guarantees"
+    },
+    "role": {
+      "PATIENT": "คนไข้",
+      "RECEPTION": "รีเซป",
+      "DOCTOR": "หมอ",
+      "NURSE": "พยาบาล",
+      "PHARMACIST": "เภสัชกร",
+      "MANAGER": "ผู้จัดการ",
+      "ADMIN": "ผู้ดูแลระบบ",
+      "SYSTEM": "ระบบ"
+    }
   }
 }

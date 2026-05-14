@@ -29,9 +29,11 @@ import {
   ScrollText,
   Tag,
   Building2,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { WorkflowDialog } from "@/components/workflow/workflow-dialog";
 
 interface NavItem {
   href: string;
@@ -366,7 +368,25 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
+      <div className="space-y-1 border-t border-sidebar-border p-3">
+        {/* Workflow guide — opens a Dialog explaining how every role plays
+            together end-to-end. Visible to every authenticated user since
+            it doubles as onboarding documentation. */}
+        <WorkflowDialog
+          trigger={
+            <button
+              type="button"
+              title={collapsed ? tNav("nav.workflow") : undefined}
+              className={cn(
+                "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                collapsed && "justify-center px-0",
+              )}
+            >
+              <BookOpen className="h-[14px] w-[14px] shrink-0" />
+              {!collapsed && <span className="truncate">{tNav("nav.workflow")}</span>}
+            </button>
+          }
+        />
         <Button
           variant="ghost"
           size="sm"

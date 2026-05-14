@@ -37,7 +37,8 @@
     "settings": "Settings",
     "patient_merge": "Patient Merge",
     "pdpa": "PDPA / DSR",
-    "promotions": "Promotions"
+    "promotions": "Promotions",
+    "workflow": "Workflow guide"
   },
   "break_glass": {
     "title": "Break-Glass Override",
@@ -1187,5 +1188,29 @@
     "replay_failed": "Replay failed",
     "empty_title": "All systems healthy ✨",
     "empty_desc": "No failed events at the moment"
+  },
+  "workflow": {
+    "title": "Workflow — how each role plays together",
+    "subtitle": "Trace it from patient self-booking → clinic visit → discharge — every action and event in one place",
+    "tab_all": "All",
+    "event_tooltip": "Outbox event emitted at this step",
+    "footer_hint": "Deep dive: docs/ARCHITECTURE.md and docs/ROLES.md in the repo",
+    "legend": {
+      "title": "How to read this",
+      "body": "Each step shows the roles involved (colour-coded), a short description, the event emitted, and an in-app link."
+    },
+    "platform": {
+      "title": "Behind the curtain — platform guarantees"
+    },
+    "role": {
+      "PATIENT": "Patient",
+      "RECEPTION": "Reception",
+      "DOCTOR": "Doctor",
+      "NURSE": "Nurse",
+      "PHARMACIST": "Pharmacist",
+      "MANAGER": "Manager",
+      "ADMIN": "Admin",
+      "SYSTEM": "System"
+    }
   }
 }
