@@ -4,6 +4,7 @@ import { BadRequest, NotFound, Conflict } from "../../shared/errors";
 import { writeWithOutbox } from "../../shared/outbox";
 import { authorize } from "../../shared/auth";
 import type { RequestContext } from "../../shared/context";
+import { autoReleaseForAppointment } from "../resource/resource.service";
 
 export const CheckInDto = z.object({
   appointment_id: z.string().min(1),
@@ -322,24 +323,7 @@ export async function completeVisit(ctx: RequestContext, visitId: string) {
         data: { status: "COMPLETED" },
       });
 
-      // Auto-release any active reservations on this appointment
-      const active = await tx.resourceReservation.findMany({
-        where: {
-          appointmentId: visit.appointmentId,
-          status: { in: ["HELD", "CONFIRMED"] },
-        },
-      });
-      if (active.length > 0) {
-        await tx.resourceReservation.updateMany({
-          where: { id: { in: active.map((a) => a.id) } },
-          data: { status: "CONSUMED", endsAt: now },
-        });
-        const resourceIds = Array.from(new Set(active.map((a) => a.resourceId)));
-        await tx.resource.updateMany({
-          where: { id: { in: resourceIds }, status: "OCCUPIED" },
-          data: { status: "AVAILABLE" },
-        });
-      }
+      await autoReleaseForAppointment(tx, visit.appointmentId);
     }
 
     await tx.auditLog.create({

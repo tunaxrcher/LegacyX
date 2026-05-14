@@ -241,7 +241,7 @@ export default async function VisitDetailPage({ params }: { params: { id: string
         checkedIn: t("visits.checked_in_at"),
         started: t("visits.started_at"),
         orders: t("orders.count"),
-        emr: t("visits.tab_soap") ?? "EMR",
+        emr: t("visits.tab_soap"),
       }}
     />
   );
@@ -276,7 +276,7 @@ export default async function VisitDetailPage({ params }: { params: { id: string
             description={
               canWriteOrder
                 ? t("orders.empty_desc")
-                : (t("orders.empty_readonly") ?? t("orders.empty_desc"))
+                : t("orders.empty_readonly")
             }
             action={canWriteOrder ? <NewOrderDialog visitId={visit.id} /> : undefined}
           />
@@ -498,7 +498,7 @@ export default async function VisitDetailPage({ params }: { params: { id: string
             <Button variant="ghost" size="sm" asChild>
               <Link href="/visits">
                 <ArrowLeft className="h-4 w-4" />
-                {t("common.back") ?? "Back"}
+                {t("common.back")}
               </Link>
             </Button>
             <Badge

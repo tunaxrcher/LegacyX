@@ -87,13 +87,6 @@ export function fmtDateInput(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export function fmtTime(d: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
-}
-
 export type ViewMode = "day" | "week" | "month" | "list";
 
 export function isView(s: string | null | undefined): s is ViewMode {

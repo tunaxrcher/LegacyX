@@ -140,10 +140,9 @@ export function BillingSection({
         {!canWrite && (
           <Alert variant="default">
             <Lock className="h-4 w-4" />
-            <AlertTitle>{t("readonly_title") ?? "Read-only"}</AlertTitle>
+            <AlertTitle>{t("readonly_title")}</AlertTitle>
             <AlertDescription className="text-xs">
-              {t("readonly_desc") ??
-                "Your role can view billing details but cannot create or settle invoices."}
+              {t("readonly_desc")}
             </AlertDescription>
           </Alert>
         )}
@@ -151,11 +150,7 @@ export function BillingSection({
           <EmptyState
             icon={<Receipt className="h-5 w-5" />}
             title={t("empty_title")}
-            description={
-              canWrite
-                ? t("empty_desc")
-                : (t("empty_readonly") ?? t("empty_desc"))
-            }
+            description={canWrite ? t("empty_desc") : t("empty_readonly")}
             action={
               canWrite && billableOrders.length > 0 ? (
                 <CreateInvoiceButton orderId={billableOrders[0]!.id} />

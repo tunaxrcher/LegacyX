@@ -38,8 +38,8 @@ type Resource = {
 
 type Mode = null | "edit" | "delete";
 
-export function AdminResourceActions({ resource }: { resource: Resource }) {
-  const t = useTranslations("admin_resources");
+export function ResourceActions({ resource }: { resource: Resource }) {
+  const t = useTranslations("manager_resources");
   const router = useRouter();
   const [mode, setMode] = React.useState<Mode>(null);
 
@@ -92,7 +92,7 @@ function EditDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_resources");
+  const t = useTranslations("manager_resources");
   const tCommon = useTranslations("common");
   const [name, setName] = React.useState(resource.name);
   const [capacity, setCapacity] = React.useState(String(resource.capacity));
@@ -184,7 +184,7 @@ function DeleteDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_resources");
+  const t = useTranslations("manager_resources");
   const tCommon = useTranslations("common");
   const [busy, setBusy] = React.useState(false);
 

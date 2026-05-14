@@ -95,9 +95,10 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 ### 🩺 Clinical
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| `/ai-drafts` | | ✅ | ✅ | | | |
-| `/emr/sign` | | | ✅ | | | |
+| `/visits/<id>` SOAP note + AI Assistant + EMR signature (inline action) | | ✅ | ✅ | ✅ | | |
 | `/pharmacy` | | | | | | ✅ |
+
+> EMR signing is no longer a dedicated page. It happens inline on `/visits/<id>` → SOAP tab → "Sign" button (DOCTOR-only, scoped to `emr:sign:self`). AI drafts are integrated directly into the AI Assistant — pending drafts appear via "Load draft" inside the SOAP tab; no `/ai-drafts` page exists anymore.
 
 ### 📦 Stock
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
@@ -117,9 +118,9 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 ### 🏗️ Clinic Setup (MANAGER — tenant-level configuration)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| `/admin/resources` Rooms & resources setup | | ✅ | | | | |
-| `/admin/services` Service catalog (categories + services, S3 image upload, auto-slug codes) | | ✅ | | | | |
-| `/admin/notifications` Notification log viewer | | ✅ | | | | |
+| `/manager/resources` Rooms & resources setup | | ✅ | | | | |
+| `/manager/services` Service catalog (categories + services, S3 image upload, auto-slug codes) | | ✅ | | | | |
+| `/manager/notifications` Notification log viewer | | ✅ | | | | |
 
 ### ⚙️ System Admin (ADMIN-only universe)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
@@ -138,8 +139,8 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 > says `admin/`.
 
 > 🛋️ Note: **2 หน้าแยกสำหรับห้อง** —
-> - `/resources` = card grid · งานรายวัน · Release / Maintenance · (MANAGER/NURSE/RECEPTION)
-> - `/admin/resources` = ตารางแบบ CRUD · Create / Edit / Retire(soft-delete) · ไม่มี Release · (ADMIN)
+> - `/resources` = card grid · งานรายวัน · Release / Transfer · (MANAGER/NURSE/RECEPTION)
+> - `/manager/resources` = ตารางแบบ CRUD · Create / Edit / Retire(soft-delete) · ไม่มี Release · (MANAGER)
 
 ---
 
@@ -159,8 +160,8 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 ### 👨‍⚕️ DOCTOR — แพทย์
 ตามแผน ARCH §6 Phase 2:
 1. **ดูผู้ป่วยและประวัติ** — `/patients/{id}` → ดู visits/EMR (`emr:read`, `patient:read`)
-2. **AI ช่วยร่าง EMR** — `/ai-drafts` → ตรวจร่างของ AI Orchestrator
-3. **เซ็น EMR** — `/emr/sign` → ยืนยัน → emit `emr.signed` (`emr:sign:self` — ของตัวเองเท่านั้น)
+2. **AI ช่วยร่าง EMR** — บนหน้า `/visits/<id>` → SOAP tab → AI Assistant → "Load draft" (drafts ที่ pending จะโชว์ในป๊อปอัปนี้)
+3. **เซ็น EMR** — บนหน้า `/visits/<id>` → SOAP tab → ปุ่ม "Sign" → emit `emr.signed` (`emr:sign:self` — ของตัวเองเท่านั้น)
 4. **สั่งหัตถการ** — เปิด visit → New Order (`order:write`)
 5. **เริ่ม/จบหัตถการ** — `procedure:perform` (Doctor หรือ Nurse ก็ได้)
 

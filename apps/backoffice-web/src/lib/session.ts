@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-export type SessionBranch = { id: string; code: string; name: string };
+type SessionBranch = { id: string; code: string; name: string };
 
 export type Session = {
   tenantId: string;

@@ -31,7 +31,7 @@ import {
 let _client: S3Client | null = null;
 
 /** True when the four S3_* env vars are all present. Cheap, no SDK call. */
-export function isS3Configured(): boolean {
+function isS3Configured(): boolean {
   return Boolean(
     process.env.S3_ENDPOINT &&
       process.env.S3_BUCKET &&
@@ -117,7 +117,7 @@ function getClient(): S3Client {
   return _client;
 }
 
-export function getBucket(): string {
+function getBucket(): string {
   return readEnv().bucket;
 }
 

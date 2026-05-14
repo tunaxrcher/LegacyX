@@ -418,7 +418,7 @@ function ListBody({
                 <TableRow>
                   <TableHead>{t("appointments.scheduled_at")}</TableHead>
                   <TableHead>{t("appointments.patient")}</TableHead>
-                  <TableHead>{t("appointments.doctor") ?? "Doctor"}</TableHead>
+                  <TableHead>{t("appointments.doctor")}</TableHead>
                   <TableHead>{t("appointments.duration")}</TableHead>
                   <TableHead>Channel</TableHead>
                   <TableHead>{t("common.status")}</TableHead>

@@ -60,11 +60,11 @@ async function request<T>(
   return res.json();
 }
 
-export async function clientPost<T>(path: string, body: unknown): Promise<T> {
+async function clientPost<T>(path: string, body: unknown): Promise<T> {
   return request<T>("POST", path, body);
 }
 
-export async function clientGet<T>(path: string, init?: RequestInit): Promise<T> {
+async function clientGet<T>(path: string, init?: RequestInit): Promise<T> {
   return request<T>("GET", path, undefined, init);
 }
 

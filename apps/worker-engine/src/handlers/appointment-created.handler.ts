@@ -42,7 +42,7 @@ async function run(env: HandlerEnvelope): Promise<void> {
 }
 
 export const appointmentCreatedHandler: Handler = {
-  name: "appointment-created.reserve+notify",
+  name: "appointment-created.notify",
   eventName: EVENT_NAMES.APPOINTMENT_CREATED,
   run,
 };

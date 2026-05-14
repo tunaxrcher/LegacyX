@@ -11,7 +11,6 @@ import { writeWithOutbox } from "../../shared/outbox";
 import type { RequestContext } from "../../shared/context";
 
 const ResourceTypeEnum = z.enum(["ROOM", "MACHINE", "THERAPIST", "LASER", "OTHER"]);
-const ResourceStatusEnum = z.enum(["AVAILABLE", "OCCUPIED", "MAINTENANCE", "RETIRED"]);
 
 export const CreateResourceDto = z.object({
   type: ResourceTypeEnum,
@@ -29,11 +28,6 @@ export const UpdateResourceDto = z.object({
   floor: z.number().int().optional(),
   subtype: z.string().max(40).optional(),
   attributes: z.record(z.unknown()).optional(),
-});
-
-export const SetStatusDto = z.object({
-  status: ResourceStatusEnum,
-  reason: z.string().max(500).optional(),
 });
 
 export const MaintenanceDto = z.object({

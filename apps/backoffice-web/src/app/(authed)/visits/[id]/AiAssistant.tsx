@@ -43,7 +43,7 @@ interface SoapContent {
   plan?: string;
 }
 
-export interface AiDraftRow {
+interface AiDraftRow {
   id: string;
   type: string;
   status: string;
@@ -111,7 +111,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
     };
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Ctor) {
-      toast.error(t("not_supported") ?? "Browser does not support speech recognition");
+      toast.error(t("not_supported"));
       return;
     }
     const rec = new Ctor();
@@ -139,7 +139,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
       setInterim(interimText);
     };
     rec.onerror = (ev) => {
-      toast.error(t("mic_error") ?? "Microphone error", { description: ev.error });
+      toast.error(t("mic_error"), { description: ev.error });
       setRecording(false);
     };
     rec.onend = () => {
@@ -159,7 +159,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
   async function splitWithAi() {
     const text = transcript.trim();
     if (!text) {
-      toast.error(t("empty_transcript") ?? "Transcript is empty");
+      toast.error(t("empty_transcript"));
       return;
     }
     setSplitting(true);
@@ -183,9 +183,9 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
       const { data } = (await res.json()) as { data: AiDraftRow };
       const content = (data.draft ?? {}) as SoapContent;
       onDraftApplied(content, data.id);
-      toast.success(t("split_success") ?? "AI draft applied");
+      toast.success(t("split_success"));
     } catch (err) {
-      toast.error(t("split_failed") ?? "AI split failed", {
+      toast.error(t("split_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -198,7 +198,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
       <CardContent className="space-y-3 p-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">{t("title") ?? "AI Assistant"}</span>
+          <span className="text-sm font-semibold">{t("title")}</span>
           {!supported && (
             <Badge variant="warning" className="ml-auto">
               <AlertCircle className="h-3 w-3" /> Chrome / Edge required
@@ -216,7 +216,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
               disabled={!supported}
             >
               <Mic className="h-4 w-4" />
-              {t("start_recording") ?? "บันทึกเสียง"}
+              {t("start_recording")}
             </Button>
           ) : (
             <Button
@@ -227,7 +227,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
               className="animate-pulse"
             >
               <MicOff className="h-4 w-4" />
-              {t("stop_recording") ?? "หยุด"}
+              {t("stop_recording")}
             </Button>
           )}
 
@@ -243,7 +243,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
               className="ml-auto"
             >
               {splitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {t("split_soap") ?? "แบ่งเป็น SOAP ด้วย AI"}
+              {t("split_soap")}
             </Button>
           )}
         </div>
@@ -252,7 +252,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground">
-                {t("transcript") ?? "Transcript"}
+                {t("transcript")}
               </label>
               {transcript && (
                 <button
@@ -260,7 +260,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
                   onClick={() => setTranscript("")}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
-                  {t("clear") ?? "clear"}
+                  {t("clear")}
                 </button>
               )}
             </div>
@@ -268,7 +268,7 @@ export function AiAssistant({ visitId, onDraftApplied }: AiAssistantProps) {
               rows={3}
               value={transcript + (interim ? " " + interim : "")}
               onChange={(e) => setTranscript(e.target.value)}
-              placeholder={t("transcript_placeholder") ?? "กดบันทึกเสียง หรือพิมพ์…"}
+              placeholder={t("transcript_placeholder")}
               className="font-mono text-xs"
             />
           </div>
@@ -307,7 +307,7 @@ function LoadDraftButton({
   function apply(d: AiDraftRow) {
     onDraftApplied((d.draft ?? {}) as SoapContent, d.id);
     setOpen(false);
-    toast.success(t("draft_applied") ?? "Draft applied");
+    toast.success(t("draft_applied"));
   }
 
   return (
@@ -321,14 +321,14 @@ function LoadDraftButton({
       <DialogTrigger asChild>
         <Button type="button" variant="outline" size="sm">
           <Inbox className="h-4 w-4" />
-          {t("load_draft") ?? "โหลดจาก draft"}
+          {t("load_draft")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("load_draft") ?? "Load AI draft"}</DialogTitle>
+          <DialogTitle>{t("load_draft")}</DialogTitle>
           <DialogDescription>
-            {t("load_draft_desc") ?? "Pending drafts linked to this visit"}
+            {t("load_draft_desc")}
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] space-y-2 overflow-y-auto">
@@ -340,7 +340,7 @@ function LoadDraftButton({
           )}
           {!loading && drafts.length === 0 && (
             <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-              {t("no_drafts") ?? "No pending drafts for this visit"}
+              {t("no_drafts")}
             </div>
           )}
           {drafts.map((d) => (

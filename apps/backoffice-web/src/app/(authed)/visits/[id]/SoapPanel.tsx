@@ -101,7 +101,7 @@ export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelP
   async function sign(e: React.FormEvent) {
     e.preventDefault();
     if (willAmend && !reason.trim()) {
-      toast.error(t("reason_required") ?? "Reason required for amendments");
+      toast.error(t("reason_required"));
       return;
     }
     setBusy(true);
@@ -139,10 +139,9 @@ export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelP
       {!canWrite && (
         <Alert variant="default">
           <Lock className="h-4 w-4" />
-          <AlertTitle>{t("readonly_title") ?? "Read-only"}</AlertTitle>
+          <AlertTitle>{t("readonly_title")}</AlertTitle>
           <AlertDescription className="text-xs">
-            {t("readonly_desc") ??
-              "Your role can view this EMR but cannot edit or sign it."}
+            {t("readonly_desc")}
           </AlertDescription>
         </Alert>
       )}
@@ -153,18 +152,18 @@ export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelP
           <AlertTitle className="flex items-center gap-2">
             {isSigned ? (
               <>
-                {t("status_signed") ?? "Signed"}
+                {t("status_signed")}
                 <Badge variant="success">v{existing.currentVersion}</Badge>
               </>
             ) : (
-              t("status_draft") ?? "Draft"
+              t("status_draft")
             )}
           </AlertTitle>
           <AlertDescription>
             <div className="space-y-1 text-xs">
               {existing.signedAt && (
                 <div>
-                  <span className="text-muted-foreground">{t("signed_at") ?? "Signed at"}: </span>
+                  <span className="text-muted-foreground">{t("signed_at")}: </span>
                   {formatDateTime(existing.signedAt)}
                 </div>
               )}
@@ -249,7 +248,7 @@ export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelP
               id="reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={t("reason") ?? "reason for amendment"}
+              placeholder={t("reason")}
               required
             />
           </CardContent>
@@ -272,7 +271,7 @@ export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelP
             onClick={() => setAmendMode(true)}
           >
             <Pencil className="h-4 w-4" />
-            {t("amend_label") ?? "Amend"}
+            {t("amend_label")}
           </Button>
         )}
         {editable && (
@@ -281,7 +280,7 @@ export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelP
             {busy
               ? t("signing")
               : willAmend
-                ? (t("amend_and_sign") ?? "Amend & Sign")
+                ? (t("amend_and_sign"))
                 : t("sign")}
           </Button>
         )}

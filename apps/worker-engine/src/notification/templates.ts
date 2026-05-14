@@ -194,5 +194,3 @@ export function renderTemplate(
   }
   return fn(payload ?? {}, locale);
 }
-
-export const TEMPLATE_CODES = Object.keys(templates);

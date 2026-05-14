@@ -45,7 +45,7 @@ export function contentHash(content: unknown): string {
     .digest("hex");
 }
 
-// `searchableHash` and `normalizePhone` live in `@legacyx/db` (shared with seed
-// and worker) so all three call sites compute the same digest. Re-export here
-// to avoid churning every existing import path.
-export { searchableHash, normalizePhone } from "@legacyx/db";
+// `searchableHash` lives in `@legacyx/db` (shared with seed and worker) so all
+// three call sites compute the same digest. Re-export here to avoid churning
+// every existing import path.
+export { searchableHash } from "@legacyx/db";

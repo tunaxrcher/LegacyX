@@ -28,7 +28,7 @@ import { clientApi } from "@/lib/clientApi";
  */
 export function CreateCategoryDialog() {
   const router = useRouter();
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const tCommon = useTranslations("common");
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);

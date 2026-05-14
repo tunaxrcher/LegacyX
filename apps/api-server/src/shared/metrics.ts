@@ -183,17 +183,3 @@ function processMetrics(): string {
 }
 
 export const registry = new Registry();
-
-// HTTP metrics for api-server
-export const httpRequestsTotal = registry.counter(
-  "legacyx_http_requests_total",
-  "Total HTTP requests handled by api-server (by route + method + status_code)",
-);
-export const httpRequestDuration = registry.histogram(
-  "legacyx_http_request_duration_seconds",
-  "Latency histogram of HTTP requests (by route + method)",
-);
-export const httpErrorsTotal = registry.counter(
-  "legacyx_http_errors_total",
-  "HTTP error responses (status >= 400)",
-);

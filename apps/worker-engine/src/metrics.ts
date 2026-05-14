@@ -146,7 +146,7 @@ function processMetrics(): string {
   ].join("\n");
 }
 
-export const registry = new Registry();
+const registry = new Registry();
 
 // Worker-specific metric families.
 export const handlerRuns = registry.counter(

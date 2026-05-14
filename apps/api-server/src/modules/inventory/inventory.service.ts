@@ -29,14 +29,7 @@ export const ReverseStockDto = z.object({
   reason: z.string().min(3).max(500),
 });
 
-export const ReconcileStockDto = z.object({
-  product_id: z.string().min(1),
-  counted_qty: decString,
-  notes: z.string().max(500).optional(),
-  override_id: z.string().optional(),
-});
-
-export const ReconcileBatchItemDto = z.object({
+const ReconcileBatchItemDto = z.object({
   product_id: z.string().min(1),
   counted_qty: decString,
   notes: z.string().max(500).optional(),

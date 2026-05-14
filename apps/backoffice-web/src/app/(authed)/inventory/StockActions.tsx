@@ -96,7 +96,7 @@ function ReceiveDialog({ products }: { products: Product[] }) {
               products={products}
               value={productId}
               onChange={setProductId}
-              placeholder={t("product") ?? "Pick a product"}
+              placeholder={t("product")}
             />
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -196,7 +196,7 @@ function AdjustDialog({ products }: { products: Product[] }) {
               products={products}
               value={productId}
               onChange={setProductId}
-              placeholder={t("product") ?? "Pick a product"}
+              placeholder={t("product")}
             />
           </div>
           <div className="space-y-2">

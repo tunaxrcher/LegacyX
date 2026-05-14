@@ -75,9 +75,9 @@ export function PhotosSection({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">{t("photos.title") ?? "Clinical Photos"}</h3>
+          <h3 className="text-lg font-semibold">{t("photos.title")}</h3>
           <p className="text-sm text-muted-foreground">
-            {t("photos.subtitle") ?? "Before / after / procedure documentation · Gemini Vision-assisted"}
+            {t("photos.subtitle")}
           </p>
         </div>
         {canWrite && (
@@ -88,8 +88,8 @@ export function PhotosSection({
       {beforeAfter.length === 0 ? (
         <EmptyState
           icon={<Camera className="h-5 w-5" />}
-          title={t("photos.empty_title") ?? "No photos uploaded"}
-          description={t("photos.empty_desc") ?? "Upload before/after shots to document treatment progress"}
+          title={t("photos.empty_title")}
+          description={t("photos.empty_desc")}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
@@ -117,10 +117,10 @@ function PhotoCard({
     setBusy(true);
     try {
       await clientApi.post(`/api/v1/photos/${photo.id}/analyze`, {});
-      toast.success(t("photos.analyzed") ?? "Vision analysis complete");
+      toast.success(t("photos.analyzed"));
       router.refresh();
     } catch (err) {
-      toast.error(t("photos.analyze_failed") ?? "Vision analysis failed", {
+      toast.error(t("photos.analyze_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -129,14 +129,14 @@ function PhotoCard({
   }
 
   async function softDelete() {
-    if (!window.confirm(t("photos.delete_confirm") ?? "Delete this photo?")) return;
+    if (!window.confirm(t("photos.delete_confirm"))) return;
     setBusy(true);
     try {
       await clientApi.delete(`/api/v1/photos/${photo.id}`);
-      toast.success(t("photos.deleted") ?? "Photo deleted");
+      toast.success(t("photos.deleted"));
       router.refresh();
     } catch (err) {
-      toast.error(t("photos.delete_failed") ?? "Delete failed", {
+      toast.error(t("photos.delete_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -172,7 +172,7 @@ function PhotoCard({
         </div>
         {photo.region && (
           <div className="text-xs">
-            <span className="text-muted-foreground">{t("photos.region") ?? "Region"}: </span>
+            <span className="text-muted-foreground">{t("photos.region")}: </span>
             {photo.region}
           </div>
         )}
@@ -183,7 +183,7 @@ function PhotoCard({
           <div className="rounded-md border bg-muted/30 p-2 text-xs space-y-1">
             <div className="flex items-center gap-1 font-medium">
               <Sparkles className="h-3 w-3 text-warning" />
-              {t("photos.ai_analysis") ?? "AI analysis"}
+              {t("photos.ai_analysis")}
               {typeof a.confidence === "number" && (
                 <span className="ml-auto text-muted-foreground">
                   {Math.round(a.confidence * 100)}%
@@ -194,7 +194,7 @@ function PhotoCard({
             {a.observations && a.observations.length > 0 && (
               <div>
                 <span className="text-muted-foreground">
-                  {t("photos.observations") ?? "Observations"}:
+                  {t("photos.observations")}:
                 </span>{" "}
                 {a.observations.join(", ")}
               </div>
@@ -202,7 +202,7 @@ function PhotoCard({
             {a.concerns && a.concerns.length > 0 && (
               <div className="text-warning">
                 <span className="font-medium">
-                  {t("photos.concerns") ?? "Concerns"}:
+                  {t("photos.concerns")}:
                 </span>{" "}
                 {a.concerns.join(", ")}
               </div>
@@ -218,7 +218,7 @@ function PhotoCard({
                 ) : (
                   <Sparkles className="h-3 w-3" />
                 )}
-                {t("photos.analyze") ?? "Analyze"}
+                {t("photos.analyze")}
               </Button>
             )}
             <Button
@@ -279,11 +279,11 @@ function UploadPhotoDialog({
       return;
     }
     if (picked.size > 8 * 1024 * 1024) {
-      toast.error(t("photos.file_too_large") ?? "File too large (max 8 MB)");
+      toast.error(t("photos.file_too_large"));
       return;
     }
     if (!["image/jpeg", "image/png", "image/webp"].includes(picked.type)) {
-      toast.error(t("photos.unsupported_type") ?? "Unsupported file type");
+      toast.error(t("photos.unsupported_type"));
       return;
     }
     setFile(picked);
@@ -292,7 +292,7 @@ function UploadPhotoDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) {
-      toast.error(t("photos.pick_file") ?? "Please pick a file");
+      toast.error(t("photos.pick_file"));
       return;
     }
     setBusy(true);
@@ -325,12 +325,12 @@ function UploadPhotoDialog({
         }
         throw new Error(message);
       }
-      toast.success(t("photos.uploaded") ?? "Photo uploaded");
+      toast.success(t("photos.uploaded"));
       setOpen(false);
       reset();
       router.refresh();
     } catch (err) {
-      toast.error(t("photos.upload_failed") ?? "Upload failed", {
+      toast.error(t("photos.upload_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -349,21 +349,20 @@ function UploadPhotoDialog({
       <DialogTrigger asChild>
         <Button>
           <Camera className="h-4 w-4" />
-          {t("photos.upload") ?? "Upload Photo"}
+          {t("photos.upload")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("photos.upload") ?? "Upload Photo"}</DialogTitle>
+          <DialogTitle>{t("photos.upload")}</DialogTitle>
           <DialogDescription>
-            {t("photos.upload_desc") ??
-              "JPEG / PNG / WebP up to 8 MB · stored privately"}
+            {t("photos.upload_desc")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>{t("photos.kind") ?? "Kind"}</Label>
+              <Label>{t("photos.kind")}</Label>
               <Select
                 value={kind}
                 onValueChange={(v) => setKind(v as "BEFORE" | "AFTER" | "PROCEDURE")}
@@ -379,19 +378,19 @@ function UploadPhotoDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="region">{t("photos.region") ?? "Region"}</Label>
+              <Label htmlFor="region">{t("photos.region")}</Label>
               <Input
                 id="region"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                placeholder={t("photos.region_placeholder") ?? "left cheek / forehead"}
+                placeholder={t("photos.region_placeholder")}
                 maxLength={80}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="file">{t("photos.file") ?? "Image file"}</Label>
+            <Label htmlFor="file">{t("photos.file")}</Label>
             <Input
               id="file"
               type="file"
@@ -417,7 +416,7 @@ function UploadPhotoDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="note">{t("photos.note") ?? "Staff note"}</Label>
+            <Label htmlFor="note">{t("photos.note")}</Label>
             <Textarea
               id="note"
               value={note}
@@ -429,7 +428,7 @@ function UploadPhotoDialog({
           <DialogFooter>
             <Button type="submit" disabled={busy || !file}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {t("photos.upload") ?? "Upload"}
+              {t("photos.upload")}
             </Button>
           </DialogFooter>
         </form>

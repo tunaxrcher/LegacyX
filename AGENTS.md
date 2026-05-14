@@ -92,7 +92,7 @@ packages/types              Cross-app DTOs (Zod)
 | Add a new event | `packages/events/src/*.ts` with a `*V1` Zod schema, then export via `index.ts` |
 | Add a worker handler | `apps/worker-engine/src/handlers/<name>.ts` + register in `apps/worker-engine/src/index.ts` |
 | Add a backoffice page | `apps/backoffice-web/src/app/(authed)/...` + add sidebar entry in `components/app-shell/sidebar.tsx` + i18n keys for both `en.json` and `th.json` |
-| Add a service catalog item | `/admin/services` UI in backoffice — system auto-generates codes from name; image goes to S3 |
+| Add a service catalog item | `/manager/services` UI in backoffice — system auto-generates codes from name; image goes to S3 |
 | Add patient-facing page | `apps/patient-app/src/app/...`. Public pages live outside `(authed)`; authed pages inside |
 | Debug a failed job | `/dlq` (System Admin only) → inspect → reprocess |
 | Read metrics | `curl -H "Authorization: Bearer $METRICS_BEARER_TOKEN" /api/metrics` (api-server) or `:9464/metrics` (worker-engine) |

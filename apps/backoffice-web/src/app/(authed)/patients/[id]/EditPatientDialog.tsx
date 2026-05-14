@@ -126,11 +126,11 @@ export function EditPatientDialog({ patient }: Props) {
         allergies: allergyList,
         chronic_conditions: chronicList,
       });
-      toast.success(t("update_success") ?? "Patient updated");
+      toast.success(t("update_success"));
       setOpen(false);
       router.refresh();
     } catch (err) {
-      toast.error(t("update_failed") ?? "Failed to update patient", {
+      toast.error(t("update_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -148,10 +148,9 @@ export function EditPatientDialog({ patient }: Props) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{t("edit_title") ?? "Edit patient"}</DialogTitle>
+          <DialogTitle>{t("edit_title")}</DialogTitle>
           <DialogDescription>
-            {t("edit_subtitle") ??
-              "PII fields are encrypted; previous values are decrypted on display."}
+            {t("edit_subtitle")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -178,7 +177,7 @@ export function EditPatientDialog({ patient }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="nickname">{t("nickname") ?? "Nickname"}</Label>
+              <Label htmlFor="nickname">{t("nickname")}</Label>
               <Input
                 id="nickname"
                 value={nickname}
@@ -208,7 +207,7 @@ export function EditPatientDialog({ patient }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">{t("email") ?? "Email"}</Label>
+              <Label htmlFor="email">{t("email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -274,7 +273,7 @@ export function EditPatientDialog({ patient }: Props) {
               <Textarea
                 id="chronic"
                 rows={2}
-                placeholder={t("chronic_placeholder") ?? "DM, HT, …"}
+                placeholder={t("chronic_placeholder")}
                 value={chronic}
                 onChange={(e) => setChronic(e.target.value)}
               />

@@ -42,27 +42,27 @@ export function VisitTabs({
   return (
     <Tabs defaultValue={defaultTab} className="space-y-4">
       <TabsList className="flex w-full flex-wrap justify-start gap-1 rounded-md bg-muted p-1">
-        <TabsTrigger value="overview">{t("visits.tab_overview") ?? "Overview"}</TabsTrigger>
-        <TabsTrigger value="soap">{t("visits.tab_soap") ?? "SOAP Note"}</TabsTrigger>
+        <TabsTrigger value="overview">{t("visits.tab_overview")}</TabsTrigger>
+        <TabsTrigger value="soap">{t("visits.tab_soap")}</TabsTrigger>
         <TabsTrigger value="orders">
-          {t("visits.tab_orders") ?? "Orders"} {orderCount > 0 && `(${orderCount})`}
+          {t("visits.tab_orders")} {orderCount > 0 && `(${orderCount})`}
         </TabsTrigger>
         {procedureCount > 0 && (
           <TabsTrigger value="procedures">
-            {t("visits.tab_procedures") ?? "Procedures"} ({procedureCount})
+            {t("visits.tab_procedures")} ({procedureCount})
           </TabsTrigger>
         )}
         {labs !== undefined && (
           <TabsTrigger value="labs">
-            {t("visits.tab_labs") ?? "Labs"} {labCount > 0 && `(${labCount})`}
+            {t("visits.tab_labs")} {labCount > 0 && `(${labCount})`}
           </TabsTrigger>
         )}
         {photos !== undefined && (
           <TabsTrigger value="photos">
-            {t("visits.tab_photos") ?? "Photos"} {photoCount > 0 && `(${photoCount})`}
+            {t("visits.tab_photos")} {photoCount > 0 && `(${photoCount})`}
           </TabsTrigger>
         )}
-        <TabsTrigger value="billing">{t("visits.tab_billing") ?? "Billing"}</TabsTrigger>
+        <TabsTrigger value="billing">{t("visits.tab_billing")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">{overview}</TabsContent>

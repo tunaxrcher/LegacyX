@@ -99,7 +99,7 @@ export function ProductsPanel({ initialProducts }: { initialProducts: Product[] 
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("search_placeholder") ?? "Search by SKU or name…"}
+              placeholder={t("search_placeholder")}
               className="pl-9"
             />
           </div>
@@ -108,7 +108,7 @@ export function ProductsPanel({ initialProducts }: { initialProducts: Product[] 
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">{t("all_categories") ?? "All categories"}</SelectItem>
+              <SelectItem value="ALL">{t("all_categories")}</SelectItem>
               {CATEGORIES.map((c) => (
                 <SelectItem key={c.value} value={c.value}>
                   {c.label}
@@ -120,7 +120,7 @@ export function ProductsPanel({ initialProducts }: { initialProducts: Product[] 
             trigger={
               <Button size="sm">
                 <Plus className="h-4 w-4" />
-                {t("new_product") ?? "New product"}
+                {t("new_product")}
               </Button>
             }
             onSaved={() => router.refresh()}
@@ -131,11 +131,11 @@ export function ProductsPanel({ initialProducts }: { initialProducts: Product[] 
           <TableHeader>
             <TableRow>
               <TableHead>SKU</TableHead>
-              <TableHead>{t("col_name") ?? "Name"}</TableHead>
-              <TableHead>{t("col_category") ?? "Category"}</TableHead>
-              <TableHead>{t("col_unit") ?? "Unit"}</TableHead>
-              <TableHead className="text-right">{t("col_price") ?? "Price"}</TableHead>
-              <TableHead className="text-right">{t("col_reorder") ?? "Reorder"}</TableHead>
+              <TableHead>{t("col_name")}</TableHead>
+              <TableHead>{t("col_category")}</TableHead>
+              <TableHead>{t("col_unit")}</TableHead>
+              <TableHead className="text-right">{t("col_price")}</TableHead>
+              <TableHead className="text-right">{t("col_reorder")}</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -143,7 +143,7 @@ export function ProductsPanel({ initialProducts }: { initialProducts: Product[] 
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                  {t("empty") ?? "No products"}
+                  {t("empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -246,11 +246,11 @@ function ProductDialog({
       } else {
         await clientApi.post("/api/v1/catalog/products", body);
       }
-      toast.success(isEdit ? t("saved") ?? "Saved" : t("created") ?? "Created");
+      toast.success(isEdit ? t("saved") : t("created"));
       setOpen(false);
       onSaved();
     } catch (err) {
-      toast.error(isEdit ? t("save_failed") ?? "Save failed" : t("create_failed") ?? "Create failed", {
+      toast.error(isEdit ? t("save_failed") : t("create_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -264,10 +264,10 @@ function ProductDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t("edit_product") ?? "Edit product" : t("new_product") ?? "New product"}
+            {isEdit ? t("edit_product") : t("new_product")}
           </DialogTitle>
           <DialogDescription>
-            {t("product_dialog_desc") ?? "Medications, supplies, courses — all live here."}
+            {t("product_dialog_desc")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={save} className="space-y-3">
@@ -281,7 +281,7 @@ function ProductDialog({
                 className="font-mono"
               />
             </Field>
-            <Field label={t("col_category") ?? "Category"}>
+            <Field label={t("col_category")}>
               <Select
                 value={form.category}
                 onValueChange={(v) => setForm({ ...form, category: v as Product["category"] })}
@@ -299,7 +299,7 @@ function ProductDialog({
               </Select>
             </Field>
           </div>
-          <Field label={t("col_name") ?? "Name"}>
+          <Field label={t("col_name")}>
             <Input
               required
               value={form.name}
@@ -307,14 +307,14 @@ function ProductDialog({
             />
           </Field>
           <div className="grid grid-cols-3 gap-3">
-            <Field label={t("col_unit") ?? "Unit"}>
+            <Field label={t("col_unit")}>
               <Input
                 required
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
               />
             </Field>
-            <Field label={t("col_price") ?? "Price (฿)"}>
+            <Field label={t("col_price")}>
               <Input
                 type="number"
                 min="0"
@@ -323,7 +323,7 @@ function ProductDialog({
                 onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
               />
             </Field>
-            <Field label={t("col_reorder") ?? "Reorder"}>
+            <Field label={t("col_reorder")}>
               <Input
                 type="number"
                 min="0"
@@ -335,7 +335,7 @@ function ProductDialog({
           </div>
           {isCourse && (
             <div className="grid grid-cols-2 gap-3 rounded-md border border-violet-200 bg-violet-50/50 p-3 dark:border-violet-900/50 dark:bg-violet-950/20">
-              <Field label={t("sessions") ?? "Sessions"}>
+              <Field label={t("sessions")}>
                 <Input
                   type="number"
                   min="1"
@@ -344,7 +344,7 @@ function ProductDialog({
                   onChange={(e) => setForm({ ...form, sessions: Number(e.target.value) })}
                 />
               </Field>
-              <Field label={t("linked_procedure") ?? "Linked procedure code"}>
+              <Field label={t("linked_procedure")}>
                 <Input
                   value={form.procedure_code}
                   onChange={(e) => setForm({ ...form, procedure_code: e.target.value })}
@@ -384,10 +384,10 @@ function DeleteButton({ product, onDeleted }: { product: Product; onDeleted: () 
     setBusy(true);
     try {
       await clientApi.delete(`/api/v1/catalog/products/${product.id}`);
-      toast.success(t("deleted") ?? "Deleted");
+      toast.success(t("deleted"));
       onDeleted();
     } catch (err) {
-      toast.error(t("delete_failed") ?? "Delete failed", {
+      toast.error(t("delete_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {

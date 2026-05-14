@@ -89,9 +89,9 @@ export function BomsPanel({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("procedure") ?? "Procedure"}</TableHead>
-              <TableHead>{t("procedure_code") ?? "Code"}</TableHead>
-              <TableHead className="text-right">{t("default_price") ?? "Price"}</TableHead>
+              <TableHead>{t("procedure")}</TableHead>
+              <TableHead>{t("procedure_code")}</TableHead>
+              <TableHead className="text-right">{t("default_price")}</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -207,7 +207,7 @@ function BomEditorDialog({
 
   async function save() {
     if (items.some((it) => !it.productId || Number(it.qty) <= 0)) {
-      toast.error(t("bom_validation") ?? "Every item needs a product and qty > 0");
+      toast.error(t("bom_validation"));
       return;
     }
     setBusy(true);
@@ -219,11 +219,11 @@ function BomEditorDialog({
           unit: it.unit,
         })),
       });
-      toast.success(t("bom_saved") ?? "BOM saved — new version created");
+      toast.success(t("bom_saved"));
       setOpen(false);
       router.refresh();
     } catch (err) {
-      toast.error(t("bom_save_failed") ?? "Save failed", {
+      toast.error(t("bom_save_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -246,7 +246,7 @@ function BomEditorDialog({
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm">
           <Pencil className="h-3.5 w-3.5" />
-          {t("edit_bom") ?? "Edit BOM"}
+          {t("edit_bom")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
@@ -257,8 +257,7 @@ function BomEditorDialog({
             {bom && <Badge variant="secondary">v{bom.version}</Badge>}
           </DialogTitle>
           <DialogDescription>
-            {t("bom_dialog_desc") ??
-              "Materials consumed from stock each time this procedure is completed. Saving creates a new version — history is preserved."}
+            {t("bom_dialog_desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -270,7 +269,7 @@ function BomEditorDialog({
           <div className="space-y-3">
             {items.length === 0 ? (
               <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
-                {t("bom_empty") ?? "No materials. Click Add below."}
+                {t("bom_empty")}
               </div>
             ) : (
               <ul className="space-y-2">
@@ -280,7 +279,7 @@ function BomEditorDialog({
                     className="grid grid-cols-12 items-end gap-2 rounded-md border p-2.5"
                   >
                     <div className="col-span-7">
-                      <Label className="text-xs">{t("product") ?? "Product"}</Label>
+                      <Label className="text-xs">{t("product")}</Label>
                       <Select
                         value={it.productId}
                         onValueChange={(v) => pickProduct(idx, v)}
@@ -303,7 +302,7 @@ function BomEditorDialog({
                       </Select>
                     </div>
                     <div className="col-span-2">
-                      <Label className="text-xs">{t("qty") ?? "Qty"}</Label>
+                      <Label className="text-xs">{t("qty")}</Label>
                       <Input
                         type="number"
                         step="0.001"
@@ -314,7 +313,7 @@ function BomEditorDialog({
                       />
                     </div>
                     <div className="col-span-2">
-                      <Label className="text-xs">{t("unit") ?? "Unit"}</Label>
+                      <Label className="text-xs">{t("unit")}</Label>
                       <Input
                         value={it.unit}
                         onChange={(e) => updateItem(idx, { unit: e.target.value })}
@@ -337,7 +336,7 @@ function BomEditorDialog({
             )}
             <Button type="button" variant="outline" size="sm" onClick={addItem}>
               <Plus className="h-4 w-4" />
-              {t("add_material") ?? "Add material"}
+              {t("add_material")}
             </Button>
           </div>
         )}

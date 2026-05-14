@@ -147,7 +147,7 @@ booking — there's a single source of truth.
 
 ### 3.1 Adding new services
 
-`/admin/services` (ADMIN-only) → **Categories → Services**.
+`/manager/services` (MANAGER) → **Categories → Services**.
 
 Required fields:
 * `code` — UPPERCASE, e.g. `SVC_HYDRAFACIAL`
@@ -173,8 +173,8 @@ Required fields:
 | Receive stock (shipment in)                         | `/inventory/<sku>` → Receive          |
 | Edit BOM for a procedure                            | `/manager/catalog` → BOMs → Edit      |
 | Reconcile end-of-day inventory variance             | `/manager/eod` → Inventory Recon tab  |
-| Add a new patient-facing service                    | `/admin/services`                     |
-| Disable a service (out-of-season etc.)              | `/admin/services` → toggle `active`   |
+| Add a new patient-facing service                    | `/manager/services`                     |
+| Disable a service (out-of-season etc.)              | `/manager/services` → toggle `active`   |
 
 ---
 

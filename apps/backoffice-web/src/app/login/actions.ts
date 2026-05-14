@@ -1,7 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/session";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
@@ -115,24 +114,5 @@ export async function phoneLoginAction(input: {
 // NOTE: the legacy `loginAction` (email + password POST to /api/v1/auth/login)
 // was removed when we switched to phone+OTP in Phase H. If you're looking for
 // it in git history, it lived here until that phase. Use `phoneLookupAction` +
-// `phoneLoginAction` above.
-
-export async function logoutAction() {
-  const c = cookies().get(SESSION_COOKIE);
-  if (c) {
-    try {
-      const session = JSON.parse(c.value) as { token?: string };
-      if (session.token) {
-        await fetch(`${API_BASE}/api/v1/auth/logout`, {
-          method: "POST",
-          headers: { authorization: `Bearer ${session.token}` },
-          cache: "no-store",
-        }).catch(() => undefined);
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  cookies().delete(SESSION_COOKIE);
-  redirect("/login");
-}
+// `phoneLoginAction` above. The shared `logoutAction` lives in
+// `src/app/actions.ts` and is consumed by the user menu.

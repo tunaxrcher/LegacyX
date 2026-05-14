@@ -5,7 +5,7 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "@legacyx/db"],
   },
-  transpilePackages: ["@legacyx/events", "@legacyx/types"],
+  transpilePackages: ["@legacyx/events"],
   poweredByHeader: false,
   logging: {
     fetches: { fullUrl: false },

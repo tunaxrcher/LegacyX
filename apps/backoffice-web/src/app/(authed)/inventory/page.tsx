@@ -44,19 +44,19 @@ export default async function InventoryPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Kpi
           icon={<Boxes className="h-4 w-4" />}
-          label={t("inventory.total_items") ?? "Total items"}
+          label={t("inventory.total_items")}
           value={totalItems}
           color="text-primary"
         />
         <Kpi
           icon={<TrendingDown className="h-4 w-4" />}
-          label={t("inventory.low_stock") ?? "Low stock"}
+          label={t("inventory.low_stock")}
           value={lowStock.length}
           color={lowStock.length > 0 ? "text-warning" : "text-muted-foreground"}
         />
         <Kpi
           icon={<AlertTriangle className="h-4 w-4" />}
-          label={t("inventory.out_of_stock") ?? "Out of stock"}
+          label={t("inventory.out_of_stock")}
           value={outOfStock.length}
           color={outOfStock.length > 0 ? "text-destructive" : "text-muted-foreground"}
         />

@@ -193,7 +193,7 @@ export default async function VisitsPage({
                       href={`/visits/${v.id}`}
                       className="inline-flex items-center gap-1 rounded-md border bg-background px-2.5 py-1.5 text-xs hover:bg-muted"
                     >
-                      {t("common.details") ?? "Details"}
+                      {t("common.details")}
                       <ArrowRight className="h-3 w-3" />
                     </Link>
                   </div>
@@ -242,7 +242,7 @@ function FilterAndSearch({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   const items: Array<{ value: StatusFilter; label: string }> = [
-    { value: "ALL", label: t("common.all") ?? "All" },
+    { value: "ALL", label: t("common.all") },
     { value: "OPEN", label: t("visits.status.OPEN") },
     { value: "IN_PROGRESS", label: t("visits.status.IN_PROGRESS") },
     { value: "COMPLETED", label: t("visits.status.COMPLETED") },
@@ -278,7 +278,7 @@ function FilterAndSearch({
         <input
           type="search"
           name="q"
-          placeholder={t("common.search") ?? "Search"}
+          placeholder={t("common.search")}
           defaultValue={q}
           className="h-8 w-48 rounded-md border bg-background px-3 text-xs"
         />

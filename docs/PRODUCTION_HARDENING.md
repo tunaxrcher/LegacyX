@@ -168,7 +168,7 @@ After every production deploy, run these in order:
 3. Login as MANAGER (`0800000002` + OTP) → `/manager/dashboard` loads.
 4. Login as ADMIN (`0800000001` + OTP) → lands on `/admin` (System Overview), not the clinic dashboard.
 5. Create a booking → confirm → check-in → diagnose → invoice → pay → close shift.
-6. Open `/admin/notifications` → confirm at least one notification dispatched.
+6. Open `/manager/notifications` → confirm at least one notification dispatched.
 7. Open patient LIFF URL on a phone → login → see profile.
 8. Tail Prometheus: `legacyx_worker_handler_runs_total{outcome="success"}` increasing.
 

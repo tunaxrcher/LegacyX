@@ -53,7 +53,7 @@ export default async function NotificationsPage({
   const res = await apiJson<{
     data: NotificationRow[];
     pagination: { total: number; limit: number };
-  }>(session, `/api/v1/admin/notifications?${params.toString()}`).catch(() => ({
+  }>(session, `/api/v1/manager/notifications?${params.toString()}`).catch(() => ({
     data: [] as NotificationRow[],
     pagination: { total: 0, limit: 150 },
   }));

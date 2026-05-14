@@ -30,5 +30,3 @@ for (const h of all) {
   arr.push(h);
   handlerRegistry.set(h.eventName, arr);
 }
-
-export { all as handlers };

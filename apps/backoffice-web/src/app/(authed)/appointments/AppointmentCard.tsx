@@ -37,7 +37,7 @@ export const STATUS_VARIANT: Record<
   NO_SHOW: "muted",
 };
 
-export const STATUS_BORDER: Record<string, string> = {
+const STATUS_BORDER: Record<string, string> = {
   BOOKED: "border-l-info",
   CONFIRMED: "border-l-info",
   CHECKED_IN: "border-l-info",

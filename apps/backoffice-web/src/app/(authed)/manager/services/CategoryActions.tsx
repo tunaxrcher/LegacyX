@@ -44,7 +44,7 @@ export type Category = {
 type Mode = null | "edit" | "delete" | "toggle";
 
 export function CategoryActions({ category }: { category: Category }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const router = useRouter();
   const [mode, setMode] = React.useState<Mode>(null);
 
@@ -103,7 +103,7 @@ function EditCategoryDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const tCommon = useTranslations("common");
   const [name, setName] = React.useState(category.name);
   const [nameTh, setNameTh] = React.useState(category.name_th);
@@ -192,7 +192,7 @@ function ToggleActiveDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const [busy, setBusy] = React.useState(false);
 
   async function submit() {
@@ -243,7 +243,7 @@ function DeleteCategoryDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const [busy, setBusy] = React.useState(false);
 
   async function submit() {

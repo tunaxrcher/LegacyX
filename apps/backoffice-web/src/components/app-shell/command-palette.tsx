@@ -11,6 +11,14 @@ import {
   AlertOctagon,
   Settings,
   Search,
+  Hotel,
+  Sparkles,
+  Bell,
+  Banknote,
+  ScrollText,
+  Box,
+  Tags,
+  ShieldAlert,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -92,9 +100,42 @@ export function CommandPalette() {
             <CommandItem onSelect={() => go("/visits")}>
               <Activity /> {t("nav.visits")}
             </CommandItem>
+            <CommandItem onSelect={() => go("/resources")}>
+              <Hotel /> {t("nav.resources")}
+            </CommandItem>
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading={t("nav.manager")}>
+            <CommandItem onSelect={() => go("/manager")}>
+              <LayoutDashboard /> {t("nav.manager_dashboard")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/eod")}>
+              <Banknote /> {t("nav.manager_eod")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/catalog")}>
+              <Box /> {t("nav.manager_catalog")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/promotions")}>
+              <Tags /> {t("nav.promotions")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/resources")}>
+              <Hotel /> {t("nav.manager_resources")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/services")}>
+              <Sparkles /> {t("nav.manager_services")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/manager/notifications")}>
+              <Bell /> {t("nav.manager_notifications")}
+            </CommandItem>
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading={t("nav.admin")}>
+            <CommandItem onSelect={() => go("/audit")}>
+              <ScrollText /> {t("nav.audit")}
+            </CommandItem>
+            <CommandItem onSelect={() => go("/break-glass")}>
+              <ShieldAlert /> {t("nav.break_glass")}
+            </CommandItem>
             <CommandItem onSelect={() => go("/dlq")}>
               <AlertOctagon /> {t("nav.dlq")}
             </CommandItem>

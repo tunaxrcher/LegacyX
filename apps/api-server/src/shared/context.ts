@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { ulid } from "ulid";
 import { resolveSession } from "../modules/auth/auth.service";
 
-export type Actor = {
+type Actor = {
   type: "USER" | "SYSTEM" | "PATIENT" | "AI";
   id: string | null;
 };
@@ -106,27 +106,4 @@ export class ContextError extends Error {
     super(message);
     this.status = status;
   }
-}
-
-/**
- * Assert that the context has an authenticated user attached. Used by mutation
- * services that need to write audit logs / set createdBy. Throws Unauthorized
- * (401) if the request is anonymous (SYSTEM actor).
- */
-export function getActorOrThrow(ctx: RequestContext): string {
-  if (!ctx.actor.id || ctx.actor.type !== "USER") {
-    throw new ContextError("Authenticated user required for this action", 401);
-  }
-  return ctx.actor.id;
-}
-
-/**
- * Assert that the context has a branch attached. Used by branch-scoped
- * services (most of them). Throws BadRequest if missing.
- */
-export function getBranchOrThrow(ctx: RequestContext): string {
-  if (!ctx.branchId) {
-    throw new ContextError("Branch context required (x-branch-id)", 400);
-  }
-  return ctx.branchId;
 }

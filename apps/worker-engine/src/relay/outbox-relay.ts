@@ -114,7 +114,7 @@ async function publishAndConfirm(row: ClaimedRow): Promise<void> {
   }
 }
 
-export async function relayTick(): Promise<number> {
+async function relayTick(): Promise<number> {
   const batch = await claimBatch(config.relayBatchSize);
   if (batch.length === 0) return 0;
   log.info({ count: batch.length }, "claimed outbox batch");

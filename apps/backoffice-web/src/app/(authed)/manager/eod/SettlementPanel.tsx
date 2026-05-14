@@ -29,7 +29,7 @@ import {
 import { clientApi } from "@/lib/clientApi";
 import { cn } from "@/lib/utils";
 
-export interface UnsettledPayment {
+interface UnsettledPayment {
   id: string;
   invoiceId: string;
   method: string;

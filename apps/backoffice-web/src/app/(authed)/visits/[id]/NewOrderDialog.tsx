@@ -122,11 +122,11 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (lines.length === 0) {
-      toast.error(t("empty_cart") ?? "Please add at least one item");
+      toast.error(t("empty_cart"));
       return;
     }
     if (lines.some((l) => l.qty <= 0)) {
-      toast.error(t("bad_qty") ?? "Every item needs a quantity above zero");
+      toast.error(t("bad_qty"));
       return;
     }
     setBusy(true);
@@ -175,19 +175,19 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
           {/* Catalog picker — always visible, appends to cart */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("add_to_order") ?? "Add to order"}
+              {t("add_to_order")}
             </Label>
             <CatalogPicker
               value={pickerValue}
               onSelect={addFromPicker}
-              placeholder={t("pick_item") ?? "Search procedures, medications, courses…"}
+              placeholder={t("pick_item")}
             />
           </div>
 
           {/* Cart lines */}
           {lines.length === 0 ? (
             <div className="rounded-md border border-dashed bg-muted/20 py-10 text-center text-sm text-muted-foreground">
-              {t("cart_empty") ?? "No items yet. Use the search above to add one."}
+              {t("cart_empty")}
             </div>
           ) : (
             <ul className="space-y-2">
@@ -221,7 +221,7 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={t("notes_placeholder") ?? "e.g. Patient requests morning appointment"}
+                placeholder={t("notes_placeholder")}
               />
             )}
           </div>
@@ -229,9 +229,9 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
           {/* Summary bar */}
           <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
             <div className="text-sm">
-              <span className="font-medium">{t("subtotal") ?? "Subtotal"}</span>
+              <span className="font-medium">{t("subtotal")}</span>
               <span className="ml-2 text-xs text-muted-foreground">
-                {lines.length} {t("items") ?? "items"}
+                {lines.length} {t("items")}
               </span>
             </div>
             <div className="text-lg font-semibold tabular-nums">

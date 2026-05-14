@@ -97,8 +97,8 @@ export default async function AdminServicesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("admin_services.title")}
-        description={t("admin_services.subtitle")}
+        title={t("manager_services.title")}
+        description={t("manager_services.subtitle")}
         actions={
           <div className="flex items-center gap-2">
             <CreateCategoryDialog />
@@ -120,7 +120,7 @@ export default async function AdminServicesPage() {
           <div className="mb-3 flex items-center gap-2">
             <LayoutGrid className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">
-              {t("admin_services.categories_title")}
+              {t("manager_services.categories_title")}
             </h3>
             <Badge variant="muted">{cats.data.length}</Badge>
           </div>
@@ -128,8 +128,8 @@ export default async function AdminServicesPage() {
             <EmptyState
               className="my-6"
               icon={<LayoutGrid className="h-5 w-5" />}
-              title={t("admin_services.cats_empty_title")}
-              description={t("admin_services.cats_empty_desc")}
+              title={t("manager_services.cats_empty_title")}
+              description={t("manager_services.cats_empty_desc")}
               action={<CreateCategoryDialog />}
             />
           ) : (
@@ -137,20 +137,20 @@ export default async function AdminServicesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[80px]">
-                    {t("admin_services.image")}
+                    {t("manager_services.image")}
                   </TableHead>
-                  <TableHead>{t("admin_services.code")}</TableHead>
-                  <TableHead>{t("admin_services.name")}</TableHead>
-                  <TableHead>{t("admin_services.name_th")}</TableHead>
+                  <TableHead>{t("manager_services.code")}</TableHead>
+                  <TableHead>{t("manager_services.name")}</TableHead>
+                  <TableHead>{t("manager_services.name_th")}</TableHead>
                   <TableHead className="text-right">
-                    {t("admin_services.service_count")}
+                    {t("manager_services.service_count")}
                   </TableHead>
                   <TableHead className="text-right">
-                    {t("admin_services.order")}
+                    {t("manager_services.order")}
                   </TableHead>
-                  <TableHead>{t("admin_services.status")}</TableHead>
+                  <TableHead>{t("manager_services.status")}</TableHead>
                   <TableHead className="text-right">
-                    {t("admin_services.actions")}
+                    {t("manager_services.actions")}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -188,8 +188,8 @@ export default async function AdminServicesPage() {
                           <XCircle className="h-3 w-3" />
                         )}
                         {c.active
-                          ? t("admin_services.active")
-                          : t("admin_services.inactive")}
+                          ? t("manager_services.active")
+                          : t("manager_services.inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -223,8 +223,8 @@ export default async function AdminServicesPage() {
             <EmptyState
               className="my-6"
               icon={<Sparkles className="h-5 w-5" />}
-              title={t("admin_services.svc_empty_title")}
-              description={t("admin_services.svc_empty_desc")}
+              title={t("manager_services.svc_empty_title")}
+              description={t("manager_services.svc_empty_desc")}
               action={
                 <CreateServiceDialog
                   categories={cats.data.map((c) => ({
@@ -254,20 +254,20 @@ export default async function AdminServicesPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[80px]">
-                        {t("admin_services.image")}
+                        {t("manager_services.image")}
                       </TableHead>
-                      <TableHead>{t("admin_services.code")}</TableHead>
-                      <TableHead>{t("admin_services.name_th")}</TableHead>
+                      <TableHead>{t("manager_services.code")}</TableHead>
+                      <TableHead>{t("manager_services.name_th")}</TableHead>
                       <TableHead className="text-right">
-                        {t("admin_services.price")}
+                        {t("manager_services.price")}
                       </TableHead>
                       <TableHead className="text-right">
-                        {t("admin_services.duration")}
+                        {t("manager_services.duration")}
                       </TableHead>
-                      <TableHead>{t("admin_services.procedure")}</TableHead>
-                      <TableHead>{t("admin_services.status")}</TableHead>
+                      <TableHead>{t("manager_services.procedure")}</TableHead>
+                      <TableHead>{t("manager_services.status")}</TableHead>
                       <TableHead className="text-right">
-                        {t("admin_services.actions")}
+                        {t("manager_services.actions")}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -294,7 +294,7 @@ export default async function AdminServicesPage() {
                           {priceLabel(s)}
                         </TableCell>
                         <TableCell className="text-right text-xs">
-                          {s.duration_min} {t("admin_services.minutes")}
+                          {s.duration_min} {t("manager_services.minutes")}
                         </TableCell>
                         <TableCell className="font-mono text-[11px] text-muted-foreground">
                           {s.procedure_code ?? "—"}
@@ -307,8 +307,8 @@ export default async function AdminServicesPage() {
                               <XCircle className="h-3 w-3" />
                             )}
                             {s.active
-                              ? t("admin_services.active")
-                              : t("admin_services.inactive")}
+                              ? t("manager_services.active")
+                              : t("manager_services.inactive")}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">

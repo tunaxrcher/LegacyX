@@ -65,7 +65,7 @@ export function ServiceActions({
   categories: CategoryOption[];
   procedures: ProcedureOption[];
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const router = useRouter();
   const [mode, setMode] = React.useState<Mode>(null);
 
@@ -134,7 +134,7 @@ function EditServiceDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const tCommon = useTranslations("common");
   const [categoryId, setCategoryId] = React.useState(service.category_id);
   const [name, setName] = React.useState(service.name);
@@ -290,7 +290,7 @@ function ToggleServiceDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const [busy, setBusy] = React.useState(false);
 
   async function submit() {
@@ -341,7 +341,7 @@ function DeleteServiceDialog({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const t = useTranslations("admin_services");
+  const t = useTranslations("manager_services");
   const [busy, setBusy] = React.useState(false);
 
   async function submit() {

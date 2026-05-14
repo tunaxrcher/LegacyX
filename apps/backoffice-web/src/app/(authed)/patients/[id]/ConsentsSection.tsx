@@ -48,7 +48,7 @@ interface ConsentRow {
 }
 
 // Document templates the worker knows how to render. New types are
-// configurable later via /admin/services or /admin/templates.
+// configurable later via /manager/services or /manager/templates.
 const CONSENT_TYPES = [
   { code: "CONSENT_GENERAL", labelKey: "consents.type_general" },
   { code: "CONSENT_LASER", labelKey: "consents.type_laser" },

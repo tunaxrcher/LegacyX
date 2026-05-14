@@ -14,20 +14,3 @@ export function formatCurrency(amount: number | string, currency = "THB"): strin
     maximumFractionDigits: 0,
   }).format(n);
 }
-
-export function isToday(d: Date | string): boolean {
-  const date = typeof d === "string" ? new Date(d) : d;
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-}
-
-export function ymd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}

@@ -15,10 +15,10 @@
 
 import { GoogleGenerativeAI, type GenerationConfig } from "@google/generative-ai";
 
-export type GeminiClient = ReturnType<typeof createGeminiClient>;
+type GeminiClient = ReturnType<typeof createGeminiClient>;
 
 /** Returns null when no API key is configured — caller must fall back. */
-export function createGeminiClient() {
+function createGeminiClient() {
   const key = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
   if (!key) return null;
 

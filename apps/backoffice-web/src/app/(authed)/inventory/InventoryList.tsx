@@ -96,7 +96,7 @@ export function InventoryList({ rows }: { rows: StockRow[] }) {
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder={t("search_placeholder") ?? "Search SKU or name…"}
+            placeholder={t("search_placeholder")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
@@ -143,26 +143,26 @@ export function InventoryList({ rows }: { rows: StockRow[] }) {
       {filtered.length === 0 ? (
         <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
           <Package className="mx-auto h-5 w-5" />
-          <div className="mt-2">{t("empty_desc") ?? "No products match the current filters"}</div>
+          <div className="mt-2">{t("empty_desc")}</div>
         </div>
       ) : (
         <div className="overflow-hidden rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-32">{t("sku") ?? "SKU"}</TableHead>
+                <TableHead className="w-32">{t("sku")}</TableHead>
                 <TableHead>
                   <SortHeader
-                    label={t("name") ?? "Name"}
+                    label={t("name")}
                     active={sort === "name"}
                     onClick={() => setSort("name")}
                   />
                 </TableHead>
-                <TableHead>{t("category") ?? "Category"}</TableHead>
-                <TableHead className="w-40">{t("stock_level") ?? "Stock level"}</TableHead>
+                <TableHead>{t("category")}</TableHead>
+                <TableHead className="w-40">{t("stock_level")}</TableHead>
                 <TableHead className="text-right">
                   <SortHeader
-                    label={t("balance") ?? "Balance"}
+                    label={t("balance")}
                     active={sort !== "name"}
                     dir={sort === "balance_asc" ? "asc" : "desc"}
                     onClick={() =>
@@ -171,7 +171,7 @@ export function InventoryList({ rows }: { rows: StockRow[] }) {
                     align="right"
                   />
                 </TableHead>
-                <TableHead className="text-right text-xs">{t("reorder") ?? "Reorder"}</TableHead>
+                <TableHead className="text-right text-xs">{t("reorder")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

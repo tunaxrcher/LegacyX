@@ -3,7 +3,7 @@ import { sessionHeaders, type Session } from "./session";
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
 
 /** Server-side fetch from api-server with session headers + no caching. */
-export async function apiFetch(
+async function apiFetch(
   session: Session,
   path: string,
   init?: RequestInit,

@@ -189,20 +189,20 @@ const groups: NavGroup[] = [
     titleKey: "nav.clinic_setup",
     items: [
       {
-        href: "/admin/resources",
-        labelKey: "nav.admin_resources",
+        href: "/manager/resources",
+        labelKey: "nav.manager_resources",
         icon: DoorOpen,
         roles: ["MANAGER"],
       },
       {
-        href: "/admin/services",
-        labelKey: "nav.admin_services",
+        href: "/manager/services",
+        labelKey: "nav.manager_services",
         icon: Sparkles,
         roles: ["MANAGER"],
       },
       {
-        href: "/admin/notifications",
-        labelKey: "nav.admin_notifications",
+        href: "/manager/notifications",
+        labelKey: "nav.manager_notifications",
         icon: Bell,
         roles: ["MANAGER"],
       },

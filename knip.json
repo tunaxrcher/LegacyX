@@ -1,0 +1,42 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "project": ["**/*.{ts,tsx}"]
+    },
+    "apps/api-server": {
+      "entry": [
+        "src/app/**/{page,layout,route,error,not-found,loading,template}.{ts,tsx}"
+      ],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/backoffice-web": {
+      "entry": [
+        "src/app/**/{page,layout,route,error,not-found,loading,template}.{ts,tsx}"
+      ],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignore": ["src/components/ui/**"]
+    },
+    "apps/patient-app": {
+      "entry": [
+        "src/app/**/{page,layout,route,error,not-found,loading,template}.{ts,tsx}"
+      ],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/worker-engine": {
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    "apps/ai-service": {
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["pino-pretty"]
+    },
+    "packages/db": {
+      "project": ["src/**/*.{ts,tsx}", "prisma/**/*.{ts,tsx}"]
+    },
+    "packages/events": {
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  }
+}

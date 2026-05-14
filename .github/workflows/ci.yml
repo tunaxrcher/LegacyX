@@ -76,6 +76,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Dead-code check (knip)
+        run: pnpm lint:dead
+
       - name: Unit tests (Vitest)
         run: pnpm test
 

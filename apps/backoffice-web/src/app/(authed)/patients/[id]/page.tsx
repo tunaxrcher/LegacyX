@@ -162,7 +162,7 @@ export default async function PatientProfile({ params }: { params: { id: string 
           />
           <ContactRow
             icon={<Mail className="h-3.5 w-3.5" />}
-            label={t("patients.email") ?? "Email"}
+            label={t("patients.email")}
             value={p.email}
           />
           <ContactRow
@@ -336,7 +336,7 @@ export default async function PatientProfile({ params }: { params: { id: string 
                             href={`/visits/${v.id}`}
                             className="inline-flex items-center gap-1 rounded-md border bg-background px-2.5 py-1 text-xs hover:bg-muted"
                           >
-                            {t("common.details") ?? "Open"}
+                            {t("common.details")}
                             <ArrowRight className="h-3 w-3" />
                           </Link>
                         </TableCell>

@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreateResourceDialog } from "../../resources/CreateResourceDialog";
-import { AdminResourceActions } from "./AdminResourceActions";
+import { ResourceActions } from "./ResourceActions";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +69,8 @@ export default async function AdminResourcesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("admin_resources.title")}
-        description={t("admin_resources.subtitle")}
+        title={t("manager_resources.title")}
+        description={t("manager_resources.subtitle")}
         actions={<CreateResourceDialog />}
       />
 
@@ -80,8 +80,8 @@ export default async function AdminResourcesPage() {
             <EmptyState
               className="my-6"
               icon={<DoorOpen className="h-5 w-5" />}
-              title={t("admin_resources.empty_title")}
-              description={t("admin_resources.empty_desc")}
+              title={t("manager_resources.empty_title")}
+              description={t("manager_resources.empty_desc")}
               action={<CreateResourceDialog />}
             />
           </CardContent>
@@ -98,16 +98,16 @@ export default async function AdminResourcesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("admin_resources.code")}</TableHead>
-                    <TableHead>{t("admin_resources.name")}</TableHead>
-                    <TableHead>{t("admin_resources.floor")}</TableHead>
-                    <TableHead>{t("admin_resources.subtype")}</TableHead>
+                    <TableHead>{t("manager_resources.code")}</TableHead>
+                    <TableHead>{t("manager_resources.name")}</TableHead>
+                    <TableHead>{t("manager_resources.floor")}</TableHead>
+                    <TableHead>{t("manager_resources.subtype")}</TableHead>
                     <TableHead className="text-right">
-                      {t("admin_resources.capacity")}
+                      {t("manager_resources.capacity")}
                     </TableHead>
-                    <TableHead>{t("admin_resources.status")}</TableHead>
+                    <TableHead>{t("manager_resources.status")}</TableHead>
                     <TableHead className="text-right">
-                      {t("admin_resources.actions")}
+                      {t("manager_resources.actions")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -131,7 +131,7 @@ export default async function AdminResourcesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <AdminResourceActions
+                        <ResourceActions
                           resource={{
                             id: r.id,
                             code: r.code,
