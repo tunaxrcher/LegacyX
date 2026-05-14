@@ -74,26 +74,40 @@ enum BranchStatus {
 // =============================================================================
 
 model User {
-  id            String    @id @default(cuid())
-  tenantId      String    @map("tenant_id")
-  email         String
-  phone         String?
-  passwordHash  String?   @map("password_hash")
-  fullName      String    @map("full_name")
-  avatarUrl     String?   @map("avatar_url")
-  status        UserStatus @default(ACTIVE)
-  mfaEnabled    Boolean   @default(false) @map("mfa_enabled")
-  lastLoginAt   DateTime? @map("last_login_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  /// E.164 normalized phone (digits, optional leading +). Indexed via
+  /// `phoneHash` for fast lookups. Multiple users may share a phone IF they
+  /// have different `primaryRoleCode` values (e.g. same person logging in as
+  /// Doctor vs. Nurse — they pick the role at the login screen).
+  phone           String?
+  /// HMAC-SHA256 of the normalized phone — used by the auth path so the raw
+  /// phone never appears in indexes/logs. Same algorithm as patient kyc.
+  phoneHash       String?   @map("phone_hash")
+  /// Single role per user. Matches Role.code (DOCTOR, NURSE, MANAGER, …).
+  /// Replaces the many-to-many UserRole concept; `UserRole` table is kept
+  /// only for back-compat reads (will be mirrored to this column on every
+  /// write so existing role-based code keeps working).
+  primaryRoleCode String?   @map("primary_role_code")
+  passwordHash    String?   @map("password_hash")
+  fullName        String    @map("full_name")
+  avatarUrl       String?   @map("avatar_url")
+  status          UserStatus @default(ACTIVE)
+  mfaEnabled      Boolean   @default(false) @map("mfa_enabled")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
   tenant        Tenant    @relation(fields: [tenantId], references: [id])
   roles         UserRole[]
   branchAccess  UserBranchAccess[]
   sessions      Session[]
 
-  @@unique([tenantId, email])
+  /// Same phone + same role within a tenant = collision. Different role with
+  /// the same phone is allowed (login flow picks the role first).
+  @@unique([tenantId, phone, primaryRoleCode], name: "user_tenant_phone_role_unique")
+  @@index([tenantId, phoneHash])
   @@index([tenantId, status])
   @@map("users")
 }

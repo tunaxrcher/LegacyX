@@ -6,7 +6,7 @@
  * Run: pnpm db:seed
  */
 import { PrismaClient } from "@prisma/client";
-import { randomBytes, scryptSync } from "node:crypto";
+import { createHash, randomBytes, scryptSync } from "node:crypto";
 
 const prisma = new PrismaClient();
 
@@ -19,6 +19,28 @@ function hashPassword(plain: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(plain, salt, 64, { N, r, p });
   return `scrypt$${N}$${r}$${p}$${salt.toString("hex")}$${hash.toString("hex")}`;
+}
+
+/**
+ * Same algorithm as apps/api-server/src/shared/crypto.ts → `searchableHash`.
+ *
+ *   sha256(`${tenantId}:${normalisedPhone}:` || keyDerivedFromMasterKey)
+ *
+ * Tenant-scoped so the same phone in two tenants gets two different hashes.
+ */
+function searchableHash(tenantId: string, plaintext: string): string {
+  const raw = process.env.ENCRYPTION_MASTER_KEY ?? "dev-master-key";
+  const key = createHash("sha256").update(raw).digest();
+  const normalised = plaintext.trim().replace(/[^\d+]/g, "");
+  return createHash("sha256")
+    .update(`${tenantId}:${normalised}:`)
+    .update(key)
+    .digest("hex");
+}
+
+/** Normalize a Thai phone number for storage. Strips dashes/spaces/parens. */
+function normalizePhone(raw: string): string {
+  return raw.replace(/[^\d+]/g, "");
 }
 
 const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
@@ -236,47 +258,67 @@ async function main() {
 
   // ----- Demo users (one per role) -----
   // Each user gets full UserBranchAccess to all branches + their primary role.
+  // Login is now phone-based (OTP-only — passwords still seeded for legacy
+  // tooling but the backoffice UI no longer prompts for them).
+  //
+  // Note the dual-role example at the bottom: phone 0888888888 is registered
+  // BOTH as a DOCTOR and as a MANAGER. The login flow detects this and shows
+  // a role-picker before the OTP step.
   const DEMO_USERS: Array<{
-    email: string;
+    phone: string;
     fullName: string;
     password: string;
     roleCode: string;
   }> = [
     {
-      email: "admin@legacyx.local",
+      phone: "0800000001",
       fullName: "System Administrator",
       password: "admin123!",
       roleCode: "ADMIN",
     },
     {
-      email: "manager@legacyx.local",
+      phone: "0800000002",
       fullName: "Manda Manager",
       password: "manager123!",
       roleCode: "MANAGER",
     },
     {
-      email: "doctor@legacyx.local",
+      phone: "0800000003",
       fullName: "Dr. Daniel Doctor",
       password: "doctor123!",
       roleCode: "DOCTOR",
     },
     {
-      email: "nurse@legacyx.local",
+      phone: "0800000004",
       fullName: "Nina Nurse",
       password: "nurse123!",
       roleCode: "NURSE",
     },
     {
-      email: "reception@legacyx.local",
+      phone: "0800000005",
       fullName: "Rita Reception",
       password: "reception123!",
       roleCode: "RECEPTION",
     },
     {
-      email: "pharmacist@legacyx.local",
+      phone: "0800000006",
       fullName: "Phil Pharmacist",
       password: "pharmacist123!",
       roleCode: "PHARMACIST",
+    },
+    // Multi-role demo — same phone, two different roles. Login flow will
+    // present a role picker.
+    {
+      phone: "0888888888",
+      fullName: "Dr. Dual (Doctor side)",
+      password: "dual123!",
+      roleCode: "DOCTOR",
+    },
+    {
+      phone: "0888888888",
+      fullName: "Dr. Dual (Manager side)",
+      password: "dual123!",
+      roleCode: "MANAGER",
     },
   ];
 
@@ -284,21 +326,40 @@ async function main() {
     const role = await prisma.role.findUniqueOrThrow({
       where: { tenantId_code: { tenantId: tenant.id, code: du.roleCode } },
     });
-    const user = await prisma.user.upsert({
-      where: { tenantId_email: { tenantId: tenant.id, email: du.email } },
-      update: {
-        passwordHash: hashPassword(du.password),
-        status: "ACTIVE",
-        fullName: du.fullName,
-      },
-      create: {
+    const phone = normalizePhone(du.phone);
+    const phoneHash = searchableHash(tenant.id, phone);
+    // Uniqueness: (tenantId, phone, primaryRoleCode). Same phone may be
+    // registered under different roles (different rows).
+    const existing = await prisma.user.findFirst({
+      where: {
         tenantId: tenant.id,
-        email: du.email,
-        fullName: du.fullName,
-        passwordHash: hashPassword(du.password),
-        status: "ACTIVE",
+        phone,
+        primaryRoleCode: du.roleCode,
       },
     });
+    const user = existing
+      ? await prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            phone,
+            phoneHash,
+            primaryRoleCode: du.roleCode,
+            fullName: du.fullName,
+            passwordHash: hashPassword(du.password),
+            status: "ACTIVE",
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            tenantId: tenant.id,
+            phone,
+            phoneHash,
+            primaryRoleCode: du.roleCode,
+            fullName: du.fullName,
+            passwordHash: hashPassword(du.password),
+            status: "ACTIVE",
+          },
+        });
     await prisma.userRole.upsert({
       where: { userId_roleId: { userId: user.id, roleId: role.id } },
       update: {},
@@ -311,30 +372,10 @@ async function main() {
         create: { userId: user.id, branchId: b.id },
       });
     }
-    console.log(`  ✓ User: ${du.email} (${du.roleCode}) / ${du.password}`);
+    console.log(
+      `  ✓ User: ${du.phone} ${du.fullName} (${du.roleCode}) / OTP=123456`,
+    );
   }
-
-  const admin = await prisma.user.findUniqueOrThrow({
-    where: {
-      tenantId_email: { tenantId: tenant.id, email: "admin@legacyx.local" },
-    },
-  });
-  const adminRole = await prisma.role.findUniqueOrThrow({
-    where: { tenantId_code: { tenantId: tenant.id, code: "ADMIN" } },
-  });
-  await prisma.userRole.upsert({
-    where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
-    update: {},
-    create: { userId: admin.id, roleId: adminRole.id },
-  });
-  for (const b of branches) {
-    await prisma.userBranchAccess.upsert({
-      where: { userId_branchId: { userId: admin.id, branchId: b.id } },
-      update: {},
-      create: { userId: admin.id, branchId: b.id },
-    });
-  }
-  console.log(`  ✓ Admin user: admin@legacyx.local / admin123!`);
 
   // ----- Products (medications, supplies, courses) -----
   // Price is stored in `attributes.price` (JSON) since the schema doesn't have

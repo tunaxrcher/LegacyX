@@ -69,26 +69,35 @@ enum BranchStatus { ACTIVE INACTIVE }
 // =============================================================================
 
 model User {
-  id            String    @id @default(cuid())
-  tenantId      String    @map("tenant_id")
-  email         String
-  phone         String?
-  passwordHash  String?   @map("password_hash")
-  fullName      String    @map("full_name")
-  avatarUrl     String?   @map("avatar_url")
-  status        UserStatus @default(ACTIVE)
-  mfaEnabled    Boolean   @default(false) @map("mfa_enabled")
-  lastLoginAt   DateTime? @map("last_login_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  /// E.164 normalized phone (digits, optional leading +). Login identifier.
+  /// Multiple rows may share a phone IF they have different `primaryRoleCode`
+  /// (same person logging in as DOCTOR vs MANAGER — picks role at login screen).
+  phone           String?
+  /// HMAC-SHA256 of normalized phone — indexed for fast lookup so raw phone
+  /// never appears in indexes/logs (same algorithm as patient KYC).
+  phoneHash       String?   @map("phone_hash")
+  /// Single role per user. Matches Role.code (DOCTOR, NURSE, MANAGER, …).
+  /// ADMIN is system-only and cannot be assigned from the UI.
+  primaryRoleCode String?   @map("primary_role_code")
+  passwordHash    String?   @map("password_hash") // legacy — unused since phone+OTP auth
+  fullName        String    @map("full_name")
+  avatarUrl       String?   @map("avatar_url")    // uploaded to S3 via /api/v1/uploads/avatar
+  status          UserStatus @default(ACTIVE)
+  mfaEnabled      Boolean   @default(false) @map("mfa_enabled")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
-  tenant        Tenant    @relation(fields: [tenantId], references: [id])
-  roles         UserRole[]
-  branchAccess  UserBranchAccess[]
-  sessions      Session[]
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  roles           UserRole[]                       // back-compat read path; mirrored to primaryRoleCode on every write
+  branchAccess    UserBranchAccess[]
+  sessions        Session[]
 
-  @@unique([tenantId, email])
+  @@unique([tenantId, phone, primaryRoleCode], name: "user_tenant_phone_role_unique")
+  @@index([tenantId, phoneHash])
   @@index([tenantId, status])
   @@map("users")
 }

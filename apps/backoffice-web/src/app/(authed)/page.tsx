@@ -44,6 +44,16 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
+  // ADMIN-only users get the System Admin dashboard, not the clinic dashboard.
+  // (Separation of duties — admin configures the system; they don't run ops.)
+  const roles = session.roles ?? [];
+  const isAdminOnly =
+    roles.includes("ADMIN") &&
+    !roles.some((r) =>
+      ["MANAGER", "DOCTOR", "NURSE", "RECEPTION", "PHARMACIST"].includes(r),
+    );
+  if (isAdminOnly) redirect("/admin");
+
   const t = await getTranslations();
 
   const [health, apptsAll, apptsToday, dlq, drafts] = await Promise.all([

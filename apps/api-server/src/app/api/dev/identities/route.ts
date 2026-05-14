@@ -18,7 +18,13 @@ export async function GET() {
       select: { id: true, code: true, name: true, tenantId: true },
     }),
     prisma.user.findMany({
-      select: { id: true, email: true, fullName: true, tenantId: true },
+      select: {
+        id: true,
+        phone: true,
+        primaryRoleCode: true,
+        fullName: true,
+        tenantId: true,
+      },
     }),
   ]);
 

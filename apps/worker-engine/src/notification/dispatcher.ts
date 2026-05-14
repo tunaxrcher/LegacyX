@@ -110,19 +110,23 @@ async function resolveDistributionList(
   });
   if (userRoles.length === 0) return null;
   const userIds = userRoles.map((r) => r.userId);
+  // Phone-based auth means we only know each user's phone — there's no email
+  // column anymore. We fan out alerts as SMS (or to the console provider) for
+  // managers. The first active manager with a phone wins (v1 placeholder for
+  // a proper distribution list).
   const user = await prisma.user.findFirst({
-    where: { id: { in: userIds }, status: "ACTIVE" },
-    select: { id: true, email: true, fullName: true },
+    where: {
+      id: { in: userIds },
+      status: "ACTIVE",
+      phone: { not: null },
+    },
+    select: { id: true, phone: true, fullName: true },
     orderBy: { createdAt: "asc" },
   });
-  if (!user) return null;
-  if (channel === "EMAIL") {
-    return { ref: user.email, name: user.fullName };
-  }
-  // LINE/SMS for managers isn't wired in v1 — fall through to console provider
-  // by returning the email as a stand-in (logged but never sent over real LINE
-  // since we don't know the manager's LINE id).
-  return { ref: user.email, name: user.fullName };
+  if (!user || !user.phone) return null;
+  // Same phone is used for every channel. EMAIL provider will log it to the
+  // console (since we no longer have an email column) — that's fine for v1.
+  return { ref: user.phone, name: user.fullName };
 }
 
 async function processOne(rowId: string) {

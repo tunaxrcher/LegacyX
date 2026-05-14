@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { UserCog, KeyRound } from "lucide-react";
+import { UserCog, Phone as PhoneIcon } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -22,7 +22,10 @@ export const dynamic = "force-dynamic";
 
 type AdminUser = {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
+  avatarUrl: string | null;
+  primaryRoleCode: string | null;
   fullName: string;
   status: "ACTIVE" | "INACTIVE" | "LOCKED";
   mfaEnabled: boolean;
@@ -97,31 +100,36 @@ export default async function AdminUsersPage() {
               {users.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <UserCog className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-3">
+                      {u.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={u.avatarUrl}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <UserCog className="h-4 w-4" />
+                        </div>
+                      )}
                       <div>
                         <div className="text-sm font-medium">{u.fullName}</div>
-                        <div className="font-mono text-[10px] text-muted-foreground">{u.email}</div>
+                        <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                          <PhoneIcon className="h-3 w-3" />
+                          {u.phone ?? "—"}
+                        </div>
                       </div>
-                      {!u.hasPassword && (
-                        <Badge variant="warning" className="ml-1">
-                          <KeyRound className="h-3 w-3" /> no-pw
-                        </Badge>
-                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {u.roles.length === 0 ? (
-                        <span className="text-xs italic text-muted-foreground">—</span>
-                      ) : (
-                        u.roles.map((r) => (
-                          <Badge key={r.code} variant="info" className="font-mono text-[10px]">
-                            {r.code}
-                          </Badge>
-                        ))
-                      )}
-                    </div>
+                    {u.primaryRoleCode ? (
+                      <Badge variant="info" className="font-mono text-[10px]">
+                        {u.primaryRoleCode}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs italic text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

@@ -52,6 +52,17 @@ System. Tick everything in **Required** before serving real patient data.
 - [ ] CSRF: Server Actions require same-origin (already configured in
       `next.config.mjs`).
 - [ ] ABAC role matrix reviewed annually (`docs/ROLES.md`).
+- [ ] **OTP provider configured for production** — replace `DEV_OTP=123456`
+      shortcut with a real SMS/voice provider (Twilio Verify / AWS SNS / etc.).
+      Verify the dev fallback path in `apps/api-server/src/modules/auth/auth.service.ts`
+      (`loginByPhone`) is gated by `NODE_ENV !== "production"`.
+- [ ] OTP rate-limit: max 5 OTP requests per phone per 15 min, lockout for
+      30 min after 10 failed verifications (per phone).
+- [ ] Phone-lookup endpoint (`/api/v1/auth/phone/lookup`) returns the same
+      response shape for unknown and known phones (no user-enumeration leak).
+- [ ] `ADMIN` role can only be granted via direct DB write or
+      `packages/db/prisma/seed.ts` — UI + API both reject it (defense in
+      depth, audited).
 - [ ] Break-Glass overrides ring-fenced — alert on every `BreakGlassOverride`
       row insert (Prometheus alert: `BreakGlassUsed`).
 
@@ -61,7 +72,8 @@ System. Tick everything in **Required** before serving real patient data.
 - [ ] HTTP→HTTPS redirect at the edge.
 - [ ] HSTS header (`Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`).
 - [ ] CSP headers configured (start permissive, tighten iteratively).
-- [ ] Rate limiting at edge: 60 req/min/IP for `/api/v1/patient/auth`,
+- [ ] Rate limiting at edge: 60 req/min/IP for `/api/v1/patient/auth` and
+      `/api/v1/auth/phone/*` (OTP request + verify),
       300 req/min/IP for other patient routes.
 - [ ] `api-server`/`worker-engine` containers do **not** expose ports to
       public networks — only to load balancer.
@@ -138,11 +150,12 @@ After every production deploy, run these in order:
 
 1. `curl https://api.example.com/api/healthz` → `{"status":"ok"}`
 2. `curl https://api.example.com/api/readyz` → `{"status":"ready","db":"ok"}`
-3. Login as MANAGER → `/manager/dashboard` loads.
-4. Create a booking → confirm → check-in → diagnose → invoice → pay → close shift.
-5. Open `/admin/notifications` → confirm at least one notification dispatched.
-6. Open patient LIFF URL on a phone → login → see profile.
-7. Tail Prometheus: `legacyx_worker_handler_runs_total{outcome="success"}` increasing.
+3. Login as MANAGER (`0800000002` + OTP) → `/manager/dashboard` loads.
+4. Login as ADMIN (`0800000001` + OTP) → lands on `/admin` (System Overview), not the clinic dashboard.
+5. Create a booking → confirm → check-in → diagnose → invoice → pay → close shift.
+6. Open `/admin/notifications` → confirm at least one notification dispatched.
+7. Open patient LIFF URL on a phone → login → see profile.
+8. Tail Prometheus: `legacyx_worker_handler_runs_total{outcome="success"}` increasing.
 
 ---
 

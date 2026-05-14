@@ -4,23 +4,28 @@
 > Source of truth สำหรับ matrix นี้คือ `packages/db/prisma/seed.ts` (PERMISSIONS + ROLE_MATRIX).
 
 ระบบใช้ **RBAC + ABAC**:
-- **RBAC** = แต่ละ user ผูกกับ Role (อาจหลาย role); แต่ละ Role ผูกกับ Permission set
+- **RBAC** = แต่ละ user มี **role เดียว** (`User.primaryRoleCode`); แต่ละ Role ผูกกับ Permission set. หากต้องการให้คนเดียวสวมหลาย role ให้สร้างหลาย User rows ที่ใช้ **เบอร์โทรเดียวกัน** ต่าง role — ตอน login จะมี role picker ให้เลือก
 - **ABAC scope** = `tenant` (ทั้งองค์กร) / `branch` (เฉพาะสาขาที่มีสิทธิ์ผ่าน `UserBranchAccess`) / `self` (เฉพาะข้อมูลของตน เช่น แพทย์เซ็น EMR ของตัวเอง)
+- **Login** = **เบอร์โทร + OTP** (dev OTP `123456`). ไม่มี email/password อีกต่อไป — ดูรายละเอียดใน [`auth.service.ts`](../apps/api-server/src/modules/auth/auth.service.ts) → `lookupPhone()` + `loginByPhone()`
 
 ---
 
 ## 🪪 Demo Credentials (seeded)
 
 ทุก user มี access ทั้ง 2 สาขา (`br_01` Sukhumvit, `br_02` Thonglor) และ tenant `legacyx`.
+**Dev OTP สำหรับทุกเบอร์**: `123456` (controlled by env `DEV_OTP`).
 
-| Email | Password | Role | จุดประสงค์ |
+| Phone | Role | Full Name | จุดประสงค์ |
 |---|---|---|---|
-| `admin@legacyx.local` | `admin123!` | **ADMIN** | ผู้ดูแลระบบ — ทำได้ทุกอย่าง |
-| `manager@legacyx.local` | `manager123!` | **MANAGER** | ผู้จัดการสาขา — กำกับการเงิน, audit, override |
-| `doctor@legacyx.local` | `doctor123!` | **DOCTOR** | แพทย์ — บันทึก EMR + สั่งหัตถการ |
-| `nurse@legacyx.local` | `nurse123!` | **NURSE** | พยาบาล/ผู้ช่วย — กดทำหัตถการ |
-| `reception@legacyx.local` | `reception123!` | **RECEPTION** | พนักงานต้อนรับ — รับลูกค้า + รับเงิน |
-| `pharmacist@legacyx.local` | `pharmacist123!` | **PHARMACIST** | เภสัชกร — จ่ายยา + ตัดสต็อก |
+| `0800000001` | **ADMIN** | System Administrator | ผู้ดูแลระบบ — Admin Dashboard เท่านั้น (ไม่เห็น operational dashboard) |
+| `0800000002` | **MANAGER** | Manda Manager | ผู้จัดการสาขา — กำกับการเงิน, audit, override, clinic setup |
+| `0800000003` | **DOCTOR** | Dr. Daniel Doctor | แพทย์ — บันทึก EMR + สั่งหัตถการ |
+| `0800000004` | **NURSE** | Nina Nurse | พยาบาล/ผู้ช่วย — กดทำหัตถการ |
+| `0800000005` | **RECEPTION** | Rita Reception | พนักงานต้อนรับ — รับลูกค้า + รับเงิน |
+| `0800000006` | **PHARMACIST** | Phil Pharmacist | เภสัชกร — จ่ายยา + ตัดสต็อก |
+| `0888888888` | **DOCTOR** + **MANAGER** | Dr. Dual | Multi-role demo — login แล้วเลือก role ตอน OTP step |
+
+> Uniqueness boundary คือ `(tenantId, phone, primaryRoleCode)` — เบอร์ซ้ำได้ถ้า role ต่างกัน (เช่น `0888888888` ทั้ง DOCTOR และ MANAGER) แต่ ADMIN ห้าม assign ผ่าน UI (system-only role).
 
 ---
 
@@ -66,13 +71,15 @@
 
 ## 🖥️ เมนูที่เห็นในแต่ละ Role
 
-Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components/app-shell/sidebar.tsx` แบ่งเป็น 5 groups
+Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components/app-shell/sidebar.tsx` แบ่งเป็น 4 groups: **Operations** · **Finance & Insights** (MANAGER) · **Clinic Setup** (MANAGER) · **System Admin** (ADMIN)
 *(API ยังตรวจ ABAC อยู่ — sidebar เป็นแค่ UX)*
 
 > 🛡️ **Design rule**: **ADMIN เห็นเฉพาะ System Admin group** (separation of
-> duties — admin = sysadmin ตั้งค่าระบบ ไม่ดำเนินงานรายวัน). ถ้า admin ต้องการ
-> ทดสอบ flow ของ role อื่น ให้ login เป็น role นั้นโดยตรง หรือ assign user หลาย
-> role ผ่าน `/admin/users`.
+> duties — admin = sysadmin ตั้งค่าระบบ ไม่ดำเนินงานรายวัน). หลัง login
+> ADMIN จะถูก redirect ไป `/admin` (System Overview) อัตโนมัติ ไม่เห็น
+> Operational Dashboard. **Identity v2 = single role per user** ตั้งแต่
+> Phase H — ถ้า admin ต้องสวมหลาย role ให้สร้าง user เพิ่มที่ใช้เบอร์เดียวกัน
+> ต่าง role (ตอน login จะมี role picker)
 
 ### 🟢 Operations (รายวัน)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
@@ -95,21 +102,28 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | `/inventory` | | ✅ | | ✅ | | ✅ |
 
-### 📊 Finance & Insights
+### 📊 Finance & Insights (MANAGER)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | `/manager` Strategic Dashboard | | ✅ | | | | |
-| `/manager/catalog` Products + BOMs CRUD | ✅ | ✅ | | | | |
+| `/manager/catalog` Products + BOMs CRUD | | ✅ | | | | |
 | `/manager/eod` End-of-Day (Shift · Settle · Recon) | | ✅ | | | ✅ | |
 | `/audit` | | ✅ | | | | |
 | `/break-glass` | | ✅ | | | | |
 
+### 🏗️ Clinic Setup (MANAGER — tenant-level configuration)
+| Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| `/admin/resources` Rooms & resources setup | | ✅ | | | | |
+| `/admin/services` Service catalog (categories + services, S3 image upload, auto-slug codes) | | ✅ | | | | |
+| `/admin/notifications` Notification log viewer | | ✅ | | | | |
+
 ### ⚙️ System Admin (ADMIN-only universe)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| `/admin/users` Users | ✅ | | | | | |
+| `/admin` System Overview (KPIs · users · DLQ · health) | ✅ | | | | | |
+| `/admin/users` Users (phone + single role + avatar) | ✅ | | | | | |
 | `/admin/roles` Roles & permissions | ✅ | | | | | |
-| `/admin/resources` Rooms & resources setup | ✅ | | | | | |
 | `/dlq` Dead-letter queue | ✅ | | | | | |
 | `/settings` System settings | ✅ | | | | | |
 
@@ -175,9 +189,11 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 ทำไม่ได้: เซ็น EMR (ต้องเป็นแพทย์เท่านั้น) · สร้าง user · merge patient
 
 ### 👑 ADMIN — ผู้ดูแลระบบ
-1. **จัดการ user** — `/admin/users` → สร้าง/แก้ไข/reset password/assign role+branch
-2. **ดู role-permission matrix** — `/admin/roles`
-3. **ทุก feature ของทุก role**
+1. **System Overview** — `/admin` (KPIs: total/active/locked users, DLQ depth, API/DB health)
+2. **จัดการ user** — `/admin/users` → สร้าง/แก้ไข user ด้วย **เบอร์โทร + role เดียว + avatar (optional)**. UI ไม่มีตัวเลือก `ADMIN` (system-only) + จะถูก reject ฝั่ง server หากพยายาม assign
+3. **ดู role-permission matrix** — `/admin/roles`
+4. **Dead-letter queue + system settings** — `/dlq`, `/settings`
+5. ❌ **ไม่เห็น operational dashboard** — separation of duties; ถ้าต้องการทำงาน ops ให้สร้าง user แยกในเบอร์เดียวกันต่าง role
 
 ---
 
@@ -200,9 +216,10 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 
 ## 🧪 วิธีเช็คว่า ABAC ทำงาน
 
-1. Login เป็น `nurse@legacyx.local` (NURSE)
+1. Login ด้วย `0800000004` + OTP `123456` (NURSE)
 2. ลองเปิด `/audit` ผ่าน URL bar → API จะตอบ 403 (NURSE ไม่มี `audit:read:tenant`)
 3. หรือลองสร้าง order → 403 (NURSE ไม่มี `order:write`)
+4. ทดสอบ **role picker**: login ด้วย `0888888888` (Dr. Dual) → ขั้นตอน OTP จะมี dropdown ให้เลือกระหว่าง DOCTOR กับ MANAGER ก่อนยืนยัน
 
 Sidebar จะซ่อนเมนูพวกนี้อยู่แล้ว แต่ถ้า URL ตรงๆ ก็จะโดน API guard อยู่ดี
 

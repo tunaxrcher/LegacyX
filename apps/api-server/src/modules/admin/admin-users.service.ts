@@ -1,31 +1,55 @@
 import { z } from "zod";
 import { prisma } from "@legacyx/db";
-import {
-  BadRequest,
-  Conflict,
-  NotFound,
-} from "../../shared/errors";
+import { BadRequest, Conflict, NotFound } from "../../shared/errors";
 import { authorize } from "../../shared/auth";
 import { hashPassword } from "../../shared/password";
+import { searchableHash } from "../../shared/crypto";
 import type { RequestContext } from "../../shared/context";
 
+/**
+ * Admin user CRUD.
+ *
+ * Auth model (v2 — phone-based):
+ *   • Login is **phone + OTP**. Email is still tracked for legacy demo accounts
+ *     but is no longer required and no longer used by the auth path.
+ *   • Each user has exactly ONE role (`primaryRoleCode`). Same phone may
+ *     appear on multiple user rows IF the role differs — e.g. Dr Foo logs in
+ *     as a Doctor OR a Manager. The uniqueness boundary is
+ *     `(tenantId, phone, primaryRoleCode)`.
+ *   • Avatar URL is optional and uploaded via the `/api/v1/uploads/avatar`
+ *     route, which writes to DO Spaces.
+ *
+ * The legacy `UserRole` table is still maintained (kept as a 1-row mirror of
+ * `primaryRoleCode`) so existing role-aware code keeps working unchanged.
+ */
+
+function normalizePhone(raw: string): string {
+  return raw.trim().replace(/[^\d+]/g, "");
+}
+
+// ---- DTOs --------------------------------------------------------------
+
 export const CreateUserDto = z.object({
-  email: z.string().email(),
+  phone: z.string().min(4).max(32),
   full_name: z.string().min(1).max(120),
-  password: z.string().min(8).max(128),
+  /** Single role per user. */
+  role_code: z.string().min(1).max(64),
+  /** Optional profile picture. */
+  avatar_url: z.string().url().max(512).optional(),
+  /** Password is optional — phone+OTP is the canonical login. */
+  password: z.string().min(8).max(128).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "LOCKED"]).default("ACTIVE"),
-  role_codes: z.array(z.string()).default([]),
   branch_ids: z.array(z.string()).min(1),
 });
 
 export const UpdateUserDto = z.object({
   full_name: z.string().min(1).max(120).optional(),
+  phone: z.string().min(4).max(32).optional(),
+  avatar_url: z.string().url().max(512).optional().nullable(),
+  role_code: z.string().min(1).max(64).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "LOCKED"]).optional(),
 });
 
-export const AssignRolesDto = z.object({
-  role_codes: z.array(z.string()),
-});
 export const AssignBranchesDto = z.object({
   branch_ids: z.array(z.string()),
 });
@@ -33,14 +57,14 @@ export const ResetPasswordDto = z.object({
   new_password: z.string().min(8).max(128),
 });
 
-// ---------- Queries ----------
+// ---- Queries -----------------------------------------------------------
 
 export async function listUsers(ctx: RequestContext) {
   await authorize(ctx, { resource: "user", action: "read", target: {} });
 
   const users = await prisma.user.findMany({
     where: { tenantId: ctx.tenantId, deletedAt: null },
-    orderBy: [{ status: "asc" }, { email: "asc" }],
+    orderBy: [{ status: "asc" }, { fullName: "asc" }],
   });
 
   const userIds = users.map((u) => u.id);
@@ -49,16 +73,13 @@ export async function listUsers(ctx: RequestContext) {
       where: { userId: { in: userIds } },
       include: { role: true },
     }),
-    prisma.userBranchAccess.findMany({
-      where: { userId: { in: userIds } },
-    }),
+    prisma.userBranchAccess.findMany({ where: { userId: { in: userIds } } }),
     prisma.branch.findMany({
       where: { tenantId: ctx.tenantId },
       select: { id: true, code: true, name: true },
     }),
   ]);
   const branchMap = new Map(branches.map((b) => [b.id, b]));
-
   const rolesByUser = new Map<string, Array<{ code: string; name: string }>>();
   for (const r of userRoles) {
     const arr = rolesByUser.get(r.userId) ?? [];
@@ -79,13 +100,15 @@ export async function listUsers(ctx: RequestContext) {
 
   return users.map((u) => ({
     id: u.id,
-    email: u.email,
+    phone: u.phone,
+    avatarUrl: u.avatarUrl,
     fullName: u.fullName,
     status: u.status,
     mfaEnabled: u.mfaEnabled,
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
     createdAt: u.createdAt.toISOString(),
     hasPassword: !!u.passwordHash,
+    primaryRoleCode: u.primaryRoleCode,
     roles: rolesByUser.get(u.id) ?? [],
     branches: branchesByUser.get(u.id) ?? [],
   }));
@@ -130,12 +153,13 @@ export async function listRolesWithPermissions(ctx: RequestContext) {
     userCount: countMap.get(r.id) ?? 0,
     permissions: (permsByRole.get(r.id) ?? []).sort(
       (a, b) =>
-        a.resource.localeCompare(b.resource) || a.action.localeCompare(b.action),
+        a.resource.localeCompare(b.resource) ||
+        a.action.localeCompare(b.action),
     ),
   }));
 }
 
-// ---------- Commands ----------
+// ---- Commands ----------------------------------------------------------
 
 export async function createUser(
   ctx: RequestContext,
@@ -144,24 +168,20 @@ export async function createUser(
   await authorize(ctx, { resource: "user", action: "write", target: {} });
   if (!ctx.actor.id) throw BadRequest("Authenticated user required");
 
-  const existing = await prisma.user.findFirst({
-    where: {
-      tenantId: ctx.tenantId,
-      email: input.email.toLowerCase(),
-    },
-  });
-  if (existing) throw Conflict(`Email ${input.email} already used`);
-
-  // Validate role codes
-  const roles = input.role_codes.length
-    ? await prisma.role.findMany({
-        where: { tenantId: ctx.tenantId, code: { in: input.role_codes } },
-      })
-    : [];
-  if (roles.length !== input.role_codes.length) {
-    throw BadRequest("Unknown role code");
+  // ADMIN is a system-only role — never assignable via the admin API.
+  // (The single bootstrap ADMIN account is created by the seed at install
+  // time. Promote-to-admin can only happen via direct DB / migration.)
+  if (input.role_code === "ADMIN") {
+    throw BadRequest("ADMIN role cannot be assigned from the UI");
   }
-  // Validate branches
+
+  // Validate role exists in this tenant.
+  const role = await prisma.role.findFirst({
+    where: { tenantId: ctx.tenantId, code: input.role_code },
+  });
+  if (!role) throw BadRequest(`Unknown role: ${input.role_code}`);
+
+  // Validate branches.
   const branches = await prisma.branch.findMany({
     where: { tenantId: ctx.tenantId, id: { in: input.branch_ids } },
   });
@@ -169,21 +189,38 @@ export async function createUser(
     throw BadRequest("Unknown branch id");
   }
 
+  const phone = normalizePhone(input.phone);
+  // Same phone is OK for a different role, but (phone, role) must be unique.
+  const collision = await prisma.user.findFirst({
+    where: {
+      tenantId: ctx.tenantId,
+      phone,
+      primaryRoleCode: input.role_code,
+      deletedAt: null,
+    },
+  });
+  if (collision) {
+    throw Conflict(
+      `Phone ${phone} is already registered as ${input.role_code}`,
+    );
+  }
+
   const user = await prisma.user.create({
     data: {
       tenantId: ctx.tenantId,
-      email: input.email.toLowerCase(),
+      phone,
+      phoneHash: searchableHash(ctx.tenantId, phone),
+      primaryRoleCode: input.role_code,
+      avatarUrl: input.avatar_url,
       fullName: input.full_name,
-      passwordHash: hashPassword(input.password),
+      passwordHash: input.password ? hashPassword(input.password) : null,
       status: input.status,
     },
   });
 
-  if (roles.length) {
-    await prisma.userRole.createMany({
-      data: roles.map((r) => ({ userId: user.id, roleId: r.id })),
-    });
-  }
+  await prisma.userRole.create({
+    data: { userId: user.id, roleId: role.id },
+  });
   await prisma.userBranchAccess.createMany({
     data: branches.map((b) => ({ userId: user.id, branchId: b.id })),
   });
@@ -197,14 +234,14 @@ export async function createUser(
       resourceId: user.id,
       correlationId: ctx.correlationId,
       after: {
-        email: user.email,
-        roles: input.role_codes,
+        phone: user.phone,
+        role: input.role_code,
         branches: input.branch_ids,
       } as object,
     },
   });
 
-  return { id: user.id, email: user.email };
+  return { id: user.id, phone: user.phone };
 }
 
 export async function updateUser(
@@ -220,14 +257,70 @@ export async function updateUser(
   });
   if (!u) throw NotFound(`User ${userId} not found`);
 
-  const before = { fullName: u.fullName, status: u.status };
+  // Build the patch + check role/phone collisions when those fields change.
+  let newRole: { id: string; code: string } | null = null;
+  if (input.role_code && input.role_code !== u.primaryRoleCode) {
+    // Same rationale as createUser — ADMIN is unreachable from the UI.
+    if (input.role_code === "ADMIN") {
+      throw BadRequest("ADMIN role cannot be assigned from the UI");
+    }
+    const role = await prisma.role.findFirst({
+      where: { tenantId: ctx.tenantId, code: input.role_code },
+    });
+    if (!role) throw BadRequest(`Unknown role: ${input.role_code}`);
+    newRole = { id: role.id, code: role.code };
+  }
+  const newPhone = input.phone ? normalizePhone(input.phone) : null;
+  if (newPhone || newRole) {
+    const phoneCheck = newPhone ?? u.phone;
+    const roleCheck = newRole?.code ?? u.primaryRoleCode;
+    if (phoneCheck && roleCheck) {
+      const collision = await prisma.user.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          phone: phoneCheck,
+          primaryRoleCode: roleCheck,
+          deletedAt: null,
+          NOT: { id: userId },
+        },
+      });
+      if (collision) {
+        throw Conflict(
+          `Phone ${phoneCheck} is already registered as ${roleCheck}`,
+        );
+      }
+    }
+  }
+
+  const before = {
+    fullName: u.fullName,
+    status: u.status,
+    phone: u.phone,
+    primaryRoleCode: u.primaryRoleCode,
+    avatarUrl: u.avatarUrl,
+  };
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
       fullName: input.full_name ?? undefined,
       status: input.status ?? undefined,
+      avatarUrl: input.avatar_url === undefined ? undefined : input.avatar_url,
+      phone: newPhone ?? undefined,
+      phoneHash: newPhone
+        ? searchableHash(ctx.tenantId, newPhone)
+        : undefined,
+      primaryRoleCode: newRole?.code ?? undefined,
     },
   });
+
+  if (newRole) {
+    await prisma.$transaction([
+      prisma.userRole.deleteMany({ where: { userId } }),
+      prisma.userRole.create({
+        data: { userId, roleId: newRole.id },
+      }),
+    ]);
+  }
 
   await prisma.auditLog.create({
     data: {
@@ -238,58 +331,16 @@ export async function updateUser(
       resourceId: userId,
       correlationId: ctx.correlationId,
       before: before as object,
-      after: { fullName: updated.fullName, status: updated.status } as object,
+      after: {
+        fullName: updated.fullName,
+        status: updated.status,
+        phone: updated.phone,
+        primaryRoleCode: updated.primaryRoleCode,
+        avatarUrl: updated.avatarUrl,
+      } as object,
     },
   });
   return { id: updated.id };
-}
-
-export async function assignRoles(
-  ctx: RequestContext,
-  userId: string,
-  input: z.infer<typeof AssignRolesDto>,
-) {
-  await authorize(ctx, { resource: "user", action: "write", target: {} });
-  if (!ctx.actor.id) throw BadRequest("Authenticated user required");
-
-  const u = await prisma.user.findFirst({
-    where: { id: userId, tenantId: ctx.tenantId },
-  });
-  if (!u) throw NotFound(`User ${userId} not found`);
-
-  const roles = input.role_codes.length
-    ? await prisma.role.findMany({
-        where: { tenantId: ctx.tenantId, code: { in: input.role_codes } },
-      })
-    : [];
-  if (roles.length !== input.role_codes.length) {
-    throw BadRequest("Unknown role code");
-  }
-
-  // Replace strategy: delete old, insert new
-  await prisma.$transaction([
-    prisma.userRole.deleteMany({ where: { userId } }),
-    ...(roles.length
-      ? [
-          prisma.userRole.createMany({
-            data: roles.map((r) => ({ userId, roleId: r.id })),
-          }),
-        ]
-      : []),
-  ]);
-
-  await prisma.auditLog.create({
-    data: {
-      tenantId: ctx.tenantId,
-      actorUserId: ctx.actor.id,
-      action: "user.assign_roles",
-      resourceType: "User",
-      resourceId: userId,
-      correlationId: ctx.correlationId,
-      after: { roles: input.role_codes } as object,
-    },
-  });
-  return { ok: true };
 }
 
 export async function assignBranches(
@@ -356,7 +407,6 @@ export async function resetUserPassword(
     where: { id: userId },
     data: { passwordHash: hashPassword(input.new_password) },
   });
-  // Revoke all current sessions for this user
   await prisma.session.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },

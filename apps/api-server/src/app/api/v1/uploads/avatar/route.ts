@@ -1,12 +1,8 @@
 /**
- * Service-image upload endpoint.
+ * Avatar upload endpoint.
  *
- * Accepts a single image file via `multipart/form-data` (field name: `file`),
- * stores it in S3/DO Spaces under `service-images/{tenantId}/{ulid}.{ext}`,
- * and returns the public URL. Image size is capped at 5 MB and the MIME type
- * is validated server-side. The endpoint is guarded by `catalog:manage:tenant`,
- * so only MANAGER/ADMIN can upload (same permission that controls the rest
- * of the service catalog admin surface).
+ * Same plumbing as service-image but guarded by `user:write:tenant` (only
+ * ADMIN can write users) and stores files under `avatars/{tenantId}/...`.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { ulid } from "ulid";
@@ -27,7 +23,7 @@ const ALLOWED_MIME = new Set([
   "image/webp",
   "image/gif",
 ]);
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 
 const EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -41,21 +37,19 @@ export async function POST(req: NextRequest) {
   try {
     const ctx = await getRequestContext();
     correlationId = ctx.correlationId;
-    await authorize(ctx, { resource: "catalog", action: "manage" });
+    await authorize(ctx, { resource: "user", action: "write" });
 
     const form = await req.formData();
     const file = form.get("file");
     if (!(file instanceof File)) {
       throw BadRequest("file field is required (multipart/form-data)");
     }
-
     const type = (file.type || "").toLowerCase();
     if (!ALLOWED_MIME.has(type)) {
       throw BadRequest(
         `Unsupported file type "${type}". Allowed: JPEG, PNG, WebP, GIF`,
       );
     }
-
     const size = file.size;
     if (size > MAX_BYTES) {
       throw BadRequest(
@@ -64,7 +58,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = EXT[type] ?? "bin";
-    const key = `service-images/${ctx.tenantId}/${ulid()}.${ext}`;
+    const key = `avatars/${ctx.tenantId}/${ulid()}.${ext}`;
     const buf = Buffer.from(await file.arrayBuffer());
 
     let url: string;
@@ -72,8 +66,6 @@ export async function POST(req: NextRequest) {
       url = await putObject(key, buf, { ContentType: type });
     } catch (s3Err) {
       if (s3Err instanceof S3UploadError) {
-        // Forward the storage error to the client (not a generic 500). 502
-        // signals "upstream storage failed" so the UI can show the real issue.
         throw new HttpError(502, "STORAGE_ERROR", s3Err.message, s3Err.detail);
       }
       throw s3Err;

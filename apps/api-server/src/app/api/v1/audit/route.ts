@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     const users = userIds.length
       ? await prisma.user.findMany({
           where: { id: { in: userIds } },
-          select: { id: true, fullName: true, email: true },
+          select: { id: true, fullName: true, phone: true },
         })
       : [];
     const userMap = new Map(users.map((u) => [u.id, u]));

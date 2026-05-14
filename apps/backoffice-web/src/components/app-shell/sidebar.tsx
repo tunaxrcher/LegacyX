@@ -189,6 +189,12 @@ const groups: NavGroup[] = [
     titleKey: "nav.admin",
     items: [
       {
+        href: "/admin",
+        labelKey: "nav.admin_overview",
+        icon: LayoutDashboard,
+        roles: ["ADMIN"],
+      },
+      {
         href: "/admin/users",
         labelKey: "nav.admin_users",
         icon: UserCog,
@@ -263,10 +269,14 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
               <ul className="space-y-1">
                 {visible.map((item) => {
                   const Icon = item.icon;
-                  const active =
-                    item.href === "/"
-                      ? pathname === "/"
-                      : pathname === item.href || pathname.startsWith(item.href + "/");
+                  // Exact-match-only hrefs (overview pages whose path is a
+                  // prefix of other sub-pages, so a startsWith match would
+                  // light up the wrong tab).
+                  const exact = item.href === "/" || item.href === "/admin";
+                  const active = exact
+                    ? pathname === item.href
+                    : pathname === item.href ||
+                      pathname.startsWith(item.href + "/");
                   return (
                     <li key={item.href}>
                       <Link

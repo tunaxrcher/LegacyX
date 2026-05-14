@@ -29,7 +29,7 @@ type AuditRow = {
   createdAt: string;
   after: unknown;
   before: unknown;
-  actor: { id: string; fullName: string; email: string } | null;
+  actor: { id: string; fullName: string; phone: string | null } | null;
 };
 
 export default async function AuditLogPage({
@@ -124,7 +124,7 @@ export default async function AuditLogPage({
                       {r.actor ? (
                         <div className="text-sm">
                           <div className="font-medium">{r.actor.fullName}</div>
-                          <div className="text-xs text-muted-foreground">{r.actor.email}</div>
+                          <div className="font-mono text-xs text-muted-foreground">{r.actor.phone ?? "—"}</div>
                         </div>
                       ) : (
                         <Badge variant="outline">SYSTEM</Badge>

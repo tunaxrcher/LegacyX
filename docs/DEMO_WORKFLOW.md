@@ -5,16 +5,22 @@
 > [`ARCHITECTURE.md`](./ARCHITECTURE.md) §6 (Event Flow).
 
 ## 🪪 Demo Credentials
-| Role | Email | Password |
+
+Login = **Phone + OTP**. Dev OTP สำหรับทุกเบอร์: `123456` (env `DEV_OTP`).
+
+| Role | Phone | Full Name |
 |---|---|---|
-| ADMIN | `admin@legacyx.local` | `admin123!` |
-| MANAGER | `manager@legacyx.local` | `manager123!` |
-| DOCTOR | `doctor@legacyx.local` | `doctor123!` |
-| NURSE | `nurse@legacyx.local` | `nurse123!` |
-| RECEPTION | `reception@legacyx.local` | `reception123!` |
-| PHARMACIST | `pharmacist@legacyx.local` | `pharmacist123!` |
+| ADMIN | `0800000001` | System Administrator |
+| MANAGER | `0800000002` | Manda Manager |
+| DOCTOR | `0800000003` | Dr. Daniel Doctor |
+| NURSE | `0800000004` | Nina Nurse |
+| RECEPTION | `0800000005` | Rita Reception |
+| PHARMACIST | `0800000006` | Phil Pharmacist |
+| DOCTOR + MANAGER | `0888888888` | Dr. Dual (multi-role — เลือก role ตอน OTP) |
 
 **Tenant**: `legacyx` · **Branches**: `br_01` (Sukhumvit) · `br_02` (Thonglor)
+
+> หลัง login: ADMIN จะตกที่ `/admin` (System Overview), ส่วน role อื่น ๆ ตกที่ `/` (Operational Dashboard).
 
 ---
 
@@ -24,7 +30,7 @@
 
 ### 1️⃣ RECEPTION — รับจอง
 
-**Login**: `reception@legacyx.local`
+**Login**: `0800000005` (RECEPTION)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -46,12 +52,12 @@
 
 ### 3️⃣ NURSE — เริ่มเคส + สั่งหัตถการ
 
-**Logout** → **Login**: `nurse@legacyx.local`
+**Logout** → **Login**: `0800000004` (NURSE)
 
 > ⚠️ **DOCTOR** เท่านั้นที่สั่ง order ได้ (NURSE มี `procedure:perform` แต่ไม่มี `order:write`).
-> ถ้าคลินิกมีคน DOCTOR คนเดียวที่ใช้บัญชี doctor login เอง ใช้ `doctor@legacyx.local`.
+> ถ้าคลินิกมีคน DOCTOR คนเดียวที่ใช้บัญชี doctor login เอง ใช้ `0800000003` (DOCTOR).
 
-**Logout** → **Login**: `doctor@legacyx.local`
+**Logout** → **Login**: `0800000003` (DOCTOR)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -62,7 +68,7 @@
 
 ### 4️⃣ NURSE — เริ่มและจบหัตถการ
 
-**Logout** → **Login**: `nurse@legacyx.local`
+**Logout** → **Login**: `0800000004` (NURSE)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -73,7 +79,7 @@
 
 ### 5️⃣ RECEPTION — รับเงิน + ออกใบเสร็จ
 
-**Logout** → **Login**: `reception@legacyx.local`
+**Logout** → **Login**: `0800000005` (RECEPTION)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -97,10 +103,10 @@
 ลูกค้าได้รับใบสั่งยา paracetamol 1 กล่อง
 
 ### 1️⃣ DOCTOR — สั่งยา
-**Login**: `doctor@legacyx.local` → `/visits/<id>` → **+ New Order** · type=MEDICATION · refId=`<product_id ของยา>` · qty=1
+**Login**: `0800000003` (DOCTOR) → `/visits/<id>` → **+ New Order** · type=MEDICATION · refId=`<product_id ของยา>` · qty=1
 
 ### 2️⃣ PHARMACIST — จ่ายยา
-**Logout** → **Login**: `pharmacist@legacyx.local`
+**Logout** → **Login**: `0800000006` (PHARMACIST)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -128,7 +134,7 @@
 
 ## 🎬 Scenario D — Manager Daily Overview
 
-**Login**: `manager@legacyx.local`
+**Login**: `0800000002` (MANAGER)
 
 1. `/manager` → ดู Strategic Dashboard:
    - **รายได้วันนี้** + delta vs เมื่อวาน
@@ -147,7 +153,7 @@
 
 ### E1 — เปิดกะตอนเช้า (RECEPTION)
 
-**Login**: `reception@legacyx.local`
+**Login**: `0800000005` (RECEPTION)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -169,7 +175,7 @@
 
 ตอนสิ้นวัน gateway (เช่น 2C2P, Omise, KBank QR) จะรวม transactions เป็น batch แล้ว transfer เงินเข้า bank account ของคลินิก. ฝั่งระบบต้อง mark payments เหล่านั้นเป็น `SETTLED` พร้อม `gateway_settlement_id` + fee.
 
-**Login**: `manager@legacyx.local`
+**Login**: `0800000002` (MANAGER)
 
 | # | ที่ | กดอะไร | เกิดอะไร |
 |---|---|---|---|
@@ -248,7 +254,7 @@ Manager เดินไปนับสต็อกจริงในห้อง
 
 หลังลูกค้าจองผ่านแอปแล้ว ทดสอบที่ฝั่ง staff:
 
-1. Backoffice → `reception@legacyx.local` → `/appointments` → เห็นนัดใหม่ ✅ status BOOKED, **channel=LIFF**
+1. Backoffice → `0800000005` (RECEPTION) → `/appointments` → เห็นนัดใหม่ ✅ status BOOKED, **channel=LIFF**
 2. `/audit` → กรอง `action=appointment.create` → เห็น record ที่มี `actor: PATIENT/{patient_id}` ✅
 
 ---
@@ -263,14 +269,14 @@ Manager เดินไปนับสต็อกจริงในห้อง
 2. Worker handler `appointment-created.reserve+notify` → insert `NotificationLog` row (templateCode `appointment.confirmed`, status `PENDING`)
 3. Dispatcher tick (default 5s) → ดึง row → resolve recipient (LINE userId ของ Patient) → render template TH → ส่งผ่าน provider
 4. Demo: เปิด `storage/notifications/line.log` → เห็น JSON line ที่บันทึกข้อความ "ขอบคุณที่จองคิวกับ LegacyX Clinic..."
-5. ที่ Backoffice → `manager@legacyx.local` → `/admin/notifications` → เห็นการ์ด KPI (PENDING/SENT/FAILED) + row นี้กับสถานะ `SENT`
+5. ที่ Backoffice → `0800000002` (MANAGER) → `/admin/notifications` → เห็นการ์ด KPI (PENDING/SENT/FAILED) + row นี้กับสถานะ `SENT`
 
 ### G2 — Manager alerts (Phase 6.8 + Phase 8 integration)
 
 ทุกครั้งที่ปิดกะที่มี variance สูง / reconcile แล้วมี shrinkage:
 
 1. Handler `shift-closed.audit+alert` หรือ `inventory-reconciled.audit+alert` → enqueue `NotificationLog` (channel=EMAIL, recipientRef=`manager`)
-2. Dispatcher resolve `manager` → หา ACTIVE user ใน role `MANAGER` ของ tenant นั้น → ใช้ email ของคนแรก
+2. Dispatcher resolve `manager` → หา ACTIVE user ใน role `MANAGER` ของ tenant นั้น → ใช้ **เบอร์โทร** ของคนแรกเป็น `ref` (ไม่มี User.email แล้ว — phone ใช้ได้ทุก channel; console provider แค่ log)
 3. ส่งผ่าน console provider → log ลง `storage/notifications/email.log`
 4. Manager เปิด `/admin/notifications` → filter channel=EMAIL → เห็นรายการเตือนทั้งหมด
 
@@ -311,7 +317,7 @@ EMAIL_FROM=no-reply@yourdomain.example
 
 ## 🎬 Scenario H — Admin Setup (one-off)
 
-**Login**: `admin@legacyx.local`
+**Login**: `0800000001` (ADMIN)
 
 > ⚠️ ADMIN เห็นเฉพาะกลุ่ม **System Admin** — ไม่มี Operations/Clinical. ถ้า admin อยากดูภาพรวมงานคลินิก ให้สลับ login เป็น role อื่น
 

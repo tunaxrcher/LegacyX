@@ -17,11 +17,29 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ImageUploader } from "@/components/ui/image-uploader";
 import { clientApi } from "@/lib/clientApi";
 
 type Role = { code: string; name: string };
 type Branch = { id: string; code: string; name: string };
 
+/**
+ * Create user dialog (v2 — phone-based).
+ *
+ * Differences from v1:
+ *   • Email is gone (only phone is required for login).
+ *   • One role per user (Select, not multi-select chips).
+ *   • Optional avatar uploader.
+ *   • Password is optional — phone+OTP is the canonical login. Field is kept
+ *     for back-compat with tests that hit the legacy endpoint.
+ */
 export function CreateUserDialog({
   roles,
   branches,
@@ -31,22 +49,30 @@ export function CreateUserDialog({
 }) {
   const router = useRouter();
   const t = useTranslations("admin_users");
-  const tCommon = useTranslations("common");
+  // ADMIN is a system role provisioned at install time — not assignable from
+  // the UI. Filter it out so the dropdown can never accidentally elevate a
+  // user to global administrator.
+  const assignableRoles = React.useMemo(
+    () => roles.filter((r) => r.code !== "ADMIN"),
+    [roles],
+  );
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
   const [fullName, setFullName] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [selectedRoles, setSelectedRoles] = React.useState<string[]>([]);
+  const [roleCode, setRoleCode] = React.useState<string>(
+    assignableRoles[0]?.code ?? "",
+  );
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const [selectedBranches, setSelectedBranches] = React.useState<string[]>(
     branches.map((b) => b.id),
   );
 
   function reset() {
-    setEmail("");
+    setPhone("");
     setFullName("");
-    setPassword("");
-    setSelectedRoles([]);
+    setAvatarUrl(null);
+    setRoleCode(assignableRoles[0]?.code ?? "");
     setSelectedBranches(branches.map((b) => b.id));
   }
 
@@ -59,10 +85,10 @@ export function CreateUserDialog({
     setBusy(true);
     try {
       await clientApi.post("/api/v1/admin/users", {
-        email,
+        phone: phone.trim(),
         full_name: fullName,
-        password,
-        role_codes: selectedRoles,
+        role_code: roleCode,
+        avatar_url: avatarUrl ?? undefined,
         branch_ids: selectedBranches,
       });
       toast.success(t("create_success"));
@@ -90,62 +116,58 @@ export function CreateUserDialog({
           <DialogDescription>{t("new_desc")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">{t("email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+          <div className="flex items-start gap-4">
+            <div className="w-32 shrink-0">
+              <ImageUploader
+                value={avatarUrl}
+                onChange={setAvatarUrl}
+                uploadUrl="/api/v1/uploads/avatar"
+                aspect="aspect-square"
+                label={t("avatar")}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="full_name">{t("full_name")}</Label>
-              <Input
-                id="full_name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
+            <div className="flex-1 space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="full_name">{t("full_name")}</Label>
+                <Input
+                  id="full_name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">{t("phone")}</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  placeholder="0800000003"
+                />
+              </div>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password">{t("password")}</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              placeholder="≥ 8 chars"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t("roles")}</Label>
-            <div className="flex flex-wrap gap-2">
-              {roles.map((r) => {
-                const on = selectedRoles.includes(r.code);
-                return (
-                  <button
-                    key={r.code}
-                    type="button"
-                    onClick={() => setSelectedRoles((s) => toggle(s, r.code))}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                      on
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-input bg-background text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {r.code}
-                  </button>
-                );
-              })}
-            </div>
+            <Label htmlFor="role">{t("role")}</Label>
+            <Select value={roleCode} onValueChange={setRoleCode}>
+              <SelectTrigger id="role">
+                <SelectValue placeholder={t("role")} />
+              </SelectTrigger>
+              <SelectContent>
+                {assignableRoles.map((r) => (
+                  <SelectItem key={r.code} value={r.code}>
+                    <span className="font-medium">{r.name}</span>
+                    <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                      {r.code}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
@@ -157,7 +179,9 @@ export function CreateUserDialog({
                   <button
                     key={b.id}
                     type="button"
-                    onClick={() => setSelectedBranches((s) => toggle(s, b.id))}
+                    onClick={() =>
+                      setSelectedBranches((s) => toggle(s, b.id))
+                    }
                     className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                       on
                         ? "border-primary bg-primary/10 text-primary"
@@ -176,9 +200,9 @@ export function CreateUserDialog({
               type="submit"
               disabled={
                 busy ||
-                !email ||
+                phone.trim().length < 4 ||
                 !fullName ||
-                password.length < 8 ||
+                !roleCode ||
                 selectedBranches.length === 0
               }
             >
