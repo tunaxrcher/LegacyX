@@ -626,7 +626,7 @@
     "release_reason_placeholder": "e.g. patient left, staff forgot to close visit",
     "release_success": "Room released",
     "empty_title": "No resources for this branch yet",
-    "empty_desc": "Create your first room with the + button",
+    "empty_desc": "Ask your manager to add rooms via Settings → Rooms & Resources",
     "new": "+ New",
     "new_desc": "Add a new room or piece of equipment",
     "type": "Type",

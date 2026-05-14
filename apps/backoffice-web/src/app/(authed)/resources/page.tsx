@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Hotel, Plus } from "lucide-react";
+import { Hotel } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResourceCard, type ResourceRow } from "./ResourceCard";
-import { CreateResourceDialog } from "./CreateResourceDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +75,6 @@ export default async function ResourcesPage({
       <PageHeader
         title={t("resources.title")}
         description={t("resources.subtitle")}
-        actions={<CreateResourceDialog />}
       />
 
       {/* Quick KPI strip */}
@@ -98,7 +96,6 @@ export default async function ResourcesPage({
               icon={<Hotel className="h-5 w-5" />}
               title={t("resources.empty_title")}
               description={t("resources.empty_desc")}
-              action={<CreateResourceDialog />}
             />
           </CardContent>
         </Card>
