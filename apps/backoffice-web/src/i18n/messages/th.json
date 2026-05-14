@@ -101,7 +101,7 @@
   "login": {
     "title": "เข้าสู่ระบบ",
     "subtitle": "เข้าระบบด้วยเบอร์โทร + OTP — ปลอดภัยและรวดเร็ว",
-    "dev_notice": "Demo: tenant `legacyx`, เบอร์ที่ seed ไว้ (เช่น 0800000001), OTP `123456`",
+    "dev_notice": "ทดสอบระบบ",
     "tenant": "องค์กร (slug)",
     "branch": "สาขา",
     "user": "ผู้ใช้งาน",
@@ -110,7 +110,7 @@
     "password": "รหัสผ่าน",
     "sign_in": "เข้าสู่ระบบ",
     "signing_in": "กำลังเข้าสู่ระบบ…",
-    "send_otp": "ขอรหัส OTP",
+    "send_otp": "ยืนยัน",
     "sending_otp": "กำลังส่ง…",
     "verify_otp": "ยืนยันและเข้าระบบ",
     "otp_title": "กรอกรหัสยืนยัน",

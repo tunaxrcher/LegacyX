@@ -224,7 +224,13 @@ export default function LoginForm({ tenants, defaultTenantSlug }: Props) {
               autoComplete="tel"
               required
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value
+                  .replace(/\D/g, "") // เอาเฉพาะตัวเลข
+                  .slice(0, 10); // จำกัด 10 ตัว
+            
+                setPhone(value);
+              }}
               placeholder="0800000003"
               className="pl-9"
             />
@@ -247,7 +253,7 @@ export default function LoginForm({ tenants, defaultTenantSlug }: Props) {
           {lookupPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <PhoneIcon className="h-4 w-4" />
+            <></>
           )}
           {lookupPending ? t("sending_otp") : t("send_otp")}
         </Button>

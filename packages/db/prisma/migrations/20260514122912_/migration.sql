@@ -36,8 +36,9 @@ CREATE TABLE `branches` (
 CREATE TABLE `users` (
     `id` VARCHAR(191) NOT NULL,
     `tenant_id` VARCHAR(191) NOT NULL,
-    `email` VARCHAR(191) NOT NULL,
     `phone` VARCHAR(191) NULL,
+    `phone_hash` VARCHAR(191) NULL,
+    `primary_role_code` VARCHAR(191) NULL,
     `password_hash` VARCHAR(191) NULL,
     `full_name` VARCHAR(191) NOT NULL,
     `avatar_url` VARCHAR(191) NULL,
@@ -48,8 +49,9 @@ CREATE TABLE `users` (
     `updated_at` DATETIME(3) NOT NULL,
     `deleted_at` DATETIME(3) NULL,
 
+    INDEX `users_tenant_id_phone_hash_idx`(`tenant_id`, `phone_hash`),
     INDEX `users_tenant_id_status_idx`(`tenant_id`, `status`),
-    UNIQUE INDEX `users_tenant_id_email_key`(`tenant_id`, `email`),
+    UNIQUE INDEX `users_tenant_id_phone_primary_role_code_key`(`tenant_id`, `phone`, `primary_role_code`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -193,6 +195,9 @@ CREATE TABLE `patients` (
     `chronic_conditions` JSON NULL,
     `home_branch_id` VARCHAR(191) NULL,
     `line_user_id` VARCHAR(191) NULL,
+    `kyc_image_url` VARCHAR(191) NULL,
+    `verification_status` ENUM('UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED') NOT NULL DEFAULT 'UNVERIFIED',
+    `phone_hash` VARCHAR(191) NULL,
     `status` ENUM('ACTIVE', 'INACTIVE', 'MERGED') NOT NULL DEFAULT 'ACTIVE',
     `merged_into_id` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -201,6 +206,7 @@ CREATE TABLE `patients` (
 
     INDEX `patients_tenant_id_last_name_first_name_idx`(`tenant_id`, `last_name`, `first_name`),
     INDEX `patients_tenant_id_line_user_id_idx`(`tenant_id`, `line_user_id`),
+    INDEX `patients_tenant_id_phone_hash_idx`(`tenant_id`, `phone_hash`),
     UNIQUE INDEX `patients_tenant_id_hn_key`(`tenant_id`, `hn`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -216,6 +222,29 @@ CREATE TABLE `patient_merge_logs` (
     `diff` JSON NOT NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `patient_photos` (
+    `id` VARCHAR(191) NOT NULL,
+    `tenant_id` VARCHAR(191) NOT NULL,
+    `branch_id` VARCHAR(191) NULL,
+    `patient_id` VARCHAR(191) NOT NULL,
+    `visit_id` VARCHAR(191) NULL,
+    `kind` ENUM('KYC_ID', 'KYC_SELFIE', 'BEFORE', 'AFTER', 'PROCEDURE', 'OTHER') NOT NULL,
+    `storage_key` VARCHAR(191) NOT NULL,
+    `mime_type` VARCHAR(191) NOT NULL,
+    `size_bytes` INTEGER NOT NULL,
+    `region` VARCHAR(191) NULL,
+    `analysis` JSON NULL,
+    `note` TEXT NULL,
+    `uploaded_by` VARCHAR(191) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `deleted_at` DATETIME(3) NULL,
+
+    INDEX `patient_photos_tenant_id_patient_id_kind_idx`(`tenant_id`, `patient_id`, `kind`),
+    INDEX `patient_photos_tenant_id_visit_id_idx`(`tenant_id`, `visit_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -592,6 +621,51 @@ CREATE TABLE `products` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `service_categories` (
+    `id` VARCHAR(191) NOT NULL,
+    `tenant_id` VARCHAR(191) NOT NULL,
+    `code` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `name_th` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `description_th` TEXT NULL,
+    `image_url` VARCHAR(191) NULL,
+    `display_order` INTEGER NOT NULL DEFAULT 0,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `service_categories_tenant_id_active_display_order_idx`(`tenant_id`, `active`, `display_order`),
+    UNIQUE INDEX `service_categories_tenant_id_code_key`(`tenant_id`, `code`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `services` (
+    `id` VARCHAR(191) NOT NULL,
+    `tenant_id` VARCHAR(191) NOT NULL,
+    `category_id` VARCHAR(191) NOT NULL,
+    `code` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `name_th` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `description_th` TEXT NULL,
+    `price_from` DECIMAL(12, 2) NULL,
+    `price_to` DECIMAL(12, 2) NULL,
+    `duration_min` INTEGER NOT NULL DEFAULT 30,
+    `image_url` VARCHAR(191) NULL,
+    `procedure_code` VARCHAR(191) NULL,
+    `display_order` INTEGER NOT NULL DEFAULT 0,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `services_tenant_id_category_id_active_display_order_idx`(`tenant_id`, `category_id`, `active`, `display_order`),
+    UNIQUE INDEX `services_tenant_id_code_key`(`tenant_id`, `code`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `boms` (
     `id` VARCHAR(191) NOT NULL,
     `tenant_id` VARCHAR(191) NOT NULL,
@@ -843,6 +917,9 @@ ALTER TABLE `patient_merge_logs` ADD CONSTRAINT `patient_merge_logs_from_patient
 ALTER TABLE `patient_merge_logs` ADD CONSTRAINT `patient_merge_logs_into_patient_id_fkey` FOREIGN KEY (`into_patient_id`) REFERENCES `patients`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `patient_photos` ADD CONSTRAINT `patient_photos_patient_id_fkey` FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `emrs` ADD CONSTRAINT `emrs_patient_id_fkey` FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -901,6 +978,9 @@ ALTER TABLE `wallet_ledger` ADD CONSTRAINT `wallet_ledger_wallet_id_fkey` FOREIG
 
 -- AddForeignKey
 ALTER TABLE `wallet_ledger` ADD CONSTRAINT `wallet_ledger_patient_id_fkey` FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `services` ADD CONSTRAINT `services_category_id_fkey` FOREIGN KEY (`category_id`) REFERENCES `service_categories`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `boms` ADD CONSTRAINT `boms_product_id_fkey` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

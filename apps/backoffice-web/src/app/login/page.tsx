@@ -93,7 +93,55 @@ export default async function LoginPage() {
           </div>
           <LoginForm tenants={tenants} />
           <div className="rounded-md border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
-            {tLogin("dev_notice")}
+            {/* {tLogin("dev_notice")} */}
+            <br />
+            <p className="mb-3 font-semibold text-slate-800">
+                สำหรับทดสอบระบบ
+              </p>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="text-slate-600">ผู้ดูแลระบบ</span>
+                  <span className="font-medium tabular-nums text-slate-900">
+                    0800000001
+                  </span>
+                </div>
+                <hr />
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="text-slate-600">ผู้จัดการสาขา</span>
+                  <span className="font-medium tabular-nums text-slate-900">
+                    0800000002
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="text-slate-600">หมอแพทย์</span>
+                  <span className="font-medium tabular-nums text-slate-900">
+                    0800000003
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="text-slate-600">พยาบาล</span>
+                  <span className="font-medium tabular-nums text-slate-900">
+                    0800000004
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="text-slate-600">พนักงานต้อนรับ</span>
+                  <span className="font-medium tabular-nums text-slate-900">
+                    0800000005
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="text-slate-600">เภสัชกร</span>
+                  <span className="font-medium tabular-nums text-slate-900">
+                    0800000006
+                  </span>
+                </div>
+              </div>
           </div>
         </div>
       </section>
