@@ -25,6 +25,9 @@ import { CompleteVisitButton } from "./CompleteVisitButton";
 import { SoapPanel, type ExistingEmr } from "./SoapPanel";
 import { VisitTabs } from "./VisitTabs";
 import { OverviewPanel } from "./OverviewPanel";
+import { MedicalCertButton } from "./MedicalCertButton";
+import { LabsSection, type LabOrder } from "./LabsSection";
+import { PhotosSection, type PatientPhoto } from "./PhotosSection";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +103,18 @@ export default async function VisitDetailPage({ params }: { params: { id: string
     roles.includes("MANAGER") ||
     roles.includes("RECEPTION");
   const canVoidPayment = isPrivileged || roles.includes("MANAGER");
+  // Phase M / S — clinical capabilities. lab:write is doctor; lab:collect is
+  // nurse; lab:result is nurse (per seed). Photos require patient:write
+  // which spans every clinical role + reception.
+  const canOrderLab = isPrivileged || roles.includes("DOCTOR");
+  const canCollectLab = isPrivileged || roles.includes("NURSE");
+  const canResultLab = isPrivileged || roles.includes("NURSE");
+  const canWritePhoto =
+    isPrivileged ||
+    roles.includes("DOCTOR") ||
+    roles.includes("NURSE") ||
+    roles.includes("MANAGER") ||
+    roles.includes("RECEPTION");
 
   const [visitList, orderList, invoiceList, documentList, emrRes] = await Promise.all([
     apiJson<{ data: Visit[] }>(session, `/api/v1/visits?limit=100`).catch(() => ({
@@ -133,15 +148,37 @@ export default async function VisitDetailPage({ params }: { params: { id: string
         }>;
       }>;
     }>(session, `/api/v1/invoices?visit_id=${params.id}`).catch(() => ({ data: [] })),
-    apiJson<{
-      data: Array<{
-        id: string;
-        type: string;
-        status: string;
-        templateCode: string;
-        createdAt: string;
-      }>;
-    }>(session, `/api/v1/documents?ref_type=INVOICE&limit=100`).catch(() => ({ data: [] })),
+    // Documents tied to either the invoice (E_RECEIPT / TAX_INVOICE) or the
+    // visit itself (MEDICAL_CERT). We fetch both ref_types in parallel and
+    // merge — cheap, keeps the API surface narrow.
+    Promise.all([
+      apiJson<{
+        data: Array<{
+          id: string;
+          type: string;
+          status: string;
+          templateCode: string;
+          createdAt: string;
+        }>;
+      }>(session, `/api/v1/documents?ref_type=INVOICE&limit=100`).catch(() => ({
+        data: [],
+      })),
+      apiJson<{
+        data: Array<{
+          id: string;
+          type: string;
+          status: string;
+          templateCode: string;
+          createdAt: string;
+          refId: string | null;
+        }>;
+      }>(
+        session,
+        `/api/v1/documents?ref_type=VISIT&ref_id=${params.id}&limit=100`,
+      ).catch(() => ({ data: [] })),
+    ]).then(([invDocs, visitDocs]) => ({
+      data: [...invDocs.data, ...visitDocs.data],
+    })),
     apiJson<{ data: ExistingEmr | null }>(
       session,
       `/api/v1/emr/by-visit/${params.id}`,
@@ -351,6 +388,42 @@ export default async function VisitDetailPage({ params }: { params: { id: string
     />
   );
 
+  // Phase M & S — fetch labs + photos in parallel (already after main data
+  // load to keep the critical path narrow). Failures here gracefully fall
+  // back to empty arrays rather than 500-ing the visit page.
+  const [labRes, photoRes] = visit.patient
+    ? await Promise.all([
+        apiJson<{ data: LabOrder[] }>(
+          session,
+          `/api/v1/lab/orders?visit_id=${visit.id}`,
+        ).catch(() => ({ data: [] as LabOrder[] })),
+        apiJson<{ data: PatientPhoto[] }>(
+          session,
+          `/api/v1/patients/${visit.patient.id}/photos?visit_id=${visit.id}`,
+        ).catch(() => ({ data: [] as PatientPhoto[] })),
+      ])
+    : [{ data: [] as LabOrder[] }, { data: [] as PatientPhoto[] }];
+
+  const labs = visit.patient ? (
+    <LabsSection
+      visitId={visit.id}
+      patientId={visit.patient.id}
+      orders={labRes.data}
+      canOrder={canOrderLab}
+      canCollect={canCollectLab}
+      canResult={canResultLab}
+    />
+  ) : null;
+
+  const photos = visit.patient ? (
+    <PhotosSection
+      visitId={visit.id}
+      patientId={visit.patient.id}
+      photos={photoRes.data}
+      canWrite={canWritePhoto}
+    />
+  ) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -379,6 +452,7 @@ export default async function VisitDetailPage({ params }: { params: { id: string
                 ? t(`visits.status.${visit.status}` as never)
                 : visit.status}
             </Badge>
+            {canWriteEmr && <MedicalCertButton visitId={visit.id} />}
             {visit.status !== "COMPLETED" && visit.status !== "CANCELLED" && (
               <CompleteVisitButton visitId={visit.id} />
             )}
@@ -392,8 +466,12 @@ export default async function VisitDetailPage({ params }: { params: { id: string
         orders={ordersTab}
         procedures={proceduresTab}
         billing={billing}
+        labs={labs}
+        photos={photos}
         procedureCount={allProcedures.length}
         orderCount={orders.length}
+        labCount={labRes.data.length}
+        photoCount={photoRes.data.length}
       />
     </div>
   );

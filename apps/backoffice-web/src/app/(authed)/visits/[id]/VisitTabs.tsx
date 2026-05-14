@@ -14,8 +14,12 @@ interface VisitTabsProps {
   orders: React.ReactNode;
   procedures: React.ReactNode;
   billing: React.ReactNode;
+  labs?: React.ReactNode;
+  photos?: React.ReactNode;
   procedureCount: number;
   orderCount: number;
+  labCount?: number;
+  photoCount?: number;
   defaultTab?: string;
 }
 
@@ -25,8 +29,12 @@ export function VisitTabs({
   orders,
   procedures,
   billing,
+  labs,
+  photos,
   procedureCount,
   orderCount,
+  labCount = 0,
+  photoCount = 0,
   defaultTab = "overview",
 }: VisitTabsProps) {
   const t = useTranslations();
@@ -44,6 +52,16 @@ export function VisitTabs({
             {t("visits.tab_procedures") ?? "Procedures"} ({procedureCount})
           </TabsTrigger>
         )}
+        {labs !== undefined && (
+          <TabsTrigger value="labs">
+            {t("visits.tab_labs") ?? "Labs"} {labCount > 0 && `(${labCount})`}
+          </TabsTrigger>
+        )}
+        {photos !== undefined && (
+          <TabsTrigger value="photos">
+            {t("visits.tab_photos") ?? "Photos"} {photoCount > 0 && `(${photoCount})`}
+          </TabsTrigger>
+        )}
         <TabsTrigger value="billing">{t("visits.tab_billing") ?? "Billing"}</TabsTrigger>
       </TabsList>
 
@@ -51,6 +69,8 @@ export function VisitTabs({
       <TabsContent value="soap">{soap}</TabsContent>
       <TabsContent value="orders">{orders}</TabsContent>
       {procedureCount > 0 && <TabsContent value="procedures">{procedures}</TabsContent>}
+      {labs !== undefined && <TabsContent value="labs">{labs}</TabsContent>}
+      {photos !== undefined && <TabsContent value="photos">{photos}</TabsContent>}
       <TabsContent value="billing">{billing}</TabsContent>
     </Tabs>
   );

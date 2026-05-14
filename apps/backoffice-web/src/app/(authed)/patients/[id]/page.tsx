@@ -1,6 +1,13 @@
 import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { User, CalendarDays, Activity, Package, Heart, AlertTriangle } from "lucide-react";
+import {
+  CalendarDays,
+  Activity,
+  Package,
+  Heart,
+  AlertTriangle,
+  ScrollText,
+} from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -19,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatDateTime, initials } from "@/lib/utils";
 import { WalletSection } from "./WalletSection";
+import { ConsentsSection } from "./ConsentsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -68,12 +76,24 @@ export default async function PatientProfile({ params }: { params: { id: string 
   if (!session) redirect("/login");
   const t = await getTranslations();
 
-  const detail = await apiJson<{ data: PatientDetail }>(
-    session,
-    `/api/v1/patients/${params.id}`
-  ).catch(() => null);
+  const [detail, consentsRes] = await Promise.all([
+    apiJson<{ data: PatientDetail }>(session, `/api/v1/patients/${params.id}`).catch(
+      () => null,
+    ),
+    apiJson<{
+      data: Array<{
+        id: string;
+        documentType: string;
+        documentVersion: string;
+        contentHash: string;
+        signedAt: string;
+        signedByName: string;
+      }>;
+    }>(session, `/api/v1/patients/${params.id}/consents`).catch(() => ({ data: [] })),
+  ]);
   if (!detail?.data) notFound();
   const p = detail.data;
+  const consents = consentsRes?.data ?? [];
 
   const fullName = `${p.firstName} ${p.lastName}`;
   const allergies = listifyJson(p.allergies);
@@ -129,6 +149,12 @@ export default async function PatientProfile({ params }: { params: { id: string 
             <Package className="h-3.5 w-3.5" /> {t("patients.tab_wallet")}
             <Badge variant="secondary" className="ml-1">
               {p.wallets.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="consents" className="gap-1">
+            <ScrollText className="h-3.5 w-3.5" /> {t("patients.tab_consents")}
+            <Badge variant="secondary" className="ml-1">
+              {consents.length}
             </Badge>
           </TabsTrigger>
         </TabsList>
@@ -272,6 +298,14 @@ export default async function PatientProfile({ params }: { params: { id: string 
 
         <TabsContent value="wallet" className="mt-4">
           <WalletSection patientId={p.id} wallets={p.wallets} />
+        </TabsContent>
+
+        <TabsContent value="consents" className="mt-4">
+          <ConsentsSection
+            patientId={p.id}
+            patientName={fullName}
+            consents={consents}
+          />
         </TabsContent>
       </Tabs>
     </div>

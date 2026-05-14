@@ -1,10 +1,17 @@
 /**
- * Mock AI providers. In production these would call OpenAI/Whisper/Vertex.
+ * AI providers facade.
  *
- * IMPORTANT POLICY:
+ * STRATEGY (Phase Q):
+ *   1. Try Gemini (`GEMINI_API_KEY`) — production path.
+ *   2. Fall back to deterministic heuristics — works in dev/CI without keys.
+ *
+ * POLICY:
  *   "AI-generated content is assistive only. Final clinical decisions
- *    require human approval."  ← enforced by the AIApprovalLog table.
+ *    require human approval."  ← enforced upstream by the AIApprovalLog table.
  */
+
+import { getGemini } from "./providers/gemini";
+import { heuristicIntakeSummary, heuristicVoiceNote } from "./providers/heuristic";
 
 export type IntakeInput = { symptoms: string; history?: string };
 export type IntakeSummary = {
@@ -14,27 +21,6 @@ export type IntakeSummary = {
   triage_level: "ROUTINE" | "URGENT" | "EMERGENCY";
 };
 
-export async function generateIntakeSummary(input: IntakeInput): Promise<IntakeSummary> {
-  const lower = input.symptoms.toLowerCase();
-  const redFlags: string[] = [];
-  if (/(chest pain|shortness of breath|fainted|stroke)/.test(lower)) {
-    redFlags.push("possible cardiovascular emergency");
-  }
-  if (/(severe bleeding|anaphyl|seizure)/.test(lower)) {
-    redFlags.push("acute critical sign");
-  }
-  return {
-    chief_complaint: input.symptoms.slice(0, 200),
-    red_flags: redFlags,
-    suggested_questions: [
-      "Duration of symptoms?",
-      "Aggravating / relieving factors?",
-      "Any current medications?",
-    ],
-    triage_level: redFlags.length > 0 ? "URGENT" : "ROUTINE",
-  };
-}
-
 export type VoiceNoteInput = { transcript: string; locale?: string };
 export type VoiceNoteDraft = {
   subjective: string;
@@ -43,88 +29,133 @@ export type VoiceNoteDraft = {
   plan: string;
 };
 
-// Cue phrases we look for to split a free-form transcript into SOAP sections.
-// Order matters — we scan the text once and split at each cue boundary.
-// Production should replace this with a real LLM call (GPT-4/Claude) using
-// structured output (JSON mode). Until then, this heuristic is good enough
-// for a Thai/English demo and deterministic for tests.
-const SOAP_CUES: Array<{ key: keyof VoiceNoteDraft; patterns: RegExp[] }> = [
-  {
-    key: "subjective",
-    patterns: [
-      /\b(subjective|S:)\b/i,
-      /(ผู้ป่วย(?:มา|เล่า|บอก|แจ้ง)|อาการ|อาการที่มา|เจ็บ|ปวด|คนไข้บอก)/,
-    ],
-  },
-  {
-    key: "objective",
-    patterns: [
-      /\b(objective|O:|exam|vital)\b/i,
-      /(ตรวจพบ|ตรวจร่างกาย|BP\s*\d|Temp|ผลตรวจ|สัญญาณชีพ)/,
-    ],
-  },
-  {
-    key: "assessment",
-    patterns: [
-      /\b(assessment|A:|diagnos|impression)\b/i,
-      /(วินิจฉัย|น่าจะเป็น|โรค|ICD)/,
-    ],
-  },
-  {
-    key: "plan",
-    patterns: [
-      /\b(plan|P:|rx|medication|treatment|follow[- ]?up)\b/i,
-      /(แผน|สั่งยา|นัดติดตาม|ให้ยา|รักษา|ฉีด|ทำหัตถการ)/,
-    ],
-  },
-];
+export type VisionAnalyzeInput = {
+  /** Base64-encoded image bytes (no data URL prefix). */
+  image_base64: string;
+  mime_type: "image/jpeg" | "image/png" | "image/webp";
+  context?: string;
+  kind?: "BEFORE" | "AFTER" | "OTHER";
+};
+export type VisionAnalyzeResult = {
+  summary: string;
+  observations: string[];
+  concerns: string[];
+  /** 0-1 confidence score the model assigns to its own output. */
+  confidence: number;
+};
+
+const INTAKE_SYSTEM = `You are a careful Thai/English clinical intake assistant for a beauty / dermatology clinic in Thailand.
+- Reply in JSON ONLY, never prose.
+- Use the patient's language; mirror Thai when the symptoms are Thai.
+- Treat anything cardiovascular, anaphylactic, neurological or "severe bleeding" as URGENT.
+- "EMERGENCY" only for life-threatening: chest pain, fainted, stroke signs, severe bleeding.
+- "ROUTINE" otherwise.
+Schema: { chief_complaint: string, red_flags: string[], suggested_questions: string[], triage_level: "ROUTINE"|"URGENT"|"EMERGENCY" }`;
+
+const VOICE_SYSTEM = `You are a clinical scribe transforming a doctor's voice transcript into structured SOAP notes.
+- Reply in JSON ONLY: { subjective, objective, assessment, plan }.
+- Preserve the doctor's language (Thai or English).
+- DO NOT invent diagnoses. Only restructure what the doctor said.
+- Each field is a string (may be empty).`;
+
+const VISION_SYSTEM = `You are a Thai aesthetic/dermatology assistant. Analyse the uploaded clinical photo (e.g. before/after a laser or injection treatment).
+- Reply in JSON ONLY: { summary, observations, concerns, confidence }.
+- 'observations' = what is visibly present (acne, pigmentation, swelling, bruising…).
+- 'concerns' = anything the clinician should NOT miss (e.g. asymmetry, infection signs).
+- 'confidence' = 0-1 self-rating; lower if photo lighting is poor.
+- DO NOT diagnose. Be conservative.`;
+
+export async function generateIntakeSummary(input: IntakeInput): Promise<IntakeSummary> {
+  const gem = getGemini();
+  if (!gem) return heuristicIntakeSummary(input);
+  try {
+    const prompt = `Symptoms: ${input.symptoms}\n${input.history ? `History: ${input.history}` : ""}\nReturn JSON with the fields described in the system prompt.`;
+    const out = await gem.generateJson<IntakeSummary>({
+      systemInstruction: INTAKE_SYSTEM,
+      userPrompt: prompt,
+    });
+    // Validate shape — fall back if the model misbehaved.
+    if (
+      typeof out?.chief_complaint === "string" &&
+      Array.isArray(out.red_flags) &&
+      Array.isArray(out.suggested_questions) &&
+      ["ROUTINE", "URGENT", "EMERGENCY"].includes(out.triage_level)
+    ) {
+      return out;
+    }
+  } catch {
+    // Network blip / quota / transient JSON parse error — fall through.
+  }
+  return heuristicIntakeSummary(input);
+}
 
 export async function generateVoiceNote(input: VoiceNoteInput): Promise<VoiceNoteDraft> {
-  const text = input.transcript.trim();
-  const empty: VoiceNoteDraft = { subjective: "", objective: "", assessment: "", plan: "" };
-  if (!text) return empty;
-
-  // Find cue matches and their positions, sorted by offset.
-  type Hit = { key: keyof VoiceNoteDraft; index: number };
-  const hits: Hit[] = [];
-  for (const cue of SOAP_CUES) {
-    for (const pat of cue.patterns) {
-      const m = pat.exec(text);
-      if (m && m.index !== undefined) {
-        hits.push({ key: cue.key, index: m.index });
-        break; // first pattern per section is enough
-      }
+  const gem = getGemini();
+  if (!gem) return heuristicVoiceNote(input);
+  try {
+    const prompt = `Transcript (locale=${input.locale ?? "auto"}):\n${input.transcript}\nReturn JSON SOAP fields.`;
+    const out = await gem.generateJson<VoiceNoteDraft>({
+      systemInstruction: VOICE_SYSTEM,
+      userPrompt: prompt,
+    });
+    if (
+      typeof out?.subjective === "string" &&
+      typeof out?.objective === "string" &&
+      typeof out?.assessment === "string" &&
+      typeof out?.plan === "string"
+    ) {
+      return out;
     }
+  } catch {
+    /* fall through */
   }
-  hits.sort((a, b) => a.index - b.index);
+  return heuristicVoiceNote(input);
+}
 
-  if (hits.length === 0) {
-    // No recognisable cues — dump the whole transcript into Subjective as a
-    // conservative fallback. The doctor still edits before signing.
-    return { ...empty, subjective: text };
+export async function analyzeVision(
+  input: VisionAnalyzeInput,
+): Promise<VisionAnalyzeResult> {
+  const gem = getGemini();
+  if (!gem) {
+    // Deterministic placeholder — in dev we still return a sensible shape.
+    return {
+      summary: "AI vision provider not configured (GEMINI_API_KEY missing)",
+      observations: [],
+      concerns: [],
+      confidence: 0,
+    };
   }
-
-  const result: VoiceNoteDraft = { ...empty };
-  for (let i = 0; i < hits.length; i++) {
-    const current = hits[i]!;
-    const next = hits[i + 1];
-    const end = next ? next.index : text.length;
-    const segment = text.slice(current.index, end).trim();
-    // Append (in case multiple cues of same section appear).
-    result[current.key] = result[current.key]
-      ? `${result[current.key]}\n${segment}`
-      : segment;
-  }
-
-  // Any text before the first cue → prepend to subjective as preamble.
-  if (hits[0]!.index > 0) {
-    const preamble = text.slice(0, hits[0]!.index).trim();
-    if (preamble) {
-      result.subjective = result.subjective
-        ? `${preamble}\n${result.subjective}`
-        : preamble;
+  try {
+    const prompt = `Photo type: ${input.kind ?? "OTHER"}\nContext: ${input.context ?? "(none)"}\nAnalyse the attached photo.`;
+    const out = await gem.generateJson<VisionAnalyzeResult>({
+      model: gem.visionModel,
+      systemInstruction: VISION_SYSTEM,
+      userPrompt: prompt,
+      images: [{ mimeType: input.mime_type, base64: input.image_base64 }],
+    });
+    if (
+      typeof out?.summary === "string" &&
+      Array.isArray(out.observations) &&
+      Array.isArray(out.concerns)
+    ) {
+      return {
+        summary: out.summary,
+        observations: out.observations,
+        concerns: out.concerns,
+        confidence: typeof out.confidence === "number" ? out.confidence : 0.5,
+      };
     }
+  } catch {
+    /* fall through */
   }
+  return {
+    summary: "AI analysis failed — please review photo manually.",
+    observations: [],
+    concerns: [],
+    confidence: 0,
+  };
+}
 
-  return result;
+export function aiProviderName(): string {
+  return getGemini() ? "gemini" : "heuristic";
 }

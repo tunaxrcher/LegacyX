@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@legacyx/db": "workspace:*",
     "@legacyx/events": "workspace:*",
     "pino": "^9.3.2",

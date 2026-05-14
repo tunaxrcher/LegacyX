@@ -25,6 +25,9 @@ import {
   ChevronsRight,
   Banknote,
   Bell,
+  GitMerge,
+  ScrollText,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -154,6 +157,22 @@ const groups: NavGroup[] = [
         icon: ShieldAlert,
         roles: ["MANAGER"],
       },
+      // Phase K — Patient deduplication. MANAGER scope per ROLE_MATRIX
+      // (`patient:merge:tenant`). Doctor/Reception cannot merge.
+      {
+        href: "/admin/patients",
+        labelKey: "nav.patient_merge",
+        icon: GitMerge,
+        roles: ["MANAGER"],
+      },
+      // Phase O — Promotion engine. MANAGER owns campaigns; reception just
+      // redeems them via /api/v1/invoices/:id/apply-promo.
+      {
+        href: "/manager/promotions",
+        labelKey: "nav.promotions",
+        icon: Tag,
+        roles: ["MANAGER"],
+      },
     ],
   },
   // Clinic configuration — Manager owns the day-to-day business setup
@@ -210,6 +229,15 @@ const groups: NavGroup[] = [
         href: "/dlq",
         labelKey: "nav.dlq",
         icon: AlertOctagon,
+        roles: ["ADMIN"],
+      },
+      // Phase K — PDPA Data Subject Rights (export / anonymise). ADMIN-only
+      // because the feature decrypts every PII field for the patient and
+      // generates a downloadable archive.
+      {
+        href: "/admin/pdpa",
+        labelKey: "nav.pdpa",
+        icon: ScrollText,
         roles: ["ADMIN"],
       },
       {

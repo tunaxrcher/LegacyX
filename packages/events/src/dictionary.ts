@@ -65,6 +65,11 @@ export const EVENT_NAMES = {
   AUDIT_RECORDED: "audit.recorded",
   CONSENT_SIGNED: "consent.signed",
   PATIENT_MERGED: "patient.merged",
+  // Phase K — PDPA Data Subject Rights (DSR)
+  PDPA_EXPORTED: "pdpa.exported",
+  PDPA_ANONYMIZED: "pdpa.anonymized",
+  // Phase O — Promotion / voucher engine
+  PROMOTION_REDEEMED: "promotion.redeemed",
   AI_DRAFT_CREATED: "ai.draft.created",
   AI_DRAFT_APPROVED: "ai.draft.approved",
   AI_DRAFT_REJECTED: "ai.draft.rejected",

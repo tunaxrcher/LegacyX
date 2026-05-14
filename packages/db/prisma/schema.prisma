@@ -287,6 +287,7 @@ model Patient {
   invoices          Invoice[]
   mergedFromLogs    PatientMergeLog[] @relation("MergedFrom")
   mergedIntoLogs    PatientMergeLog[] @relation("MergedInto")
+  photos            PatientPhoto[]
 
   @@unique([tenantId, hn])
   @@index([tenantId, lastName, firstName])
@@ -325,6 +326,53 @@ model PatientMergeLog {
   fromPatient   Patient  @relation("MergedFrom", fields: [fromPatientId], references: [id])
   intoPatient   Patient  @relation("MergedInto", fields: [intoPatientId], references: [id])
   @@map("patient_merge_logs")
+}
+
+// Phase S — Clinical photos (KYC ID photo, before/after treatment shots).
+//
+// Why a dedicated model instead of reusing Document:
+//   - Photos have a hard PII / regulatory lifecycle (PDPA: must be deletable
+//     within 30 days of patient request). We tag every row with `kind` so the
+//     anonymisation worker can wipe BEFORE/AFTER first while keeping receipts.
+//   - Each photo carries an OPTIONAL Gemini Vision draft (denormalised into
+//     `analysis` JSON) so the UI doesn't need a second hop to read findings.
+//   - Storage is always S3 — `storageKey` is the bucket key, never a URL.
+model PatientPhoto {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  branchId      String?  @map("branch_id")
+  patientId     String   @map("patient_id")
+  visitId       String?  @map("visit_id")
+  kind          PatientPhotoKind
+  storageKey    String   @map("storage_key")        // S3 / Spaces key
+  mimeType      String   @map("mime_type")
+  sizeBytes     Int      @map("size_bytes")
+  // Body part / area / treatment ref. For BEFORE/AFTER pairs we use the same
+  // region label so the UI can pair them visually without a separate "pair"
+  // table.
+  region        String?
+  // Optional Gemini Vision analysis (summary + observations + concerns).
+  analysis      Json?
+  // Free-text staff note (e.g. "ฉีด BTX กราม"). Patient never sees this.
+  note          String?  @db.Text
+  uploadedBy    String   @map("uploaded_by")        // User.id (DOCTOR/NURSE/RECEPTION) or "patient"
+  createdAt     DateTime @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")        // soft-delete for PDPA scrub
+
+  patient       Patient  @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId, patientId, kind])
+  @@index([tenantId, visitId])
+  @@map("patient_photos")
+}
+
+enum PatientPhotoKind {
+  KYC_ID            // National ID card photo for verification
+  KYC_SELFIE        // Selfie for face match (optional, future use)
+  BEFORE            // Pre-treatment clinical shot
+  AFTER             // Post-treatment clinical shot
+  PROCEDURE         // During-procedure documentation
+  OTHER
 }
 
 // EMR root (header). Versions are immutable rows in EMRVersion.

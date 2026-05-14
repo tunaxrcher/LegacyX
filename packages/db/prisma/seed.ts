@@ -5,7 +5,7 @@
  *
  * Run: pnpm db:seed
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { randomBytes, scryptSync } from "node:crypto";
 // Import from the package's own src so seed and runtime hash phones identically.
 // If you ever see "login: phone not found" right after seeding, suspect this
@@ -72,6 +72,23 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   // Admin
   { resource: "audit", action: "read", scope: "tenant" },
   { resource: "break_glass", action: "approve", scope: "tenant" },
+  // Phase K — PDPA / Data Subject Rights. Tenant-scoped so only ADMIN can
+  // export/anonymise (per PDPA "controller responsibility"). MANAGER does
+  // patient:merge but stays out of DSR plumbing.
+  { resource: "pdpa", action: "export", scope: "tenant" },
+  { resource: "pdpa", action: "anonymize", scope: "tenant" },
+  // Phase O — Promotion / voucher engine. CRUD is a tenant-wide config
+  // (Manager) but the redeem action runs at the desk so it's branch-scoped.
+  { resource: "promotion", action: "read", scope: "tenant" },
+  { resource: "promotion", action: "write", scope: "tenant" },
+  { resource: "promotion", action: "redeem", scope: "branch" },
+  // Phase M — Lab orders & results. Doctor orders (write), nurse collects
+  // (collect), and lab tech / outsourced lab posts results (result). Read is
+  // branch-wide for clinical staff.
+  { resource: "lab", action: "read", scope: "branch" },
+  { resource: "lab", action: "write", scope: "branch" },
+  { resource: "lab", action: "collect", scope: "branch" },
+  { resource: "lab", action: "result", scope: "branch" },
 ];
 
 const ROLE_MATRIX: Record<string, string[]> = {
@@ -79,6 +96,9 @@ const ROLE_MATRIX: Record<string, string[]> = {
   MANAGER: [
     "user:read:tenant",
     "patient:read:branch",
+    // Phase K — Manager runs the duplicate-detection / merge UI. Doctor or
+    // Reception cannot merge (high-impact, cross-branch action).
+    "patient:merge:tenant",
     "appointment:read:branch",
     "appointment:write:branch",
     "payment:read:branch",
@@ -101,6 +121,13 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "shift:open:branch",
     "shift:close:branch",
     "shift:read:branch",
+    // Phase O — promotion / voucher engine
+    "promotion:read:tenant",
+    "promotion:write:tenant",
+    "promotion:redeem:branch",
+    // Phase M — Lab read for oversight; result is a separate sub-flow
+    // they don't normally do themselves.
+    "lab:read:branch",
   ],
   DOCTOR: [
     "patient:read:branch",
@@ -120,6 +147,9 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "resource:read:branch",
     "resource:release:branch",
     "wallet:read:branch",
+    // Phase M — Doctor orders labs (write) and reads results.
+    "lab:read:branch",
+    "lab:write:branch",
   ],
   NURSE: [
     "patient:read:branch",
@@ -136,6 +166,11 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "inventory:read:branch",
     "resource:read:branch",
     "resource:release:branch",
+    // Phase M — Nurse collects samples (collect) and may post external lab
+    // results into the system (result). Cannot order tests.
+    "lab:read:branch",
+    "lab:collect:branch",
+    "lab:result:branch",
   ],
   RECEPTION: [
     "patient:read:branch",
@@ -153,6 +188,10 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "shift:open:branch",
     "shift:close:branch",
     "shift:read:branch",
+    // Phase O — Reception applies promotions at the desk (read + redeem)
+    // but cannot create/edit promotions (that's Manager's tenant config).
+    "promotion:read:tenant",
+    "promotion:redeem:branch",
   ],
   PHARMACIST: [
     "patient:read:branch",
@@ -873,6 +912,85 @@ async function main() {
     });
   }
   console.log(`  ✓ Services: ${SERVICES.length} across ${CATEGORIES.length} categories`);
+
+  // ----- Phase O — Demo promotions -----
+  // Three flavours so the UI can show realistic data right after a fresh seed.
+  // Schema lives in Promotion table; the redeem flow lives in promotion service.
+  const PROMOS: Array<{
+    code: string;
+    name: string;
+    type: "VOUCHER" | "PACKAGE_DISCOUNT" | "TIER";
+    config: Record<string, unknown>;
+    startsAt: Date;
+    endsAt: Date | null;
+  }> = [
+    {
+      code: "WELCOME10",
+      name: "Welcome 10% off (first visit)",
+      type: "VOUCHER",
+      config: {
+        // Voucher rules. min_spend is THB; percent is 0-100; max_uses_per_patient
+        // is checked at redeem time via audit-log lookup.
+        kind: "percent",
+        percent: 10,
+        min_spend: 1000,
+        max_uses_per_patient: 1,
+      },
+      startsAt: new Date("2025-01-01T00:00:00Z"),
+      endsAt: new Date("2026-12-31T23:59:59Z"),
+    },
+    {
+      code: "NEWYEAR2026",
+      name: "New Year 2026 — flat ฿500 off",
+      type: "VOUCHER",
+      config: {
+        kind: "amount",
+        amount: 500,
+        min_spend: 2000,
+        max_uses_per_patient: 1,
+      },
+      startsAt: new Date("2025-12-15T00:00:00Z"),
+      endsAt: new Date("2026-02-15T23:59:59Z"),
+    },
+    {
+      code: "BTX-FIRST",
+      name: "First-time BTX 10% bundle",
+      type: "PACKAGE_DISCOUNT",
+      config: {
+        // Applies % off whenever the invoice contains ANY of these SKUs.
+        kind: "percent",
+        percent: 10,
+        applies_to_skus: ["BTX-25U", "BTX-50U", "BTX-100U"],
+        max_uses_per_patient: 1,
+      },
+      startsAt: new Date("2025-01-01T00:00:00Z"),
+      endsAt: null,
+    },
+  ];
+  for (const p of PROMOS) {
+    await prisma.promotion.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: p.code } },
+      update: {
+        name: p.name,
+        type: p.type,
+        config: p.config as Prisma.InputJsonValue,
+        startsAt: p.startsAt,
+        endsAt: p.endsAt,
+        active: true,
+      },
+      create: {
+        tenantId: tenant.id,
+        code: p.code,
+        name: p.name,
+        type: p.type,
+        config: p.config as Prisma.InputJsonValue,
+        startsAt: p.startsAt,
+        endsAt: p.endsAt,
+        active: true,
+      },
+    });
+  }
+  console.log(`  ✓ Promotions: ${PROMOS.length} (WELCOME10 / NEWYEAR2026 / BTX-FIRST)`);
 
   console.log("✅ Seed complete.");
 }

@@ -50,6 +50,8 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/utils";
 import { clientApi } from "@/lib/clientApi";
+import { TaxInvoiceButton } from "./TaxInvoiceButton";
+import { ApplyPromoButton } from "./ApplyPromoButton";
 
 interface Payment {
   id: string;
@@ -198,7 +200,12 @@ function InvoiceCard({
     .reduce((s, p) => s + Number(p.amount), 0);
   const netPaid = paid + refunded; // refunds are negative
   const due = Math.max(0, Number(invoice.total) - netPaid);
-  const relatedDocs = documents.filter((d) => d.id && d.type === "E_RECEIPT");
+  // Show every document the invoice has spawned — receipts AND tax invoices.
+  // Phase L added TAX_INVOICE; older E_RECEIPTs still appear here.
+  const relatedDocs = documents.filter(
+    (d) => d.id && (d.type === "E_RECEIPT" || d.type === "TAX_INVOICE"),
+  );
+  const hasTaxInvoice = relatedDocs.some((d) => d.type === "TAX_INVOICE");
 
   return (
     <div className="rounded-md border p-4 space-y-3">
@@ -270,28 +277,42 @@ function InvoiceCard({
       )}
 
       {canWrite && due > 0 && invoice.status !== "VOIDED" && (
-        <div className="pt-2">
+        <div className="flex flex-wrap items-center gap-2 pt-2">
           <PaymentDialog invoiceId={invoice.id} due={due} />
+          {Number(invoice.discount) === 0 && invoice.status !== "PAID" && (
+            <ApplyPromoButton invoiceId={invoice.id} invoiceNumber={invoice.number} />
+          )}
         </div>
       )}
 
-      {invoice.status === "PAID" && relatedDocs.length > 0 && (
-        <div className="space-y-1 pt-2 border-t">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t("documents")}
+      {invoice.status === "PAID" && (
+        <div className="flex items-center justify-between gap-2 pt-2 border-t">
+          <div className="space-y-1">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("documents")}
+            </div>
+            {relatedDocs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">—</p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {relatedDocs.map((d) => (
+                  <a
+                    key={d.id}
+                    href={`/api/v1/documents/${d.id}/download`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <Download className="h-3 w-3" />
+                    {d.type} · {d.status}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
-          {relatedDocs.map((d) => (
-            <a
-              key={d.id}
-              href={`/api/v1/documents/${d.id}/download`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              <Download className="h-3 w-3" />
-              {d.type} · {d.status}
-            </a>
-          ))}
+          {canWrite && !hasTaxInvoice && (
+            <TaxInvoiceButton invoiceId={invoice.id} invoiceNumber={invoice.number} />
+          )}
         </div>
       )}
     </div>

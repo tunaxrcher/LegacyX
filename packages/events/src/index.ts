@@ -6,3 +6,6 @@ export * as PaymentEvents from "./schemas/payment";
 export * as InventoryEvents from "./schemas/inventory";
 export * as OrderEvents from "./schemas/order";
 export * as EodEvents from "./schemas/eod";
+export * as ConsentEvents from "./schemas/consent";
+export * as PromotionEvents from "./schemas/promotion";
+export * as LabEvents from "./schemas/lab";
