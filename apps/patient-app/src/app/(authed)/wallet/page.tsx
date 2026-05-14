@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { CalendarClock, Wallet as WalletIcon } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
@@ -27,7 +28,8 @@ type Wallet = {
 };
 
 export default async function WalletPage() {
-  const session = getPatientSession()!;
+  const session = getPatientSession();
+  if (!session) redirect("/login");
   const t = await getTranslations("wallet");
   const locale = await getLocale();
 

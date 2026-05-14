@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import {
   AtSign,
@@ -31,7 +32,8 @@ type Profile = {
 };
 
 export default async function ProfilePage() {
-  const session = getPatientSession()!;
+  const session = getPatientSession();
+  if (!session) redirect("/login");
   const t = await getTranslations("profile");
   const tLogin = await getTranslations("login");
 

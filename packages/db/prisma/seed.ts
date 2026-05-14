@@ -585,6 +585,272 @@ async function main() {
   });
   console.log(`  ✓ Demo Patient: HN-0000001 (LINE: U_demo_line_0000001)`);
 
+  // ----- Patient-facing Service Catalog -----
+  // 3 categories matching image 1 (Dental / Beauty & Spa / Wellness).
+  // Demo images reference public Unsplash photos — swap for real branded
+  // assets in production. `procedureCode` ties back to the staff catalog so
+  // a guest booking eventually emits the same downstream events.
+  const CATEGORIES: Array<{
+    code: string;
+    name: string;
+    nameTh: string;
+    description: string;
+    descriptionTh: string;
+    imageUrl: string;
+    displayOrder: number;
+  }> = [
+    {
+      code: "dental",
+      name: "Dental",
+      nameTh: "ทันตกรรม",
+      description: "Comprehensive dental care from check-ups to Invisalign.",
+      descriptionTh: "ศูนย์ทันตกรรมเฉพาะทาง",
+      imageUrl: "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=800&q=80",
+      displayOrder: 1,
+    },
+    {
+      code: "beauty",
+      name: "Beauty & Spa",
+      nameTh: "ความงามและสปา",
+      description: "Aesthetic treatments — facial, botox, filler, laser.",
+      descriptionTh: "ศูนย์ผิวพรรณและความงาม",
+      imageUrl: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&q=80",
+      displayOrder: 2,
+    },
+    {
+      code: "wellness",
+      name: "Wellness",
+      nameTh: "เวชศาสตร์ชะลอวัย",
+      description: "Anti-aging, vitamin IV drips, hormone therapy.",
+      descriptionTh: "เวชศาสตร์ชะลอวัย",
+      imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80",
+      displayOrder: 3,
+    },
+  ];
+
+  const categoryByCode: Record<string, string> = {};
+  for (const c of CATEGORIES) {
+    const row = await prisma.serviceCategory.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: c.code } },
+      update: {
+        name: c.name,
+        nameTh: c.nameTh,
+        description: c.description,
+        descriptionTh: c.descriptionTh,
+        imageUrl: c.imageUrl,
+        displayOrder: c.displayOrder,
+      },
+      create: {
+        tenantId: tenant.id,
+        code: c.code,
+        name: c.name,
+        nameTh: c.nameTh,
+        description: c.description,
+        descriptionTh: c.descriptionTh,
+        imageUrl: c.imageUrl,
+        displayOrder: c.displayOrder,
+      },
+    });
+    categoryByCode[c.code] = row.id;
+  }
+  console.log(`  ✓ Service categories: ${CATEGORIES.length}`);
+
+  const SERVICES: Array<{
+    categoryCode: string;
+    code: string;
+    name: string;
+    nameTh: string;
+    description: string;
+    descriptionTh: string;
+    priceFrom: number | null;
+    priceTo: number | null;
+    durationMin: number;
+    imageUrl: string;
+    procedureCode: string | null;
+    displayOrder: number;
+  }> = [
+    // ----- Dental -----
+    {
+      categoryCode: "dental",
+      code: "SVC_DENTAL_CHECKUP",
+      name: "Dental Check-up",
+      nameTh: "ตรวจสุขภาพฟัน",
+      description: "Digital oral exam by a specialist dentist.",
+      descriptionTh: "ตรวจเช็คสุขภาพช่องปากโดยทันตแพทย์เฉพาะทางด้วยระบบดิจิทัล",
+      priceFrom: 0,
+      priceTo: null,
+      durationMin: 30,
+      imageUrl: "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=600&q=80",
+      procedureCode: "PROC_CONSULT",
+      displayOrder: 1,
+    },
+    {
+      categoryCode: "dental",
+      code: "SVC_DENTAL_SCALING",
+      name: "Scaling & Polishing",
+      nameTh: "ขูดหินปูนและขัดฟัน",
+      description: "Air-flow tartar removal for healthy gums.",
+      descriptionTh: "ขจัดคราบหินปูนเพื่อสุขภาพเหงือกที่ดีด้วยเทคโนโลยี Air-flow",
+      priceFrom: 1200,
+      priceTo: 1500,
+      durationMin: 45,
+      imageUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600&q=80",
+      procedureCode: null,
+      displayOrder: 2,
+    },
+    {
+      categoryCode: "dental",
+      code: "SVC_DENTAL_INVISALIGN",
+      name: "Invisalign",
+      nameTh: "จัดฟันใส Invisalign",
+      description: "Clear aligner treatment planning with iTero scanner.",
+      descriptionTh: "วางแผนการจัดฟันแบบใสด้วยเทคโนโลยี iTero Element Scanner",
+      priceFrom: null, // "สอบถามราคา"
+      priceTo: null,
+      durationMin: 60,
+      imageUrl: "https://images.unsplash.com/photo-1581585504432-7c8e89f9d39a?w=600&q=80",
+      procedureCode: null,
+      displayOrder: 3,
+    },
+    // ----- Beauty & Spa -----
+    {
+      categoryCode: "beauty",
+      code: "SVC_BTX_FACE",
+      name: "Botox Full Face",
+      nameTh: "โบท็อกซ์ทั้งใบหน้า",
+      description: "Wrinkle smoothing with 50 units across forehead, brows and eye area.",
+      descriptionTh: "ฉีดโบท็อกซ์ลดริ้วรอย 50 ยูนิตทั้งหน้าผาก หางตา และระหว่างคิ้ว",
+      priceFrom: 9500,
+      priceTo: 9500,
+      durationMin: 30,
+      imageUrl: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&q=80",
+      procedureCode: "PROC_BTX_FACE",
+      displayOrder: 1,
+    },
+    {
+      categoryCode: "beauty",
+      code: "SVC_FILLER_CHEEK",
+      name: "HA Filler — Cheek",
+      nameTh: "ฟิลเลอร์โหนกแก้ม",
+      description: "1 cc Hyaluronic acid filler for cheek volume.",
+      descriptionTh: "ฉีดฟิลเลอร์กรดไฮยาลูโรนิก 1 cc เพิ่มวอลุ่มโหนกแก้ม",
+      priceFrom: 12000,
+      priceTo: 12000,
+      durationMin: 45,
+      imageUrl: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=600&q=80",
+      procedureCode: "PROC_FILLER_CHEEK",
+      displayOrder: 2,
+    },
+    {
+      categoryCode: "beauty",
+      code: "SVC_LASER_HAIR",
+      name: "Laser Hair Removal",
+      nameTh: "เลเซอร์ขนรักแร้",
+      description: "Painless underarm hair removal with diode laser.",
+      descriptionTh: "เลเซอร์กำจัดขนรักแร้ด้วยเทคโนโลยี diode",
+      priceFrom: 1500,
+      priceTo: 1500,
+      durationMin: 30,
+      imageUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&q=80",
+      procedureCode: "PROC_LASER_HAIR",
+      displayOrder: 3,
+    },
+    {
+      categoryCode: "beauty",
+      code: "SVC_FACIAL_BASIC",
+      name: "Basic Facial",
+      nameTh: "ทรีตเมนต์ผิวหน้าพื้นฐาน",
+      description: "Cleansing facial with steam and serum massage.",
+      descriptionTh: "ทำความสะอาดผิวหน้า สตีม และมาสซาจเซรั่มบำรุงผิว",
+      priceFrom: 1200,
+      priceTo: 1500,
+      durationMin: 60,
+      imageUrl: "https://images.unsplash.com/photo-1620331317660-46bf4b3ce4f8?w=600&q=80",
+      procedureCode: "PROC_FACIAL_BASIC",
+      displayOrder: 4,
+    },
+    // ----- Wellness -----
+    {
+      categoryCode: "wellness",
+      code: "SVC_VITAMIN_IV",
+      name: "Vitamin IV Drip",
+      nameTh: "วิตามินดริปทางหลอดเลือดดำ",
+      description: "Vit-C + B-complex + Glutathione for skin brightening.",
+      descriptionTh: "วิตามินซี + บีรวม + กลูตาไธโอนทางหลอดเลือดดำ บำรุงผิวกระจ่างใส",
+      priceFrom: 2500,
+      priceTo: 3500,
+      durationMin: 45,
+      imageUrl: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=600&q=80",
+      procedureCode: "PROC_VITAMIN_IV",
+      displayOrder: 1,
+    },
+    {
+      categoryCode: "wellness",
+      code: "SVC_CONSULT_AGE",
+      name: "Anti-Aging Consultation",
+      nameTh: "ปรึกษาเวชศาสตร์ชะลอวัย",
+      description: "Initial consultation with anti-aging specialist.",
+      descriptionTh: "ปรึกษาแพทย์เฉพาะทางด้านชะลอวัย ประเมินสุขภาพและวางแผนรักษา",
+      priceFrom: 500,
+      priceTo: 500,
+      durationMin: 30,
+      imageUrl: "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=600&q=80",
+      procedureCode: "PROC_CONSULT",
+      displayOrder: 2,
+    },
+    {
+      categoryCode: "wellness",
+      code: "SVC_HORMONE_PANEL",
+      name: "Hormone Health Panel",
+      nameTh: "ตรวจระดับฮอร์โมน",
+      description: "Comprehensive hormonal blood panel.",
+      descriptionTh: "ตรวจระดับฮอร์โมนแบบครบวงจร พร้อมแปลผลโดยแพทย์",
+      priceFrom: null,
+      priceTo: null,
+      durationMin: 30,
+      imageUrl: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=600&q=80",
+      procedureCode: null,
+      displayOrder: 3,
+    },
+  ];
+
+  for (const s of SERVICES) {
+    const categoryId = categoryByCode[s.categoryCode];
+    if (!categoryId) continue;
+    await prisma.service.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: s.code } },
+      update: {
+        categoryId,
+        name: s.name,
+        nameTh: s.nameTh,
+        description: s.description,
+        descriptionTh: s.descriptionTh,
+        priceFrom: s.priceFrom !== null ? s.priceFrom : null,
+        priceTo: s.priceTo !== null ? s.priceTo : null,
+        durationMin: s.durationMin,
+        imageUrl: s.imageUrl,
+        procedureCode: s.procedureCode,
+        displayOrder: s.displayOrder,
+      },
+      create: {
+        tenantId: tenant.id,
+        categoryId,
+        code: s.code,
+        name: s.name,
+        nameTh: s.nameTh,
+        description: s.description,
+        descriptionTh: s.descriptionTh,
+        priceFrom: s.priceFrom !== null ? s.priceFrom : null,
+        priceTo: s.priceTo !== null ? s.priceTo : null,
+        durationMin: s.durationMin,
+        imageUrl: s.imageUrl,
+        procedureCode: s.procedureCode,
+        displayOrder: s.displayOrder,
+      },
+    });
+  }
+  console.log(`  ✓ Services: ${SERVICES.length} across ${CATEGORIES.length} categories`);
+
   console.log("✅ Seed complete.");
 }
 

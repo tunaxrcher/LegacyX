@@ -1,35 +1,13 @@
-import { getTranslations } from "next-intl/server";
-import { getPatientSession } from "@/lib/session";
-import { patientJson } from "@/lib/api";
-import { PageHeader } from "@/components/page-header";
-import { BookFlow } from "./BookFlow";
+import { redirect } from "next/navigation";
 
-type Branch = {
-  id: string;
-  code: string;
-  name: string;
-  address: string | null;
-};
-
-export default async function BookPage() {
-  const session = getPatientSession()!;
-  const t = await getTranslations("book");
-  let branches: Branch[] = [];
-  try {
-    const res = await patientJson<{ data: Branch[] }>(
-      session,
-      "/api/v1/patient/branches",
-    );
-    branches = res.data ?? [];
-  } catch {
-    /* empty state handled in client */
-  }
-  return (
-    <>
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <main className="px-4 pt-4 animate-fade-in">
-        <BookFlow branches={branches} />
-      </main>
-    </>
-  );
+/**
+ * Legacy `/book` route. The patient app flow now starts at `/` (categories)
+ * and proceeds through `/c/[code]` → `/s/[id]/register` → `/s/[id]/book`.
+ *
+ * This shim keeps old deep links from breaking — anything that pointed at
+ * `/book` (e.g. the previous bottom-nav, push notifications, share links)
+ * gets bounced back to the new entry point.
+ */
+export default function LegacyBookPage(): never {
+  redirect("/");
 }

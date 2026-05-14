@@ -250,6 +250,15 @@ model Patient {
   chronicConditions Json? @map("chronic_conditions")
   homeBranchId  String?   @map("home_branch_id")
   lineUserId    String?   @map("line_user_id")
+  // KYC artefact captured at first guest booking (uploaded ID card photo).
+  // Stored as opaque ref (e.g. local path / S3 key); resolution & security
+  // are handled by the storage adapter, NOT this column.
+  kycImageUrl   String?   @map("kyc_image_url")
+  verificationStatus PatientVerificationStatus @default(UNVERIFIED) @map("verification_status")
+  // Lookup key for guest auto-onboarding — SHA-256 of normalised phone number
+  // (E.164, no separators) + tenantId pepper. Lets us check "does this phone
+  // already belong to a patient?" without decrypting phoneEnc on every probe.
+  phoneHash     String?   @map("phone_hash")
   status        PatientStatus @default(ACTIVE)
   mergedIntoId  String?   @map("merged_into_id") // if merged, points to surviving patient
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -268,6 +277,7 @@ model Patient {
   @@unique([tenantId, hn])
   @@index([tenantId, lastName, firstName])
   @@index([tenantId, lineUserId])
+  @@index([tenantId, phoneHash])
   @@map("patients")
 }
 
@@ -281,6 +291,12 @@ enum PatientStatus {
   ACTIVE
   INACTIVE
   MERGED
+}
+enum PatientVerificationStatus {
+  UNVERIFIED  // guest registration — name + phone only, KYC not yet reviewed
+  PENDING     // KYC photo uploaded, awaiting staff review
+  VERIFIED    // KYC reviewed and accepted by staff
+  REJECTED    // KYC failed review (mismatch / expired ID)
 }
 model PatientMergeLog {
   id            String   @id @default(cuid())
@@ -840,6 +856,69 @@ enum ProductCategory {
   COURSE
   OTHER
 }
+
+// =============================================================================
+// PATIENT-FACING SERVICE CATALOG
+// =============================================================================
+// Two-level catalog the patient app browses BEFORE login:
+//   ServiceCategory (Dental / Beauty & Spa / Wellness)
+//     └─ Service     (Dental Checkup / Botox Face / Vitamin IV Drip ...)
+//
+// `Service.procedureCode` links back to the internal procedure registry used by
+// the staff app (e.g. `PROC_BTX_FACE`) so a booking made through the patient
+// app eventually lands as the same `order.created` event the doctor would
+// trigger from the visit screen — BOM auto-consume keeps working.
+//
+// Pricing is a RANGE because aesthetic services often quote "1,200–1,500 ฿"
+// before consultation. `priceFrom == priceTo` for fixed-price services.
+
+model ServiceCategory {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  code          String    // "dental" | "beauty" | "wellness" — used in URL slug
+  name          String    // English display name
+  nameTh        String    @map("name_th")
+  description   String?   @db.Text
+  descriptionTh String?   @db.Text @map("description_th")
+  imageUrl      String?   @map("image_url")  // hero image (Unsplash for demo)
+  displayOrder  Int       @default(0) @map("display_order")
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  services      Service[]
+  @@unique([tenantId, code])
+  @@index([tenantId, active, displayOrder])
+  @@map("service_categories")
+}
+
+model Service {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  categoryId    String    @map("category_id")
+  code          String    // "SVC_DENTAL_CHECKUP" — patient-facing service id
+  name          String
+  nameTh        String    @map("name_th")
+  description   String?   @db.Text
+  descriptionTh String?   @db.Text @map("description_th")
+  // Price range — both nullable so we can display "สอบถามราคา" (image 2)
+  priceFrom     Decimal?  @db.Decimal(12, 2) @map("price_from")
+  priceTo       Decimal?  @db.Decimal(12, 2) @map("price_to")
+  durationMin   Int       @default(30) @map("duration_min")
+  imageUrl      String?   @map("image_url")
+  // Internal link → drives BOM consumption + commission once visit happens.
+  procedureCode String?   @map("procedure_code")
+  displayOrder  Int       @default(0) @map("display_order")
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  category      ServiceCategory @relation(fields: [categoryId], references: [id])
+  @@unique([tenantId, code])
+  @@index([tenantId, categoryId, active, displayOrder])
+  @@map("services")
+}
+
 // Bill of Materials: which components a procedure/product consumes
 model BOM {
   id            String   @id @default(cuid())

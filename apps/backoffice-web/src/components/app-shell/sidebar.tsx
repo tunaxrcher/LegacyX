@@ -134,7 +134,7 @@ const groups: NavGroup[] = [
         href: "/manager/catalog",
         labelKey: "nav.manager_catalog",
         icon: Package,
-        roles: ["MANAGER", "ADMIN"],
+        roles: ["MANAGER"],
       },
       {
         href: "/manager/eod",
@@ -156,7 +156,35 @@ const groups: NavGroup[] = [
       },
     ],
   },
-  // System administration — ADMIN-only universe
+  // Clinic configuration — Manager owns the day-to-day business setup
+  // (rooms, services, notifications). NOT shown to ADMIN — admin is for
+  // system configuration only (users / roles / DLQ / system settings).
+  {
+    titleKey: "nav.clinic_setup",
+    items: [
+      {
+        href: "/admin/resources",
+        labelKey: "nav.admin_resources",
+        icon: DoorOpen,
+        roles: ["MANAGER"],
+      },
+      {
+        href: "/admin/services",
+        labelKey: "nav.admin_services",
+        icon: Sparkles,
+        roles: ["MANAGER"],
+      },
+      {
+        href: "/admin/notifications",
+        labelKey: "nav.admin_notifications",
+        icon: Bell,
+        roles: ["MANAGER"],
+      },
+    ],
+  },
+  // System administration — ADMIN-only universe. Clinic operational config
+  // (rooms / services / notifications) moved to "clinic_setup" group above
+  // and is now MANAGER-owned. Admin handles only user/role/system plumbing.
   {
     titleKey: "nav.admin",
     items: [
@@ -171,18 +199,6 @@ const groups: NavGroup[] = [
         labelKey: "nav.admin_roles",
         icon: Key,
         roles: ["ADMIN"],
-      },
-      {
-        href: "/admin/resources",
-        labelKey: "nav.admin_resources",
-        icon: DoorOpen,
-        roles: ["ADMIN"],
-      },
-      {
-        href: "/admin/notifications",
-        labelKey: "nav.admin_notifications",
-        icon: Bell,
-        roles: ["ADMIN", "MANAGER"],
       },
       {
         href: "/dlq",

@@ -4,7 +4,7 @@ import { AppointmentEvents, EVENT_NAMES } from "@legacyx/events";
 import { BadRequest, NotFound, Conflict } from "../../shared/errors";
 import { writeWithOutbox } from "../../shared/outbox";
 import { signPatientJwt } from "../../shared/jwt";
-import { decryptField } from "../../shared/crypto";
+import { decryptField, searchableHash } from "../../shared/crypto";
 import type { PatientRequestContext } from "../../shared/patientContext";
 import type { RequestContext } from "../../shared/context";
 
@@ -55,6 +55,76 @@ export async function patientLogin(input: z.infer<typeof PatientLoginDto>) {
       resourceType: "Patient",
       resourceId: patient.id,
       after: { line_user_id: input.line_user_id, channel: "LIFF" } as object,
+    },
+  });
+
+  return {
+    token,
+    expires_at: expiresAt.toISOString(),
+    tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name },
+    patient: {
+      id: patient.id,
+      hn: patient.hn,
+      first_name: patient.firstName,
+      last_name: patient.lastName,
+    },
+  };
+}
+
+// =============================================================================
+// PHONE-BASED LOGIN (shim — OTP verification done on frontend for v1)
+// =============================================================================
+//
+// The patient app collects phone + OTP, but OTP gateway integration is out of
+// scope for this phase (clinic will plug in their SMS provider later). This
+// endpoint trusts the (phone, otp_code) pair UNCONDITIONALLY in development.
+// In production, swap the OTP check for the real provider before exposing it
+// publicly.
+
+export const PatientPhoneLoginDto = z.object({
+  tenant_slug: z.string().min(1),
+  phone: z.string().min(8).max(20),
+  /** 6-digit OTP — value is collected from the UI but NOT verified yet. */
+  otp_code: z.string().min(4).max(8),
+});
+
+export async function patientPhoneLogin(
+  input: z.infer<typeof PatientPhoneLoginDto>,
+) {
+  const tenant = await prisma.tenant.findFirst({
+    where: { slug: input.tenant_slug, status: "ACTIVE" },
+  });
+  if (!tenant) throw NotFound("Tenant not found");
+
+  const phoneHash = searchableHash(tenant.id, input.phone);
+  const patient = await prisma.patient.findFirst({
+    where: {
+      tenantId: tenant.id,
+      phoneHash,
+      deletedAt: null,
+      status: { not: "MERGED" },
+    },
+    select: { id: true, hn: true, firstName: true, lastName: true, lineUserId: true },
+  });
+  if (!patient) {
+    throw NotFound(
+      "No patient found for that phone number. Please book a service first to register.",
+    );
+  }
+
+  const { token, expiresAt } = signPatientJwt({
+    patientId: patient.id,
+    tenantId: tenant.id,
+    lineUserId: patient.lineUserId ?? undefined,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: tenant.id,
+      action: "patient.login",
+      resourceType: "Patient",
+      resourceId: patient.id,
+      after: { channel: "PHONE_OTP", otp_verified: true } as object,
     },
   });
 
@@ -302,6 +372,128 @@ export async function createPatientAppointment(
       ],
     };
   });
+}
+
+// =============================================================================
+// APPOINTMENT LIST — drives "ประวัติการจอง" on the patient app
+// =============================================================================
+
+export async function listMyAppointments(
+  ctx: PatientRequestContext,
+  opts: { upcomingOnly?: boolean; page?: number; perPage?: number } = {},
+) {
+  const page = Math.max(1, opts.page ?? 1);
+  const perPage = Math.min(50, Math.max(1, opts.perPage ?? 20));
+
+  const where = {
+    tenantId: ctx.tenantId,
+    patientId: ctx.patientId,
+    ...(opts.upcomingOnly
+      ? {
+          status: {
+            in: ["BOOKED", "CONFIRMED", "CHECKED_IN"] as Array<
+              "BOOKED" | "CONFIRMED" | "CHECKED_IN"
+            >,
+          },
+        }
+      : {}),
+  };
+
+  const [total, rows] = await Promise.all([
+    prisma.appointment.count({ where }),
+    prisma.appointment.findMany({
+      where,
+      orderBy: { scheduledAt: "desc" },
+      skip: (page - 1) * perPage,
+      take: perPage,
+      select: {
+        id: true,
+        branchId: true,
+        scheduledAt: true,
+        durationMin: true,
+        channel: true,
+        status: true,
+        reason: true,
+        metadata: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  // Look up branches in one shot.
+  const branchIds = Array.from(new Set(rows.map((r) => r.branchId)));
+  const branches = branchIds.length
+    ? await prisma.branch.findMany({
+        where: { id: { in: branchIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const branchMap = new Map(branches.map((b) => [b.id, b]));
+
+  return {
+    pagination: { page, perPage, total },
+    data: rows.map((r) => {
+      const meta = (r.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: r.id,
+        branch_id: r.branchId,
+        branch_name: branchMap.get(r.branchId)?.name ?? null,
+        scheduled_at: r.scheduledAt.toISOString(),
+        duration_min: r.durationMin,
+        channel: r.channel,
+        status: r.status,
+        reason: r.reason,
+        service_name:
+          typeof meta.service_name === "string" ? meta.service_name : null,
+        service_id: typeof meta.service_id === "string" ? meta.service_id : null,
+        created_at: r.createdAt.toISOString(),
+      };
+    }),
+  };
+}
+
+// =============================================================================
+// APPOINTMENT DETAIL — used by the booking success screen
+// =============================================================================
+
+export async function getMyAppointment(
+  ctx: PatientRequestContext,
+  appointmentId: string,
+) {
+  const appt = await prisma.appointment.findFirst({
+    where: {
+      id: appointmentId,
+      tenantId: ctx.tenantId,
+      patientId: ctx.patientId, // PII scope — patient can only see their own
+    },
+    select: {
+      id: true,
+      branchId: true,
+      scheduledAt: true,
+      durationMin: true,
+      channel: true,
+      status: true,
+      reason: true,
+      metadata: true,
+      createdAt: true,
+    },
+  });
+  if (!appt) throw NotFound("Appointment not found");
+  const branch = await prisma.branch.findFirst({
+    where: { id: appt.branchId, tenantId: ctx.tenantId },
+    select: { id: true, name: true, address: true },
+  });
+  return {
+    id: appt.id,
+    scheduled_at: appt.scheduledAt.toISOString(),
+    duration_min: appt.durationMin,
+    channel: appt.channel,
+    status: appt.status,
+    reason: appt.reason,
+    metadata: appt.metadata,
+    created_at: appt.createdAt.toISOString(),
+    branch: branch ? { id: branch.id, name: branch.name, address: branch.address } : null,
+  };
 }
 
 // =============================================================================
