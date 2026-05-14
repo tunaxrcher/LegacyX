@@ -144,129 +144,152 @@ export function NewAppointmentDialog() {
           <Plus className="h-4 w-4" /> {t("new")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("new")}</DialogTitle>
           <DialogDescription>{t("subtitle")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <UserRound className="h-3.5 w-3.5" />
-              {t("patient")}*
-            </Label>
-            <PatientCombobox value={patient} onChange={setPatient} />
-          </div>
+          {/* Row 1 — two columns separated by a vertical divider on md+ */}
+          <div className="grid gap-6 md:grid-cols-2 md:divide-x md:divide-border">
+            {/* Left column — patient / scheduling / channel */}
+            <div className="space-y-4 md:pr-6">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <UserRound className="h-3.5 w-3.5" />
+                  {t("patient")}*
+                </Label>
+                <PatientCombobox value={patient} onChange={setPatient} />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="service" className="flex items-center gap-1.5">
-              {t("service")}{" "}
-              <span className="text-xs text-muted-foreground">{t("optional")}</span>
-            </Label>
-            <Select value={serviceId} onValueChange={setServiceId}>
-              <SelectTrigger id="service">
-                <SelectValue placeholder={t("select_service")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">
-                  <span className="text-muted-foreground">— {t("no_service")}</span>
-                </SelectItem>
-                {services.map((s) => {
-                  const price =
-                    s.priceFrom != null && s.priceTo != null && s.priceFrom !== s.priceTo
-                      ? `฿${s.priceFrom.toLocaleString()}–${s.priceTo.toLocaleString()}`
-                      : s.priceFrom != null
-                        ? `฿${s.priceFrom.toLocaleString()}`
-                        : s.priceTo != null
-                          ? `฿${s.priceTo.toLocaleString()}`
-                          : null;
-                  return (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex flex-col">
-                        <span>{s.nameTh || s.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {s.category.nameTh || s.category.name} · {s.durationMin}{" "}
-                          {t("minutes")}
-                          {price ? ` · ${price}` : ""}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="doctor" className="flex items-center gap-1.5">
-              <Stethoscope className="h-3.5 w-3.5" />
-              {t("doctor")}{" "}
-              <span className="text-xs text-muted-foreground">{t("optional")}</span>
-            </Label>
-            <Select value={doctorId} onValueChange={setDoctorId}>
-              <SelectTrigger id="doctor">
-                <SelectValue placeholder={t("select_doctor")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">
-                  <span className="text-muted-foreground">— {t("no_doctor")}</span>
-                </SelectItem>
-                {doctors.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="scheduledAt">{t("scheduled_at")}</Label>
-              <Input
-                id="scheduledAt"
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="duration">{t("duration_minutes")}</Label>
-              <Input
-                id="duration"
-                type="number"
-                min={5}
-                max={480}
-                step={5}
-                value={duration}
-                onChange={(e) => {
-                  setDuration(Number(e.target.value));
-                  lastAutoDuration.current = null;
-                }}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="scheduledAt">{t("scheduled_at")}</Label>
+                  <Input
+                    id="scheduledAt"
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration">{t("duration_minutes")}</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min={5}
+                    max={480}
+                    step={5}
+                    value={duration}
+                    onChange={(e) => {
+                      setDuration(Number(e.target.value));
+                      lastAutoDuration.current = null;
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+              <p className="-mt-2 text-xs text-muted-foreground">
                 {t("duration_hint")}
               </p>
+
+              <div className="space-y-2">
+                <Label>{t("channel")}</Label>
+                <Select
+                  value={channel}
+                  onValueChange={(v) => setChannel(v as typeof channel)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WALKIN">{t("channel_walkin")}</SelectItem>
+                    <SelectItem value="PHONE">{t("channel_phone")}</SelectItem>
+                    <SelectItem value="ONLINE">{t("channel_online")}</SelectItem>
+                    <SelectItem value="LIFF">LINE LIFF</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Right column — service + doctor */}
+            <div className="space-y-4 md:pl-6">
+              <div className="space-y-2">
+                <Label htmlFor="service" className="flex items-center gap-1.5">
+                  {t("service")}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    {t("optional")}
+                  </span>
+                </Label>
+                <Select value={serviceId} onValueChange={setServiceId}>
+                  <SelectTrigger id="service">
+                    <SelectValue placeholder={t("select_service")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">
+                      <span className="text-muted-foreground">
+                        — {t("no_service")}
+                      </span>
+                    </SelectItem>
+                    {services.map((s) => {
+                      const price =
+                        s.priceFrom != null &&
+                        s.priceTo != null &&
+                        s.priceFrom !== s.priceTo
+                          ? `฿${s.priceFrom.toLocaleString()}–${s.priceTo.toLocaleString()}`
+                          : s.priceFrom != null
+                            ? `฿${s.priceFrom.toLocaleString()}`
+                            : s.priceTo != null
+                              ? `฿${s.priceTo.toLocaleString()}`
+                              : null;
+                      return (
+                        <SelectItem key={s.id} value={s.id}>
+                          <div className="flex flex-col">
+                            <span>{s.nameTh || s.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {s.category.nameTh || s.category.name} ·{" "}
+                              {s.durationMin} {t("minutes")}
+                              {price ? ` · ${price}` : ""}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="doctor" className="flex items-center gap-1.5">
+                  <Stethoscope className="h-3.5 w-3.5" />
+                  {t("doctor")}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    {t("optional")}
+                  </span>
+                </Label>
+                <Select value={doctorId} onValueChange={setDoctorId}>
+                  <SelectTrigger id="doctor">
+                    <SelectValue placeholder={t("select_doctor")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">
+                      <span className="text-muted-foreground">
+                        — {t("no_doctor")}
+                      </span>
+                    </SelectItem>
+                    {doctors.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t("channel")}</Label>
-            <Select value={channel} onValueChange={(v) => setChannel(v as typeof channel)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="WALKIN">{t("channel_walkin")}</SelectItem>
-                <SelectItem value="PHONE">{t("channel_phone")}</SelectItem>
-                <SelectItem value="ONLINE">{t("channel_online")}</SelectItem>
-                <SelectItem value="LIFF">LINE LIFF</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+          {/* Row 2 — full-width notes */}
           <div className="space-y-2">
             <Label htmlFor="reason">{t("notes")}</Label>
             <Textarea

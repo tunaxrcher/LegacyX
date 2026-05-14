@@ -33,12 +33,22 @@ const GENDER_OPTIONS = [
   { value: "OTHER", labelKey: "gender_other" },
 ] as const;
 
-export function NewPatientDialog() {
+export function NewPatientDialog({
+  defaultOpen = false,
+}: {
+  defaultOpen?: boolean;
+} = {}) {
   const router = useRouter();
   const t = useTranslations("patients");
   const tCommon = useTranslations("common");
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(defaultOpen);
   const [submitting, setSubmitting] = React.useState(false);
+
+  // Re-honour `defaultOpen` when the prop flips from false → true at runtime
+  // (e.g. user navigates with `?new=1`).
+  React.useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
 
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");

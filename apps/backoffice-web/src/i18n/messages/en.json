@@ -206,6 +206,8 @@
     "empty_desc": "Click ‘New appointment’ to schedule your first visit",
     "select_patient_first": "Please pick a patient first",
     "no_patient_selected": "No patient selected",
+    "not_found": "No patient found",
+    "not_found_cta": "Click to add a new one",
     "status": {
       "BOOKED": "Booked",
       "CONFIRMED": "Confirmed",

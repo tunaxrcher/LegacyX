@@ -33,13 +33,14 @@ type Patient = {
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams?: { q?: string };
+  searchParams?: { q?: string; new?: string };
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
 
   const q = searchParams?.q ?? "";
+  const autoOpenNew = searchParams?.new === "1";
   const list = await apiJson<{ data: Patient[] }>(
     session,
     `/api/v1/patients?q=${encodeURIComponent(q)}&limit=50`
@@ -56,7 +57,9 @@ export default async function PatientsPage({
       <PageHeader
         title={t("patients.title")}
         description={t("patients.subtitle")}
-        actions={canWrite ? <NewPatientDialog /> : null}
+        actions={
+          canWrite ? <NewPatientDialog defaultOpen={autoOpenNew} /> : null
+        }
       />
 
       <PatientSearch defaultValue={q} />

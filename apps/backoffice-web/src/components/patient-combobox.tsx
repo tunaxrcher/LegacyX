@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Check, ChevronsUpDown, User } from "lucide-react";
+import { Check, ChevronsUpDown, User, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -81,38 +81,51 @@ export function PatientCombobox({ value, onChange }: Props) {
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                 Searching…
               </div>
+            ) : results.length === 0 ? (
+              <Link
+                href={`/patients?new=1${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+                onClick={() => setOpen(false)}
+                className="group flex flex-col items-center gap-1 px-3 py-6 text-center"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
+                  <UserPlus className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-medium">{t("not_found")}</span>
+                <span className="text-xs text-primary group-hover:underline">
+                  {t("not_found_cta")}
+                </span>
+              </Link>
             ) : (
-              <>
-                <CommandEmpty>No patients found</CommandEmpty>
-                <CommandGroup>
-                  {results.map((p) => {
-                    const active = value?.id === p.id;
-                    return (
-                      <CommandItem
-                        key={p.id}
-                        value={p.id}
-                        onSelect={() => {
-                          onChange(p);
-                          setOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "h-4 w-4",
-                            active ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm">
-                            {p.firstName} {p.lastName}
-                          </span>
-                          <span className="text-xs text-muted-foreground">HN {p.hn}</span>
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              </>
+              <CommandGroup>
+                {results.map((p) => {
+                  const active = value?.id === p.id;
+                  return (
+                    <CommandItem
+                      key={p.id}
+                      value={p.id}
+                      onSelect={() => {
+                        onChange(p);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4",
+                          active ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm">
+                          {p.firstName} {p.lastName}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          HN {p.hn}
+                        </span>
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
             )}
           </CommandList>
         </Command>
