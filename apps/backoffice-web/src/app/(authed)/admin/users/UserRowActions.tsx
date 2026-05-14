@@ -42,7 +42,6 @@ import { clientApi } from "@/lib/clientApi";
 
 type AdminUser = {
   id: string;
-  email: string | null;
   phone: string | null;
   avatarUrl: string | null;
   primaryRoleCode: string | null;

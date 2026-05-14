@@ -45,24 +45,7 @@ export function contentHash(content: unknown): string {
     .digest("hex");
 }
 
-/**
- * Deterministic hash for searchable encrypted fields (e.g. phone number).
- *
- * We need to answer "does any patient have this phone?" WITHOUT decrypting
- * every row. Approach: pepper the normalised phone with the master key + tenant
- * id and hash with SHA-256 — same input always produces the same digest, so
- * we can index it and do a single `findFirst({ where: { phoneHash } })` lookup.
- *
- * Properties:
- *   - Deterministic: same phone in same tenant → same hash (lookup works)
- *   - Tenant-scoped: phone in tenant A and B get different hashes (no leak)
- *   - Keyed: rotating ENCRYPTION_MASTER_KEY invalidates all stored hashes,
- *     forcing reindex on key rotation (acceptable; rare event)
- */
-export function searchableHash(tenantId: string, plaintext: string): string {
-  const normalised = plaintext.trim().replace(/[^\d+]/g, "");
-  return createHash("sha256")
-    .update(`${tenantId}:${normalised}:`)
-    .update(getKey())
-    .digest("hex");
-}
+// `searchableHash` and `normalizePhone` live in `@legacyx/db` (shared with seed
+// and worker) so all three call sites compute the same digest. Re-export here
+// to avoid churning every existing import path.
+export { searchableHash, normalizePhone } from "@legacyx/db";

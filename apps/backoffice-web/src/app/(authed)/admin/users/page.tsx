@@ -22,7 +22,6 @@ export const dynamic = "force-dynamic";
 
 type AdminUser = {
   id: string;
-  email: string | null;
   phone: string | null;
   avatarUrl: string | null;
   primaryRoleCode: string | null;

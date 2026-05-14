@@ -51,7 +51,7 @@ export const SESSION_COOKIE = COOKIE_KEY;
 
 /**
  * Single source of truth for how we persist the session cookie. Used by
- * `loginAction` and `switchBranchAction`.
+ * `phoneLoginAction` and `switchBranchAction`.
  *
  * NOTE: not httpOnly so client-side `clientApi` (in components) can read the
  * bearer token via `document.cookie`. The token IS still validated server-side

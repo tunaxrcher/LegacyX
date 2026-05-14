@@ -1,31 +1,29 @@
 import { z } from "zod";
 import { prisma } from "@legacyx/db";
 import { BadRequest, Conflict, NotFound } from "../../shared/errors";
-import { authorize } from "../../shared/auth";
+import { authorize, invalidatePermissionCache } from "../../shared/auth";
 import { hashPassword } from "../../shared/password";
-import { searchableHash } from "../../shared/crypto";
+import { normalizePhone, searchableHash } from "@legacyx/db";
 import type { RequestContext } from "../../shared/context";
 
 /**
  * Admin user CRUD.
  *
- * Auth model (v2 — phone-based):
- *   • Login is **phone + OTP**. Email is still tracked for legacy demo accounts
- *     but is no longer required and no longer used by the auth path.
+ * Auth model (v2 — phone-based, Phase H):
+ *   • Login is **phone + OTP**. The `User.email` column is gone — phone is
+ *     the sole identity field.
  *   • Each user has exactly ONE role (`primaryRoleCode`). Same phone may
  *     appear on multiple user rows IF the role differs — e.g. Dr Foo logs in
  *     as a Doctor OR a Manager. The uniqueness boundary is
  *     `(tenantId, phone, primaryRoleCode)`.
+ *   • The `ADMIN` role cannot be assigned through this service — UI hides it,
+ *     and `createUser` / `updateUser` reject it server-side (defense in depth).
  *   • Avatar URL is optional and uploaded via the `/api/v1/uploads/avatar`
  *     route, which writes to DO Spaces.
  *
  * The legacy `UserRole` table is still maintained (kept as a 1-row mirror of
  * `primaryRoleCode`) so existing role-aware code keeps working unchanged.
  */
-
-function normalizePhone(raw: string): string {
-  return raw.trim().replace(/[^\d+]/g, "");
-}
 
 // ---- DTOs --------------------------------------------------------------
 
@@ -340,6 +338,10 @@ export async function updateUser(
       } as object,
     },
   });
+  // Drop the in-process permission cache for this user so their next request
+  // reflects the new role / status immediately (otherwise they keep their
+  // previous permissions until the process restarts).
+  invalidatePermissionCache(ctx.tenantId, userId);
   return { id: updated.id };
 }
 
@@ -387,6 +389,9 @@ export async function assignBranches(
       after: { branches: input.branch_ids } as object,
     },
   });
+  // Branch access affects which branches the user can act in — drop cached
+  // `branchIds` so the next request sees the new set.
+  invalidatePermissionCache(ctx.tenantId, userId);
   return { ok: true };
 }
 

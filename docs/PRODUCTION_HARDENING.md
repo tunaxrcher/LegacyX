@@ -54,15 +54,30 @@ System. Tick everything in **Required** before serving real patient data.
 - [ ] ABAC role matrix reviewed annually (`docs/ROLES.md`).
 - [ ] **OTP provider configured for production** — replace `DEV_OTP=123456`
       shortcut with a real SMS/voice provider (Twilio Verify / AWS SNS / etc.).
-      Verify the dev fallback path in `apps/api-server/src/modules/auth/auth.service.ts`
-      (`loginByPhone`) is gated by `NODE_ENV !== "production"`.
+      The dev fallback in `apps/api-server/src/modules/auth/auth.service.ts`
+      (`loginByPhone`) defaults `DEV_OTP` to **`""` in production** (rejects
+      every OTP) so a missing env in prod is fail-closed, not fail-open. If
+      you must keep the universal OTP shortcut on a private demo server, set
+      `DEV_OTP` explicitly — never leave it unset on a public deploy.
+- [ ] **Header-only context mode locked** — `apps/api-server/src/shared/context.ts`
+      refuses to honour `x-tenant-id` / `x-user-id` in production unless the
+      request carries `x-internal-secret` matching `INTERNAL_API_SECRET`.
+      Verify `INTERNAL_API_SECRET` is set + rotated quarterly.
+- [ ] **`/api/dev/identities` locked** — same `INTERNAL_API_SECRET` is
+      required in production (also gated by `ALLOW_DEV_IDENTITIES=1`).
+- [ ] **`/api/metrics` requires `METRICS_BEARER_TOKEN`** in production. If
+      the env is unset, the endpoint returns 503 (fail-closed).
 - [ ] OTP rate-limit: max 5 OTP requests per phone per 15 min, lockout for
-      30 min after 10 failed verifications (per phone).
+      30 min after 10 failed verifications (per phone). **NOT yet implemented
+      — open tech-debt item; add reverse-proxy rate-limit until in-app.**
 - [ ] Phone-lookup endpoint (`/api/v1/auth/phone/lookup`) returns the same
       response shape for unknown and known phones (no user-enumeration leak).
 - [ ] `ADMIN` role can only be granted via direct DB write or
       `packages/db/prisma/seed.ts` — UI + API both reject it (defense in
       depth, audited).
+- [ ] **Permission cache invalidates on role change** — `updateUser` and
+      `assignBranches` call `invalidatePermissionCache(tenantId, userId)`
+      after writes. If you add new role-mutating paths, do the same.
 - [ ] Break-Glass overrides ring-fenced — alert on every `BreakGlassOverride`
       row insert (Prometheus alert: `BreakGlassUsed`).
 

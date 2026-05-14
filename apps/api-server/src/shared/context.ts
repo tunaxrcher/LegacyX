@@ -62,8 +62,26 @@ export async function getRequestContext(): Promise<RequestContext> {
     };
   }
 
-  // No token → legacy header-only mode (worker, internal tests). We still
-  // require a tenant-id so cross-tenant queries are impossible.
+  // No token → header-only mode. This bypasses session validation entirely,
+  // so we ONLY allow it when:
+  //   • we're not running in production, OR
+  //   • the request carries a shared secret in `x-internal-secret` matching
+  //     `INTERNAL_API_SECRET`
+  // Otherwise anyone on the internet could become any tenant/user by setting
+  // headers. This blocks that attack surface in prod.
+  const internalSecret = process.env.INTERNAL_API_SECRET;
+  const claimedInternal = h.get("x-internal-secret") ?? "";
+  const headerModeAllowed =
+    process.env.NODE_ENV !== "production" ||
+    (internalSecret !== undefined &&
+      internalSecret.length > 0 &&
+      claimedInternal === internalSecret);
+  if (!headerModeAllowed) {
+    throw new ContextError(
+      "Authentication required — provide Authorization: Bearer <token>",
+      401,
+    );
+  }
   if (!claimedTenantId) {
     throw new ContextError(
       "Missing authentication — provide Authorization: Bearer <token> or x-tenant-id",

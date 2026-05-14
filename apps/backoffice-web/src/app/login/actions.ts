@@ -84,7 +84,8 @@ export async function phoneLoginAction(input: {
       token: string;
       expiresAt: string;
       tenant: { id: string; slug: string; name: string };
-      user: { id: string; email: string | null; fullName: string };
+      // Backend deliberately does NOT return email (phone is the identity).
+      user: { id: string; fullName: string };
       branches: Array<{ id: string; code: string; name: string }>;
       roles: string[];
     };
@@ -111,82 +112,10 @@ export async function phoneLoginAction(input: {
   return { ok: true };
 }
 
-export type LoginResult =
-  | { ok: true; submitted: boolean }
-  | { ok: false; error: string };
-
-/**
- * useFormState-compatible signature. Returns a result the client renders /
- * uses to redirect — we deliberately DO NOT call `redirect()` here because
- * the redirect throw conflicts with the useFormState state machine, which is
- * why the "Invalid Server Actions request" error appears on success.
- */
-export async function loginAction(
-  _prevState: LoginResult,
-  formData: FormData,
-): Promise<LoginResult> {
-  const tenantSlug = String(formData.get("tenant_slug") ?? "").trim();
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const password = String(formData.get("password") ?? "");
-  const preferredBranchId = String(formData.get("branch_id") ?? "").trim();
-
-  if (!tenantSlug || !email || !password) {
-    return { ok: false, error: "Missing required fields" };
-  }
-
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}/api/v1/auth/login`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      cache: "no-store",
-      body: JSON.stringify({ tenant_slug: tenantSlug, email, password }),
-    });
-  } catch (err) {
-    return { ok: false, error: `Cannot reach API server: ${(err as Error).message}` };
-  }
-  if (!res.ok) {
-    let msg = "Login failed";
-    try {
-      const body = (await res.json()) as { error?: { message?: string } };
-      msg = body.error?.message ?? msg;
-    } catch {
-      /* ignore */
-    }
-    return { ok: false, error: msg };
-  }
-  const body = (await res.json()) as {
-    data: {
-      token: string;
-      expiresAt: string;
-      tenant: { id: string; slug: string; name: string };
-      user: { id: string; email: string; fullName: string };
-      branches: Array<{ id: string; code: string; name: string }>;
-      roles: string[];
-    };
-  };
-  const d = body.data;
-  const branchPick =
-    d.branches.find((b) => b.id === preferredBranchId) ?? d.branches[0];
-  if (!branchPick) return { ok: false, error: "No accessible branch" };
-
-  const session = {
-    tenantId: d.tenant.id,
-    tenantName: d.tenant.name,
-    branchId: branchPick.id,
-    branchName: branchPick.name,
-    userId: d.user.id,
-    userName: d.user.fullName,
-    roles: d.roles,
-    branches: d.branches,
-    token: d.token,
-  };
-  cookies().set(SESSION_COOKIE, JSON.stringify(session), SESSION_COOKIE_OPTIONS);
-  // Do NOT redirect() here — client will navigate via useEffect on success.
-  return { ok: true, submitted: true };
-}
+// NOTE: the legacy `loginAction` (email + password POST to /api/v1/auth/login)
+// was removed when we switched to phone+OTP in Phase H. If you're looking for
+// it in git history, it lived here until that phase. Use `phoneLookupAction` +
+// `phoneLoginAction` above.
 
 export async function logoutAction() {
   const c = cookies().get(SESSION_COOKIE);

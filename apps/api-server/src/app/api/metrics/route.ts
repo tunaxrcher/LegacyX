@@ -6,13 +6,22 @@ export const dynamic = "force-dynamic";
 /**
  * Prometheus scrape endpoint.
  *
- * Lock down with `METRICS_BEARER_TOKEN` in production. Without it set, the
- * endpoint is publicly accessible (fine for internal-only deployments behind
- * a reverse proxy).
+ * Auth model:
+ *   - If `METRICS_BEARER_TOKEN` is set, requests must pass it as
+ *     `Authorization: Bearer <token>`.
+ *   - In **production**, the token is REQUIRED. We refuse to serve metrics
+ *     unauthenticated in prod (info-leak / DoS surface for scrapers).
+ *   - In dev/test, the endpoint is open by default for local Prometheus.
  */
 export async function GET(req: Request) {
   const expected = process.env.METRICS_BEARER_TOKEN;
-  if (expected) {
+  if (!expected) {
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse("metrics disabled (set METRICS_BEARER_TOKEN)", {
+        status: 503,
+      });
+    }
+  } else {
     const auth = req.headers.get("authorization") ?? "";
     const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7) : "";
     if (token !== expected) {

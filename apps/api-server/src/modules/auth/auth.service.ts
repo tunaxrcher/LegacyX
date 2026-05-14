@@ -5,7 +5,7 @@ import {
   hashSessionToken,
 } from "../../shared/password";
 import { BadRequest, Unauthorized } from "../../shared/errors";
-import { searchableHash } from "../../shared/crypto";
+import { normalizePhone, searchableHash } from "@legacyx/db";
 
 // ---- DTOs --------------------------------------------------------------
 
@@ -28,13 +28,19 @@ export const PhoneLoginDto = z.object({
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 
-function normalizePhone(raw: string): string {
-  return raw.trim().replace(/[^\d+]/g, "");
-}
-
-// Dev / staging convenience: accept "123456" as a universal OTP until the
-// real SMS provider is wired up. Production MUST set DEV_OTP="" to disable.
-const DEV_OTP_CODE = process.env.DEV_OTP ?? "123456";
+/**
+ * Dev / staging convenience OTP. **In production we refuse to fall back to
+ * "123456" silently** — production must explicitly set `DEV_OTP=""` if it
+ * still wants the universal-OTP shortcut (not recommended) or, more
+ * realistically, swap `loginByPhone()` for a real provider.
+ *
+ * Reading order:
+ *   - dev / test:  DEV_OTP unset → defaults to "123456"
+ *   - production:  DEV_OTP unset → returns empty string → all OTPs rejected
+ */
+const DEV_OTP_CODE =
+  process.env.DEV_OTP ??
+  (process.env.NODE_ENV === "production" ? "" : "123456");
 
 // ---- Phone lookup ------------------------------------------------------
 
@@ -67,22 +73,24 @@ export async function lookupPhone(input: z.infer<typeof PhoneLookupDto>) {
     select: { primaryRoleCode: true, fullName: true },
   });
   if (users.length === 0) return { roles: [] };
-  // Pair each user with their role's display name.
-  const roleCodes = Array.from(
+  // Pair each user with their role's display name. The same phone may exist
+  // in multiple rows (one per `primaryRoleCode`); collect the distinct codes
+  // so the UI can show a role picker.
+  const distinctRoleCodes = Array.from(
     new Set(
       users
         .map((u) => u.primaryRoleCode)
         .filter((c): c is string => typeof c === "string"),
     ),
   );
-  const roles = roleCodes.length
+  const roles = distinctRoleCodes.length
     ? await prisma.role.findMany({
-        where: { tenantId: tenant.id, code: { in: roleCodes } },
+        where: { tenantId: tenant.id, code: { in: distinctRoleCodes } },
       })
     : [];
   const nameByCode = new Map(roles.map((r) => [r.code, r.name]));
   return {
-    roles: roleCodes.map((code) => ({
+    roles: distinctRoleCodes.map((code) => ({
       code,
       name: nameByCode.get(code) ?? code,
     })),

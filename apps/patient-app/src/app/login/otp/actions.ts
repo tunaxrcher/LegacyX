@@ -7,6 +7,11 @@ import {
 } from "@/lib/session";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
+// See `book/actions.ts` for tenant-resolution roadmap (multi-tenant via host).
+const TENANT_SLUG =
+  process.env.PATIENT_APP_TENANT_SLUG ??
+  process.env.NEXT_PUBLIC_TENANT_SLUG ??
+  "legacyx";
 
 /**
  * Forward (phone, otp_code) to the api-server phone-login endpoint. The OTP is
@@ -21,7 +26,7 @@ export async function phoneLoginAction(input: {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      tenant_slug: "legacyx",
+      tenant_slug: TENANT_SLUG,
       phone: input.phone,
       otp_code: input.otp_code,
     }),

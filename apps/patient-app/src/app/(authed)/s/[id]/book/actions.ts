@@ -9,6 +9,18 @@ import {
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
 
+/**
+ * Which tenant the patient-app belongs to.
+ *
+ * For single-tenant deployments (default), set `PATIENT_APP_TENANT_SLUG=legacyx`
+ * in env. Multi-tenant SaaS rollout (future) should resolve this from the
+ * hostname (e.g. `clinic-a.legacyx.app` → `clinic-a`) — placeholder until then.
+ */
+const TENANT_SLUG =
+  process.env.PATIENT_APP_TENANT_SLUG ??
+  process.env.NEXT_PUBLIC_TENANT_SLUG ??
+  "legacyx";
+
 type Mode = "SCHEDULED" | "WALKIN";
 
 type GuestBookArgs = {
@@ -41,7 +53,7 @@ export async function bookGuestAction(args: GuestBookArgs): Promise<BookResult> 
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      tenant_slug: "legacyx",
+      tenant_slug: TENANT_SLUG,
       service_id: args.service_id,
       branch_id: args.branch_id,
       mode: args.mode,

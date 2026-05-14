@@ -6,7 +6,11 @@
  * Run: pnpm db:seed
  */
 import { PrismaClient } from "@prisma/client";
-import { createHash, randomBytes, scryptSync } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
+// Import from the package's own src so seed and runtime hash phones identically.
+// If you ever see "login: phone not found" right after seeding, suspect this
+// drift first.
+import { normalizePhone, searchableHash } from "../src/identity";
 
 const prisma = new PrismaClient();
 
@@ -19,28 +23,6 @@ function hashPassword(plain: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(plain, salt, 64, { N, r, p });
   return `scrypt$${N}$${r}$${p}$${salt.toString("hex")}$${hash.toString("hex")}`;
-}
-
-/**
- * Same algorithm as apps/api-server/src/shared/crypto.ts → `searchableHash`.
- *
- *   sha256(`${tenantId}:${normalisedPhone}:` || keyDerivedFromMasterKey)
- *
- * Tenant-scoped so the same phone in two tenants gets two different hashes.
- */
-function searchableHash(tenantId: string, plaintext: string): string {
-  const raw = process.env.ENCRYPTION_MASTER_KEY ?? "dev-master-key";
-  const key = createHash("sha256").update(raw).digest();
-  const normalised = plaintext.trim().replace(/[^\d+]/g, "");
-  return createHash("sha256")
-    .update(`${tenantId}:${normalised}:`)
-    .update(key)
-    .digest("hex");
-}
-
-/** Normalize a Thai phone number for storage. Strips dashes/spaces/parens. */
-function normalizePhone(raw: string): string {
-  return raw.replace(/[^\d+]/g, "");
 }
 
 const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
