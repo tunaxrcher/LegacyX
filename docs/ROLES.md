@@ -66,6 +66,8 @@
 | **catalog** | manage | tenant | ✅ | ✅ | | | | |
 | **audit** | read | tenant | ✅ | ✅ | | | | |
 | **break_glass** | approve | tenant | ✅ | ✅ | | | | |
+| **pdpa** | export | tenant | ✅ | ✅ | | | | |
+| **pdpa** | anonymize | tenant | ✅ | | | | | |
 
 ---
 
@@ -110,6 +112,7 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 | `/manager/eod` End-of-Day (Shift · Settle · Recon) | | ✅ | | | ✅ | |
 | `/audit` | | ✅ | | | | |
 | `/break-glass` | | ✅ | | | | |
+| `/admin/pdpa` PDPA / DSR (Export = MANAGER+ADMIN · Anonymise = ADMIN only) | ✅ | ✅ | | | | |
 
 ### 🏗️ Clinic Setup (MANAGER — tenant-level configuration)
 | Page / URL | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
@@ -126,6 +129,13 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 | `/admin/roles` Roles & permissions | ✅ | | | | | |
 | `/dlq` Dead-letter queue | ✅ | | | | | |
 | `/settings` System settings | ✅ | | | | | |
+
+> 🔐 **PDPA URL nuance**: `/admin/pdpa` lives under the `/admin/*` URL prefix
+> for historical reasons but is now part of the **Finance & Insights** group
+> (MANAGER + ADMIN). The page itself disables the `Anonymise` button for
+> non-ADMIN sessions and the API also enforces `pdpa:anonymize:tenant`
+> server-side, so the ABAC contract is intact even though the URL still
+> says `admin/`.
 
 > 🛋️ Note: **2 หน้าแยกสำหรับห้อง** —
 > - `/resources` = card grid · งานรายวัน · Release / Maintenance · (MANAGER/NURSE/RECEPTION)

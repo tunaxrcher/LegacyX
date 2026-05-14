@@ -173,6 +173,16 @@ const groups: NavGroup[] = [
         icon: Tag,
         roles: ["MANAGER"],
       },
+      // Phase K — PDPA Data Subject Rights. Manager runs the customer-
+      // facing flow (export); the irreversible anonymise button on the page
+      // is gated to ADMIN by the page itself. ADMIN also sees this entry
+      // because they may need to execute the anonymise step.
+      {
+        href: "/admin/pdpa",
+        labelKey: "nav.pdpa",
+        icon: ScrollText,
+        roles: ["MANAGER", "ADMIN"],
+      },
     ],
   },
   // Clinic configuration — Manager owns the day-to-day business setup
@@ -229,15 +239,6 @@ const groups: NavGroup[] = [
         href: "/dlq",
         labelKey: "nav.dlq",
         icon: AlertOctagon,
-        roles: ["ADMIN"],
-      },
-      // Phase K — PDPA Data Subject Rights (export / anonymise). ADMIN-only
-      // because the feature decrypts every PII field for the patient and
-      // generates a downloadable archive.
-      {
-        href: "/admin/pdpa",
-        labelKey: "nav.pdpa",
-        icon: ScrollText,
         roles: ["ADMIN"],
       },
       {

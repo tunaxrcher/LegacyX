@@ -72,9 +72,14 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   // Admin
   { resource: "audit", action: "read", scope: "tenant" },
   { resource: "break_glass", action: "approve", scope: "tenant" },
-  // Phase K — PDPA / Data Subject Rights. Tenant-scoped so only ADMIN can
-  // export/anonymise (per PDPA "controller responsibility"). MANAGER does
-  // patient:merge but stays out of DSR plumbing.
+  // Phase K — PDPA / Data Subject Rights. Tenant-scoped.
+  //   - export   → MANAGER + ADMIN. Read-only, often-used customer-service
+  //     action; MANAGER already holds `patient:merge` + `audit:read` so this
+  //     does not expand their PII blast radius and removes the operational
+  //     bottleneck of routing every DSR request through a sysadmin.
+  //   - anonymize → ADMIN only. Irreversible mutation that destroys the
+  //     identifying fields permanently; kept under "two-person rule"
+  //     (MANAGER raises the DSR ticket → ADMIN executes).
   { resource: "pdpa", action: "export", scope: "tenant" },
   { resource: "pdpa", action: "anonymize", scope: "tenant" },
   // Phase O — Promotion / voucher engine. CRUD is a tenant-wide config
@@ -128,6 +133,10 @@ const ROLE_MATRIX: Record<string, string[]> = {
     // Phase M — Lab read for oversight; result is a separate sub-flow
     // they don't normally do themselves.
     "lab:read:branch",
+    // Phase K — PDPA DSR. Manager handles the customer-facing "give me a
+    // copy of my data" request (≤30 day legal SLA). Anonymise is held back
+    // to ADMIN because it is irreversible.
+    "pdpa:export:tenant",
   ],
   DOCTOR: [
     "patient:read:branch",

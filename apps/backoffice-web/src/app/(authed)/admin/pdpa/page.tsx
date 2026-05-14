@@ -121,7 +121,10 @@ export default async function PdpaPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <PdpaActionBar />
+          {/* `roles` drives the lock on the irreversible `Anonymise` button —
+              MANAGER can export but only ADMIN may anonymise. The server still
+              enforces this via ABAC; the prop is purely UX. */}
+          <PdpaActionBar roles={session.roles ?? []} />
         </CardContent>
       </Card>
 
