@@ -7,6 +7,11 @@ import { NextResponse, type NextRequest } from "next/server";
  *     In development falls back to localhost:3003 + 127.0.0.1:*.
  *   - Auth itself is enforced inside route handlers (Bearer token →
  *     `resolveSession()` → DB lookup). See `shared/context.ts`.
+ *
+ * Note: metrics & tracing are recorded inside route handlers, not here. Edge
+ * middleware can't see response bodies or final status codes for streaming
+ * responses, and it runs in the Edge runtime where `prom-client` style libs
+ * aren't available.
  */
 
 // Read once at module load. In dev, ALLOWED_ORIGINS may be undefined, in which

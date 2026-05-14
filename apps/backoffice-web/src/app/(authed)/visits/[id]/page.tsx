@@ -83,6 +83,24 @@ export default async function VisitDetailPage({ params }: { params: { id: string
   if (!session) redirect("/login");
   const t = await getTranslations();
 
+  // Derive capabilities from the role codes baked into the session cookie at
+  // login time. The API still enforces ABAC server-side; these flags only
+  // drive UX (hide buttons / lock fields) so users aren't shown actions they
+  // can't actually perform.
+  const roles = session.roles ?? [];
+  const isPrivileged = roles.includes("ADMIN");
+  const canWriteEmr = isPrivileged || roles.includes("DOCTOR");
+  const canWriteOrder = isPrivileged || roles.includes("DOCTOR");
+  // Billing capabilities (mirrors seed.ts permission grants):
+  //   payment:write → DOCTOR | MANAGER | RECEPTION | ADMIN
+  //   payment:void / invoice:void → MANAGER | ADMIN (refund + void)
+  const canWritePayment =
+    isPrivileged ||
+    roles.includes("DOCTOR") ||
+    roles.includes("MANAGER") ||
+    roles.includes("RECEPTION");
+  const canVoidPayment = isPrivileged || roles.includes("MANAGER");
+
   const [visitList, orderList, invoiceList, documentList, emrRes] = await Promise.all([
     apiJson<{ data: Visit[] }>(session, `/api/v1/visits?limit=100`).catch(() => ({
       data: [] as Visit[],
@@ -180,7 +198,12 @@ export default async function VisitDetailPage({ params }: { params: { id: string
   );
 
   const soap = visit.patient ? (
-    <SoapPanel visitId={visit.id} patientId={visit.patient.id} existing={existingEmr} />
+    <SoapPanel
+      visitId={visit.id}
+      patientId={visit.patient.id}
+      existing={existingEmr}
+      canWrite={canWriteEmr}
+    />
   ) : (
     <Card>
       <CardContent className="p-6 text-sm text-muted-foreground">
@@ -193,7 +216,7 @@ export default async function VisitDetailPage({ params }: { params: { id: string
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">{t("orders.title")}</CardTitle>
-        <NewOrderDialog visitId={visit.id} />
+        {canWriteOrder && <NewOrderDialog visitId={visit.id} />}
       </CardHeader>
       <CardContent className="p-0">
         {orders.length === 0 ? (
@@ -201,8 +224,12 @@ export default async function VisitDetailPage({ params }: { params: { id: string
             className="m-6"
             icon={<Activity className="h-5 w-5" />}
             title={t("orders.empty_title")}
-            description={t("orders.empty_desc")}
-            action={<NewOrderDialog visitId={visit.id} />}
+            description={
+              canWriteOrder
+                ? t("orders.empty_desc")
+                : (t("orders.empty_readonly") ?? t("orders.empty_desc"))
+            }
+            action={canWriteOrder ? <NewOrderDialog visitId={visit.id} /> : undefined}
           />
         ) : (
           <div className="space-y-0 divide-y">
@@ -319,6 +346,8 @@ export default async function VisitDetailPage({ params }: { params: { id: string
         status: o.status,
         totalAmount: o.totalAmount,
       }))}
+      canWrite={canWritePayment}
+      canVoid={canVoidPayment}
     />
   );
 

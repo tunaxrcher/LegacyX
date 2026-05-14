@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1.7
+
+# ---------- builder ----------
+FROM node:20-alpine AS builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /app
+
+# Copy lockfile + workspace manifest first so Docker layer-cache is preserved
+# when only source changes.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/api-server/package.json ./apps/api-server/
+
+# Install pruned to only the api-server filter + its deps (still pulls all
+# workspace packages because of cross-references, but skips other apps).
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter "@legacyx/api-server..."
+
+# Generate Prisma client BEFORE the build (Next.js bundler needs it).
+RUN pnpm --filter @legacyx/db generate
+
+# Copy the full source and build.
+COPY apps/api-server ./apps/api-server
+RUN pnpm --filter @legacyx/api-server build
+
+# ---------- runtime ----------
+FROM node:20-alpine AS runtime
+ENV NODE_ENV=production
+ENV PORT=3001
+WORKDIR /app
+
+# Non-root user
+RUN addgroup -S app && adduser -S app -G app
+USER app
+
+# Next.js standalone output keeps the node_modules dependency tree minimal.
+COPY --from=builder --chown=app:app /app/apps/api-server/.next/standalone ./
+COPY --from=builder --chown=app:app /app/apps/api-server/.next/static ./apps/api-server/.next/static
+COPY --from=builder --chown=app:app /app/apps/api-server/public ./apps/api-server/public
+
+EXPOSE 3001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:3001/api/healthz || exit 1
+
+CMD ["node", "apps/api-server/server.js"]

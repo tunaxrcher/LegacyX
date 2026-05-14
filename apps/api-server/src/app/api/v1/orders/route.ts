@@ -12,9 +12,12 @@ export async function GET(req: NextRequest) {
   try {
     const ctx = await getRequestContext();
     correlationId = ctx.correlationId;
+    // Reading orders is needed by everyone touching the visit (doctor → write,
+    // nurse → perform procedures, reception → bill). Use the dedicated read
+    // permission so we don't grant write to nurses/reception.
     await authorize(ctx, {
       resource: "order",
-      action: "write",
+      action: "read",
       target: { branchId: ctx.branchId },
     });
     const url = new URL(req.url);

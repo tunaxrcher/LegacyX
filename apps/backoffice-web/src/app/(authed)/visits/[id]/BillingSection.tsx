@@ -14,10 +14,12 @@ import {
   Undo2,
   XCircle,
   Download,
+  Lock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -107,10 +109,16 @@ export function BillingSection({
   invoices,
   documents,
   orders,
+  canWrite,
+  canVoid,
 }: {
   invoices: Invoice[];
   documents: Document[];
   orders: Order[];
+  /** payment:write — can create invoice, take payment, complete authorised payment. */
+  canWrite: boolean;
+  /** invoice:void + payment:void (tenant scope) — manager-level reversals. */
+  canVoid: boolean;
 }) {
   const t = useTranslations("billing");
   const billableOrders = orders.filter((o) => o.status !== "CANCELLED");
@@ -122,16 +130,32 @@ export function BillingSection({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">{t("title")}</CardTitle>
-        {unbilledOrders.length > 0 && <CreateInvoiceButton orderId={unbilledOrders[0]!.id} />}
+        {canWrite && unbilledOrders.length > 0 && (
+          <CreateInvoiceButton orderId={unbilledOrders[0]!.id} />
+        )}
       </CardHeader>
       <CardContent className="space-y-4 p-4">
+        {!canWrite && (
+          <Alert variant="default">
+            <Lock className="h-4 w-4" />
+            <AlertTitle>{t("readonly_title") ?? "Read-only"}</AlertTitle>
+            <AlertDescription className="text-xs">
+              {t("readonly_desc") ??
+                "Your role can view billing details but cannot create or settle invoices."}
+            </AlertDescription>
+          </Alert>
+        )}
         {invoices.length === 0 ? (
           <EmptyState
             icon={<Receipt className="h-5 w-5" />}
             title={t("empty_title")}
-            description={t("empty_desc")}
+            description={
+              canWrite
+                ? t("empty_desc")
+                : (t("empty_readonly") ?? t("empty_desc"))
+            }
             action={
-              billableOrders.length > 0 ? (
+              canWrite && billableOrders.length > 0 ? (
                 <CreateInvoiceButton orderId={billableOrders[0]!.id} />
               ) : undefined
             }
@@ -139,7 +163,13 @@ export function BillingSection({
         ) : (
           <div className="space-y-4">
             {invoices.map((inv) => (
-              <InvoiceCard key={inv.id} invoice={inv} documents={documents} />
+              <InvoiceCard
+                key={inv.id}
+                invoice={inv}
+                documents={documents}
+                canWrite={canWrite}
+                canVoid={canVoid}
+              />
             ))}
           </div>
         )}
@@ -148,7 +178,17 @@ export function BillingSection({
   );
 }
 
-function InvoiceCard({ invoice, documents }: { invoice: Invoice; documents: Document[] }) {
+function InvoiceCard({
+  invoice,
+  documents,
+  canWrite,
+  canVoid,
+}: {
+  invoice: Invoice;
+  documents: Document[];
+  canWrite: boolean;
+  canVoid: boolean;
+}) {
   const t = useTranslations("billing");
   const paid = invoice.payments
     .filter((p) => p.state === "COMPLETED" || p.state === "SETTLED")
@@ -171,7 +211,7 @@ function InvoiceCard({ invoice, documents }: { invoice: Invoice; documents: Docu
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          {invoice.status !== "VOIDED" && invoice.status !== "PAID" && (
+          {canVoid && invoice.status !== "VOIDED" && invoice.status !== "PAID" && (
             <VoidInvoiceButton invoiceId={invoice.id} />
           )}
         </div>
@@ -221,7 +261,7 @@ function InvoiceCard({ invoice, documents }: { invoice: Invoice; documents: Docu
                     : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  <PaymentRowActions payment={p} />
+                  <PaymentRowActions payment={p} canWrite={canWrite} canVoid={canVoid} />
                 </TableCell>
               </TableRow>
             ))}
@@ -229,7 +269,7 @@ function InvoiceCard({ invoice, documents }: { invoice: Invoice; documents: Docu
         </Table>
       )}
 
-      {due > 0 && invoice.status !== "VOIDED" && (
+      {canWrite && due > 0 && invoice.status !== "VOIDED" && (
         <div className="pt-2">
           <PaymentDialog invoiceId={invoice.id} due={due} />
         </div>
@@ -488,11 +528,19 @@ function PaymentDialog({ invoiceId, due }: { invoiceId: string; due: number }) {
   );
 }
 
-function PaymentRowActions({ payment }: { payment: Payment }) {
-  if (payment.state === "AUTHORIZED") {
+function PaymentRowActions({
+  payment,
+  canWrite,
+  canVoid,
+}: {
+  payment: Payment;
+  canWrite: boolean;
+  canVoid: boolean;
+}) {
+  if (payment.state === "AUTHORIZED" && canWrite) {
     return <CompletePayBtn id={payment.id} />;
   }
-  if (payment.state === "COMPLETED" || payment.state === "SETTLED") {
+  if ((payment.state === "COMPLETED" || payment.state === "SETTLED") && canVoid) {
     return <RefundDialog payment={payment} />;
   }
   return <span className="text-xs text-muted-foreground">—</span>;

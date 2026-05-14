@@ -26,7 +26,7 @@
 
 ## 🔐 Permission Matrix
 
-27 permissions จัดกลุ่มตาม resource:
+31 permissions จัดกลุ่มตาม resource:
 
 | Resource | Action | Scope | ADMIN | MANAGER | DOCTOR | NURSE | RECEPTION | PHARMACIST |
 |---|---|---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -44,11 +44,15 @@
 | **procedure** | perform | branch | ✅ | | ✅ | ✅ | | |
 | **payment** | write | branch | ✅ | ✅ | | | ✅ | |
 | **payment** | void | tenant | ✅ | ✅ | | | | |
+| **payment** | settle | tenant | ✅ | ✅ | | | | |
 | **invoice** | void | tenant | ✅ | ✅ | | | | |
 | **wallet** | read | branch | ✅ | ✅ | | | | |
 | **inventory** | read | branch | ✅ | ✅ | | ✅ | | ✅ |
 | **inventory** | write | branch | ✅ | | | | | ✅ |
 | **inventory** | reconcile | branch | ✅ | ✅ | | | | |
+| **shift** | open | branch | ✅ | ✅ | | | ✅ | |
+| **shift** | close | branch | ✅ | ✅ | | | ✅ | |
+| **shift** | read | branch | ✅ | ✅ | | | ✅ | |
 | **resource** | read | branch | ✅ | ✅ | | ✅ | ✅ | |
 | **resource** | write | branch | ✅ | ✅ | | | | |
 | **resource** | release | branch | ✅ | ✅ | | ✅ | ✅ | |
@@ -96,6 +100,7 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | `/manager` Strategic Dashboard | | ✅ | | | | |
 | `/manager/catalog` Products + BOMs CRUD | ✅ | ✅ | | | | |
+| `/manager/eod` End-of-Day (Shift · Settle · Recon) | | ✅ | | | ✅ | |
 | `/audit` | | ✅ | | | | |
 | `/break-glass` | | ✅ | | | | |
 
@@ -117,14 +122,15 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 ## 🔁 Typical Workflows ต่อ Role
 
 ### 👤 RECEPTION — พนักงานต้อนรับ
-ตามแผน ARCH §6 Phase 1, 3:
-1. **รับลูกค้าใหม่** — `/patients` → กดสร้าง patient (มี `patient:write:branch`)
-2. **จองคิว** — `/appointments` → New appointment
-3. **เช็คอินเมื่อมาถึง** — เลือก appointment → Check-in → เลือกห้อง (`resource:read`/`resource:release`)
-4. **รับเงิน** — เปิด visit → Billing → Create invoice → Take payment (`payment:write`)
-5. *(ปลดล็อกห้องถ้าลูกค้ากลับแล้วลืม close visit)*
+ตามแผน ARCH §6 Phase 1, 3, 6:
+1. **เปิดกะตอนเช้า** — `/manager/eod` → Shift Close tab → Open shift + ระบุเงินสดเปิดลิ้นชัก (`shift:open:branch`)
+2. **รับลูกค้าใหม่** — `/patients` → กดสร้าง patient (มี `patient:write:branch`)
+3. **จองคิว** — `/appointments` → New appointment
+4. **เช็คอินเมื่อมาถึง** — เลือก appointment → Check-in → เลือกห้อง (`resource:read`/`resource:release`)
+5. **รับเงิน** — เปิด visit → Billing → Create invoice → Take payment (`payment:write`)
+6. **ปิดกะตอนเย็น** — `/manager/eod` → Shift Close tab → Close shift + ระบุเงินสดที่นับได้ → ระบบคำนวณ variance อัตโนมัติ (`shift:close:branch`)
 
-ทำไม่ได้: ดู EMR · เซ็น EMR · สั่งหัตถการ · ปรับ stock · void invoice (ต้อง Manager)
+ทำไม่ได้: ดู EMR · เซ็น EMR · สั่งหัตถการ · ปรับ stock · void invoice · settle gateway batch · reconcile inventory (ต้อง Manager)
 
 ### 👨‍⚕️ DOCTOR — แพทย์
 ตามแผน ARCH §6 Phase 2:
@@ -161,7 +167,10 @@ Sidebar กรองตาม role ที่ `apps/backoffice-web/src/components
 2. **ดู audit trail** — `/audit` (`audit:read:tenant`)
 3. **อนุมัติ Break-Glass override** — `/break-glass` (`break_glass:approve:tenant`)
 4. **ปรับห้อง/maintenance** — `/resources`
-5. **Reconcile inventory** — เปรียบเทียบ stock ระบบ vs จริง
+5. **End-of-Day Operations** — `/manager/eod` (Phase 6.8):
+   - **Shift Close tab** — ปิดกะ + นับเงินสด + ดู variance ของทุกกะ (`shift:open|close|read:branch`)
+   - **Settlement tab** — เลือก payments ที่ `COMPLETED` แต่ยังไม่ settle → run gateway batch → ระบบจะ trigger Accounting Export อัตโนมัติ (`payment:settle:tenant`)
+   - **Inventory Recon tab** — นับสต็อกจริง → ระบบคำนวณ variance → ถ้ามี variance ต้องแนบ Break-Glass override id ก่อน apply (`inventory:reconcile:branch`)
 
 ทำไม่ได้: เซ็น EMR (ต้องเป็นแพทย์เท่านั้น) · สร้าง user · merge patient
 

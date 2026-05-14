@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 30% 98%;
+    --foreground: 220 20% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 14%;
+
+    --primary: 170 74% 41%;
+    --primary-foreground: 0 0% 100%;
+
+    --gradient-from: 170 74% 41%;
+    --gradient-via:  168 72% 47%;
+    --gradient-to:   174 85% 35%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 14% 48%;
+    --accent: 170 55% 95%;
+    --accent-foreground: 170 74% 25%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 150 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 214 20% 92%;
+    --input: 214 20% 90%;
+    --ring: 170 74% 41%;
+
+    --radius: 1rem;
+
+    --brand-50:  168 56% 96%;
+    --brand-100: 164 56% 88%;
+    --brand-200: 164 59% 76%;
+    --brand-300: 164 56% 60%;
+    --brand-400: 168 60% 47%;
+    --brand-500: 170 74% 41%;
+    --brand-600: 170 74% 33%;
+    --brand-700: 170 74% 27%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html, body {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    overscroll-behavior-y: contain;
+  }
+}
+
+@layer utilities {
+  .bg-primary-gradient {
+    background-image: linear-gradient(
+      110deg,
+      hsl(var(--gradient-from)) 0%,
+      hsl(var(--gradient-via)) 50%,
+      hsl(var(--gradient-to)) 100%
+    );
+    background-size: 200% 100%;
+    animation: gradient-shift 4s ease-in-out infinite;
+  }
+  .shadow-soft {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.04);
+  }
+  .shadow-soft-lg {
+    box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  }
+  /* Mobile safe-area helpers (iOS notch / Android nav) */
+  .pb-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+  .pt-safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}

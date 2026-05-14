@@ -15,9 +15,12 @@ export async function GET(req: NextRequest) {
   try {
     const ctx = await getRequestContext();
     correlationId = ctx.correlationId;
+    // Read-only viewers (nurse / pharmacist) need to see invoice + payment
+    // state to know the visit is settled. Mutations still gate on
+    // payment:write / invoice:void / payment:void.
     await authorize(ctx, {
       resource: "payment",
-      action: "write",
+      action: "read",
       target: { branchId: ctx.branchId },
     });
     const url = new URL(req.url);

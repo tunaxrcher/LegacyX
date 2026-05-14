@@ -6,6 +6,7 @@ import { logger } from "./logger";
 import { redis } from "./redis";
 import { handlerRegistry } from "./handlers";
 import { claimProcessing, markFailed, markSuccess } from "./shared/idempotency";
+import { handlerRuns, handlerDuration } from "./metrics";
 import type { HandlerEnvelope } from "./handlers/types";
 
 const log = logger.child({ component: "worker" });
@@ -19,6 +20,7 @@ async function processJob(job: Job<JobData>) {
   const handlers = handlerRegistry.get(event_name) ?? [];
   if (handlers.length === 0) {
     log.warn({ event_name, event_id }, "no handler registered — acking");
+    handlerRuns.inc({ event_name, handler: "_no_handler", outcome: "skipped" });
     return;
   }
 
@@ -26,14 +28,22 @@ async function processJob(job: Job<JobData>) {
     const claim = await claimProcessing(event_id, h.name);
     if (claim === "SKIP_DONE") {
       log.debug({ event_id, handler: h.name }, "already SUCCESS — skipping");
+      handlerRuns.inc({ event_name, handler: h.name, outcome: "duplicate" });
       continue;
     }
+    const t0 = Date.now();
     try {
       await h.run(envelope);
       await markSuccess(event_id, h.name);
-      log.info({ event_id, event_name, handler: h.name }, "handler ok");
+      const dur = (Date.now() - t0) / 1000;
+      handlerDuration.observe(dur, { event_name, handler: h.name });
+      handlerRuns.inc({ event_name, handler: h.name, outcome: "success" });
+      log.info({ event_id, event_name, handler: h.name, dur_s: dur }, "handler ok");
     } catch (err) {
       await markFailed(event_id, h.name, err);
+      const dur = (Date.now() - t0) / 1000;
+      handlerDuration.observe(dur, { event_name, handler: h.name });
+      handlerRuns.inc({ event_name, handler: h.name, outcome: "failed" });
       log.error({ err, event_id, handler: h.name }, "handler failed");
       throw err; // let BullMQ retry / DLQ
     }

@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20.11.0"
+  PNPM_VERSION: "9.12.0"
+
+jobs:
+  lint-typecheck:
+    name: Lint + Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_test_password
+          MYSQL_DATABASE: legacyx_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_test_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: "mysql://root:ci_test_password@127.0.0.1:3306/legacyx_test"
+      REDIS_URL: "redis://127.0.0.1:6379"
+      JWT_SECRET: "ci-test-secret-do-not-use-in-prod"
+      ENCRYPTION_MASTER_KEY: "ci-test-master-key-32bytes-______"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -uroot -pci_test_password --silent; then
+              echo "MySQL is up"; exit 0
+            fi
+            echo "Waiting for MySQL... ($i/30)"; sleep 2
+          done
+          echo "MySQL did not become ready"; exit 1
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Push schema (for typecheck)
+        run: pnpm --filter @legacyx/db exec prisma db push --skip-generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: "mysql://root:dummy@127.0.0.1:3306/dummy"
+      JWT_SECRET: "ci-test-secret"
+      ENCRYPTION_MASTER_KEY: "ci-test-master-key-32bytes-______"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Build
+        run: pnpm build
+
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-server
+          - worker-engine
+          - ai-service
+          - backoffice-web
+          - patient-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          REF_NAME="${{ github.ref_name }}"
+          echo "tag_sha=$SHA_SHORT" >> $GITHUB_OUTPUT
+          echo "tag_ref=$REF_NAME" >> $GITHUB_OUTPUT
+
+      - name: Build image (no push — registry login required for push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./infra/docker/Dockerfile.${{ matrix.service }}
+          push: false
+          tags: |
+            legacyx/${{ matrix.service }}:${{ steps.meta.outputs.tag_sha }}
+            legacyx/${{ matrix.service }}:${{ steps.meta.outputs.tag_ref }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,scope=${{ matrix.service }},mode=max

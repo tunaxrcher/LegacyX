@@ -1,0 +1,63 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+.next
+**/.next
+dist
+**/dist
+build
+**/build
+out
+**/out
+
+# Generated Prisma client (rebuilt inside container)
+**/prisma/generated
+**/.prisma
+
+# Local env files (NEVER ship secrets into images)
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+# Cache + tmp
+.turbo
+**/.turbo
+.cache
+**/.cache
+tmp
+**/tmp
+.pnpm-store
+coverage
+**/coverage
+
+# IDE
+.vscode
+.idea
+.cursor
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (not needed inside image)
+docs
+*.md
+!README.md
+
+# Test artifacts
+**/playwright-report
+**/test-results
+**/*.log
+
+# Local infra
+infra/docker/docker-compose.yml
+.husky

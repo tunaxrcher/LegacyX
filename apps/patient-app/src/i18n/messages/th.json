@@ -1,0 +1,119 @@
+{
+  "app": {
+    "name": "LegacyX Clinic",
+    "tagline": "คลินิกในกระเป๋าคุณ"
+  },
+  "tab": {
+    "home": "หน้าแรก",
+    "book": "จอง",
+    "visits": "ประวัติ",
+    "wallet": "คอร์ส",
+    "profile": "โปรไฟล์"
+  },
+  "login": {
+    "title": "เข้าสู่ระบบด้วย LINE",
+    "subtitle": "เพื่อเริ่มใช้บริการของคลินิก",
+    "tenant_label": "รหัสคลินิก",
+    "line_label": "LINE User ID (เดโม่)",
+    "line_hint": "ในเดโม่นี้ ระบุ LINE User ID ที่ผูกไว้กับคนไข้ในระบบ",
+    "submit": "เข้าสู่ระบบ",
+    "demo_hint": "เดโม่: ใช้ U_demo_line_0000001 / tenant: legacyx",
+    "loading": "กำลังเข้าสู่ระบบ...",
+    "error": "เข้าสู่ระบบไม่สำเร็จ",
+    "logout": "ออกจากระบบ"
+  },
+  "home": {
+    "greet_morning": "สวัสดีตอนเช้า",
+    "greet_afternoon": "สวัสดีตอนบ่าย",
+    "greet_evening": "สวัสดีตอนเย็น",
+    "hn_label": "HN",
+    "quick_book": "จองคิวใหม่",
+    "quick_visits": "ดูประวัติ",
+    "quick_wallet": "คอร์สของฉัน",
+    "aftercare_title": "ดูแลตัวเองหลังเคส",
+    "aftercare_empty": "ยังไม่มีรายการดูแลตัวเอง",
+    "wallet_summary_title": "คอร์สของคุณ",
+    "wallet_summary_active": "{n} คอร์สใช้งานได้",
+    "wallet_summary_empty": "คุณยังไม่มีคอร์ส",
+    "next_appt_title": "นัดถัดไป",
+    "next_appt_empty": "ยังไม่มีนัดที่จะมาถึง",
+    "view_all": "ดูทั้งหมด"
+  },
+  "book": {
+    "title": "จองคิว",
+    "subtitle": "เลือกสาขา วัน และเวลาที่สะดวก",
+    "step_branch": "1. เลือกสาขา",
+    "step_date": "2. เลือกวัน",
+    "step_time": "3. เลือกเวลา",
+    "step_reason": "4. เหตุผล (ไม่บังคับ)",
+    "reason_placeholder": "เช่น ตรวจเช็คผิวประจำเดือน",
+    "submit": "ยืนยันการจอง",
+    "submitting": "กำลังจอง...",
+    "success_title": "จองสำเร็จ",
+    "success_msg": "เรารอพบคุณวันที่ {date} เวลา {time}",
+    "success_done": "เสร็จสิ้น",
+    "no_slots": "ไม่มีเวลาว่างในวันนี้",
+    "slot_taken": "ไม่ว่าง",
+    "load_error": "โหลดข้อมูลไม่สำเร็จ"
+  },
+  "visits": {
+    "title": "ประวัติการเข้าใช้บริการ",
+    "subtitle": "เห็นใบเสร็จและบริการที่เคยได้รับ",
+    "empty": "ยังไม่มีประวัติการรักษา",
+    "completed": "เสร็จสิ้น",
+    "in_progress": "กำลังรักษา",
+    "open": "เปิดอยู่",
+    "cancelled": "ยกเลิก",
+    "services": "บริการ",
+    "invoice": "ใบเสร็จ",
+    "no_services": "ไม่มีรายการบริการ",
+    "view_receipt": "ดูใบเสร็จ",
+    "no_receipt": "ยังไม่มีใบเสร็จ",
+    "branch": "สาขา"
+  },
+  "wallet": {
+    "title": "คอร์สของฉัน",
+    "subtitle": "ดูคงเหลือและประวัติการใช้",
+    "empty": "คุณยังไม่มีคอร์ส",
+    "balance": "คงเหลือ",
+    "expires_in": "หมดอายุใน {n} วัน",
+    "expired": "หมดอายุแล้ว",
+    "no_expiry": "ไม่มีวันหมดอายุ",
+    "ledger_title": "ประวัติการใช้",
+    "ledger_empty": "ยังไม่มีประวัติ",
+    "type_PURCHASE": "ซื้อคอร์ส",
+    "type_USE": "ใช้บริการ",
+    "type_REVERSAL": "คืนคอร์ส",
+    "type_ADJUSTMENT": "ปรับยอด",
+    "type_EXPIRY": "หมดอายุ"
+  },
+  "profile": {
+    "title": "โปรไฟล์",
+    "phone": "เบอร์โทร",
+    "email": "อีเมล",
+    "dob": "วันเกิด",
+    "gender": "เพศ",
+    "blood_type": "กรุปเลือด",
+    "allergies": "ภูมิแพ้",
+    "home_branch": "สาขาประจำ",
+    "member_since": "เป็นสมาชิกตั้งแต่",
+    "line_linked": "เชื่อมต่อ LINE แล้ว",
+    "line_not_linked": "ยังไม่ได้เชื่อมต่อ LINE",
+    "language": "ภาษา",
+    "logout": "ออกจากระบบ"
+  },
+  "aftercare": {
+    "READ": "อ่านคู่มือ",
+    "REVIEW": "ให้คะแนน",
+    "REBOOK": "จองใหม่"
+  },
+  "common": {
+    "loading": "กำลังโหลด...",
+    "back": "ย้อนกลับ",
+    "today": "วันนี้",
+    "tomorrow": "พรุ่งนี้",
+    "branch": "สาขา",
+    "select_branch": "เลือกสาขา",
+    "close": "ปิด"
+  }
+}

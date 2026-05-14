@@ -1,0 +1,119 @@
+{
+  "app": {
+    "name": "LegacyX Clinic",
+    "tagline": "Your clinic in your pocket"
+  },
+  "tab": {
+    "home": "Home",
+    "book": "Book",
+    "visits": "Visits",
+    "wallet": "Courses",
+    "profile": "Profile"
+  },
+  "login": {
+    "title": "Sign in with LINE",
+    "subtitle": "to access your clinic services",
+    "tenant_label": "Clinic code",
+    "line_label": "LINE User ID (demo)",
+    "line_hint": "In this demo, enter the LINE User ID linked to your patient profile",
+    "submit": "Sign in",
+    "demo_hint": "Demo: U_demo_line_0000001 / tenant: legacyx",
+    "loading": "Signing in...",
+    "error": "Sign-in failed",
+    "logout": "Sign out"
+  },
+  "home": {
+    "greet_morning": "Good morning",
+    "greet_afternoon": "Good afternoon",
+    "greet_evening": "Good evening",
+    "hn_label": "HN",
+    "quick_book": "Book a visit",
+    "quick_visits": "View history",
+    "quick_wallet": "My courses",
+    "aftercare_title": "Aftercare for you",
+    "aftercare_empty": "No aftercare items right now",
+    "wallet_summary_title": "Your courses",
+    "wallet_summary_active": "{n} active",
+    "wallet_summary_empty": "No active courses yet",
+    "next_appt_title": "Next appointment",
+    "next_appt_empty": "No upcoming appointments",
+    "view_all": "See all"
+  },
+  "book": {
+    "title": "Book a visit",
+    "subtitle": "Pick a branch, day, and time that suits you",
+    "step_branch": "1. Choose branch",
+    "step_date": "2. Choose date",
+    "step_time": "3. Choose time",
+    "step_reason": "4. Reason (optional)",
+    "reason_placeholder": "e.g. Monthly skin check-up",
+    "submit": "Confirm booking",
+    "submitting": "Booking...",
+    "success_title": "Booking confirmed",
+    "success_msg": "We'll see you on {date} at {time}",
+    "success_done": "Done",
+    "no_slots": "No slots available on this day",
+    "slot_taken": "Taken",
+    "load_error": "Couldn't load data"
+  },
+  "visits": {
+    "title": "Visit history",
+    "subtitle": "See receipts and services from past visits",
+    "empty": "You don't have any visits yet",
+    "completed": "Completed",
+    "in_progress": "In progress",
+    "open": "Open",
+    "cancelled": "Cancelled",
+    "services": "Services",
+    "invoice": "Invoice",
+    "no_services": "No services recorded",
+    "view_receipt": "View receipt",
+    "no_receipt": "No receipt yet",
+    "branch": "Branch"
+  },
+  "wallet": {
+    "title": "My courses",
+    "subtitle": "Balance and usage history",
+    "empty": "No active courses",
+    "balance": "Balance",
+    "expires_in": "Expires in {n} days",
+    "expired": "Expired",
+    "no_expiry": "No expiry",
+    "ledger_title": "Usage history",
+    "ledger_empty": "No usage history yet",
+    "type_PURCHASE": "Purchase",
+    "type_USE": "Use",
+    "type_REVERSAL": "Reversal",
+    "type_ADJUSTMENT": "Adjustment",
+    "type_EXPIRY": "Expired"
+  },
+  "profile": {
+    "title": "Profile",
+    "phone": "Phone",
+    "email": "Email",
+    "dob": "Date of birth",
+    "gender": "Gender",
+    "blood_type": "Blood type",
+    "allergies": "Allergies",
+    "home_branch": "Home branch",
+    "member_since": "Member since",
+    "line_linked": "Linked to LINE",
+    "line_not_linked": "Not linked to LINE",
+    "language": "Language",
+    "logout": "Sign out"
+  },
+  "aftercare": {
+    "READ": "Read guide",
+    "REVIEW": "Leave review",
+    "REBOOK": "Rebook"
+  },
+  "common": {
+    "loading": "Loading...",
+    "back": "Back",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "branch": "Branch",
+    "select_branch": "Select branch",
+    "close": "Close"
+  }
+}

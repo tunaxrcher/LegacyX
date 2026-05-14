@@ -23,6 +23,8 @@ import {
   TrendingUp,
   ChevronsLeft,
   ChevronsRight,
+  Banknote,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -135,6 +137,12 @@ const groups: NavGroup[] = [
         roles: ["MANAGER", "ADMIN"],
       },
       {
+        href: "/manager/eod",
+        labelKey: "nav.manager_eod",
+        icon: Banknote,
+        roles: ["MANAGER", "RECEPTION"],
+      },
+      {
         href: "/audit",
         labelKey: "nav.audit",
         icon: ShieldCheck,
@@ -169,6 +177,12 @@ const groups: NavGroup[] = [
         labelKey: "nav.admin_resources",
         icon: DoorOpen,
         roles: ["ADMIN"],
+      },
+      {
+        href: "/admin/notifications",
+        labelKey: "nav.admin_notifications",
+        icon: Bell,
+        roles: ["ADMIN", "MANAGER"],
       },
       {
         href: "/dlq",

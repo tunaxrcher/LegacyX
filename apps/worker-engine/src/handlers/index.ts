@@ -3,12 +3,18 @@ import { appointmentCreatedHandler } from "./appointment-created.handler";
 import { emrSignedHandler } from "./emr-signed.handler";
 import { procedureCompletedHandler } from "./procedure-completed.handler";
 import { documentRequestedHandler } from "./document-requested.handler";
+import { paymentSettledHandler } from "./payment-settled.handler";
+import { shiftClosedHandler } from "./shift-closed.handler";
+import { inventoryReconciledHandler } from "./inventory-reconciled.handler";
 
 const all: Handler[] = [
   appointmentCreatedHandler,
   emrSignedHandler,
   procedureCompletedHandler,
   documentRequestedHandler,
+  paymentSettledHandler,
+  shiftClosedHandler,
+  inventoryReconciledHandler,
 ];
 
 /** Map: event_name → handlers subscribed to it (multi-handler ready). */

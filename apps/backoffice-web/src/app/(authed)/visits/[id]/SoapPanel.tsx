@@ -11,7 +11,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { FileSignature, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { FileSignature, Loader2, ShieldCheck, AlertTriangle, Lock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -45,9 +45,16 @@ interface SoapPanelProps {
   visitId: string;
   patientId: string;
   existing: ExistingEmr | null;
+  /**
+   * Whether the current viewer is allowed to write/amend the EMR. Falsy = the
+   * panel renders in pure read-only mode (no Sign button, all textareas
+   * disabled). Server-side ABAC is the real enforcement; this just hides
+   * actions the user can't perform.
+   */
+  canWrite: boolean;
 }
 
-export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
+export function SoapPanel({ visitId, patientId, existing, canWrite }: SoapPanelProps) {
   const router = useRouter();
   const t = useTranslations("emr");
 
@@ -57,6 +64,10 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
   const [plan, setPlan] = React.useState(existing?.content.plan ?? "");
   const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  // Per ARCHITECTURE §4 (Locked EMR): once signed, the version is immutable.
+  // Editing requires an explicit "Amend" action that creates version N+1
+  // with a reason. We keep fields locked by default to surface that intent.
+  const [amendMode, setAmendMode] = React.useState(false);
   // AI draft linkage: when an AI-generated draft is applied, remember its id
   // so we can forward it on sign (consume-on-sign pattern per ARCHITECTURE).
   const [acceptedDraftId, setAcceptedDraftId] = React.useState<string | null>(null);
@@ -80,8 +91,12 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
     [],
   );
 
-  const isSigned = existing && existing.status !== "DRAFT";
-  const willAmend = !!isSigned;
+  const isSigned = !!(existing && existing.status !== "DRAFT");
+  // Editable when the user has write perm AND the EMR is either unsigned or
+  // they've explicitly entered amend mode.
+  const editable = canWrite && (!isSigned || amendMode);
+  // We only call the API in "amend" mode when amending a signed EMR.
+  const willAmend = isSigned && amendMode;
 
   async function sign(e: React.FormEvent) {
     e.preventDefault();
@@ -106,6 +121,7 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
       });
       toast.success(t("sign_success"));
       setReason("");
+      setAmendMode(false);
       router.refresh();
     } catch (err) {
       toast.error(t("sign_failed"), {
@@ -118,7 +134,18 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
 
   return (
     <form onSubmit={sign} className="space-y-4">
-      <AiAssistant visitId={visitId} onDraftApplied={applyDraft} />
+      {editable && <AiAssistant visitId={visitId} onDraftApplied={applyDraft} />}
+
+      {!canWrite && (
+        <Alert variant="default">
+          <Lock className="h-4 w-4" />
+          <AlertTitle>{t("readonly_title") ?? "Read-only"}</AlertTitle>
+          <AlertDescription className="text-xs">
+            {t("readonly_desc") ??
+              "Your role can view this EMR but cannot edit or sign it."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {existing && (
         <Alert variant={isSigned ? "success" : "default"}>
@@ -165,6 +192,8 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
               value={subjective}
               onChange={(e) => setSubjective(e.target.value)}
               placeholder="ผู้ป่วยมาด้วยอาการ…"
+              readOnly={!editable}
+              disabled={!editable}
             />
           </div>
           <div className="space-y-2">
@@ -175,6 +204,8 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
               placeholder="BP 120/80, T 37.0…"
+              readOnly={!editable}
+              disabled={!editable}
             />
           </div>
           <div className="space-y-2">
@@ -185,6 +216,8 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
               value={assessment}
               onChange={(e) => setAssessment(e.target.value)}
               placeholder="ICD-10: …"
+              readOnly={!editable}
+              disabled={!editable}
             />
           </div>
           <div className="space-y-2">
@@ -195,6 +228,8 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
               value={plan}
               onChange={(e) => setPlan(e.target.value)}
               placeholder="แผนการรักษา…"
+              readOnly={!editable}
+              disabled={!editable}
             />
           </div>
         </CardContent>
@@ -226,14 +261,30 @@ export function SoapPanel({ visitId, patientId, existing }: SoapPanelProps) {
           <AlertTriangle className="h-3.5 w-3.5" />
           AES-256-GCM · immutable version row
         </div>
-        <Button type="submit" disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
-          {busy
-            ? t("signing")
-            : willAmend
-              ? (t("amend_and_sign") ?? "Amend & Sign")
-              : t("sign")}
-        </Button>
+        {/* Action zone — three mutually-exclusive states:
+              1. canWrite=false                      → nothing (read-only)
+              2. signed + !amendMode + canWrite      → "Amend" button (unlocks editing)
+              3. !signed OR amendMode                → "Sign" / "Amend & Sign" submit */}
+        {canWrite && isSigned && !amendMode && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAmendMode(true)}
+          >
+            <Pencil className="h-4 w-4" />
+            {t("amend_label") ?? "Amend"}
+          </Button>
+        )}
+        {editable && (
+          <Button type="submit" disabled={busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
+            {busy
+              ? t("signing")
+              : willAmend
+                ? (t("amend_and_sign") ?? "Amend & Sign")
+                : t("sign")}
+          </Button>
+        )}
       </div>
     </form>
   );

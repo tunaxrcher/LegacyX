@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine AS builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /app
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/backoffice-web/package.json ./apps/backoffice-web/
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter "@legacyx/backoffice-web..."
+
+RUN pnpm --filter @legacyx/db generate
+
+COPY apps/backoffice-web ./apps/backoffice-web
+RUN pnpm --filter @legacyx/backoffice-web build
+
+FROM node:20-alpine AS runtime
+ENV NODE_ENV=production
+ENV PORT=3003
+WORKDIR /app
+
+RUN addgroup -S app && adduser -S app -G app
+USER app
+
+COPY --from=builder --chown=app:app /app/apps/backoffice-web/.next/standalone ./
+COPY --from=builder --chown=app:app /app/apps/backoffice-web/.next/static ./apps/backoffice-web/.next/static
+COPY --from=builder --chown=app:app /app/apps/backoffice-web/public ./apps/backoffice-web/public
+
+EXPOSE 3003
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:3003/ || exit 1
+CMD ["node", "apps/backoffice-web/server.js"]

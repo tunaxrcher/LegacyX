@@ -37,13 +37,20 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   { resource: "appointment", action: "read", scope: "branch" },
   { resource: "appointment", action: "write", scope: "branch" },
   // Order / Procedure
+  { resource: "order", action: "read", scope: "branch" },
   { resource: "order", action: "write", scope: "branch" },
   { resource: "procedure", action: "perform", scope: "branch" },
   // Financial
+  { resource: "payment", action: "read", scope: "branch" },
   { resource: "payment", action: "write", scope: "branch" },
   { resource: "payment", action: "void", scope: "tenant" },
+  { resource: "payment", action: "settle", scope: "tenant" },
   { resource: "invoice", action: "void", scope: "tenant" },
   { resource: "wallet", action: "read", scope: "branch" },
+  // Shift / End-of-Day
+  { resource: "shift", action: "open", scope: "branch" },
+  { resource: "shift", action: "close", scope: "branch" },
+  { resource: "shift", action: "read", scope: "branch" },
   // Inventory
   { resource: "inventory", action: "read", scope: "branch" },
   { resource: "inventory", action: "write", scope: "branch" },
@@ -70,9 +77,12 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "patient:read:branch",
     "appointment:read:branch",
     "appointment:write:branch",
+    "payment:read:branch",
     "payment:write:branch",
     "payment:void:tenant",
+    "payment:settle:tenant",
     "invoice:void:tenant",
+    "order:read:branch",
     "inventory:read:branch",
     "inventory:reconcile:branch",
     "wallet:read:branch",
@@ -83,6 +93,10 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "catalog:manage:tenant",
     "audit:read:tenant",
     "break_glass:approve:tenant",
+    // EoD
+    "shift:open:branch",
+    "shift:close:branch",
+    "shift:read:branch",
   ],
   DOCTOR: [
     "patient:read:branch",
@@ -94,7 +108,9 @@ const ROLE_MATRIX: Record<string, string[]> = {
     // Doctors run the visit lifecycle (start exam / close case) and may
     // create invoice + accept payment in single-doctor practices.
     "appointment:write:branch",
+    "payment:read:branch",
     "payment:write:branch",
+    "order:read:branch",
     "order:write:branch",
     "procedure:perform:branch",
     "resource:read:branch",
@@ -105,8 +121,13 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "patient:read:branch",
     "emr:read:branch",
     "appointment:read:branch",
-    // Nurses send patients in/out of exam rooms (visit start/complete).
+    // Nurses send patients in/out of exam rooms (visit start/complete) and
+    // execute procedures the doctor ordered — so they must READ orders to know
+    // what to start/complete, but cannot CREATE orders. Read payment status
+    // so they know the visit is settled before discharging the patient.
     "appointment:write:branch",
+    "order:read:branch",
+    "payment:read:branch",
     "procedure:perform:branch",
     "inventory:read:branch",
     "resource:read:branch",
@@ -117,13 +138,23 @@ const ROLE_MATRIX: Record<string, string[]> = {
     "patient:write:branch",
     "appointment:read:branch",
     "appointment:write:branch",
+    "payment:read:branch",
     "payment:write:branch",
+    // Reception needs to see orders to bill the visit at check-out.
+    "order:read:branch",
     "resource:read:branch",
     "resource:release:branch",
+    // Reception opens/closes their cash drawer at start/end of shift; manager
+    // still owns gateway settle + variance reconcile.
+    "shift:open:branch",
+    "shift:close:branch",
+    "shift:read:branch",
   ],
   PHARMACIST: [
     "patient:read:branch",
     "pharmacy:dispense:branch",
+    // Pharmacist needs to verify invoice is paid before handing out medication.
+    "payment:read:branch",
     "inventory:read:branch",
     "inventory:write:branch",
   ],
@@ -539,7 +570,7 @@ async function main() {
   // ----- Sample Patient -----
   await prisma.patient.upsert({
     where: { tenantId_hn: { tenantId: tenant.id, hn: "HN-0000001" } },
-    update: {},
+    update: { lineUserId: "U_demo_line_0000001" },
     create: {
       tenantId: tenant.id,
       hn: "HN-0000001",
@@ -548,10 +579,11 @@ async function main() {
       gender: "FEMALE",
       dob: new Date("1990-05-15"),
       homeBranchId: branches[0]!.id,
+      lineUserId: "U_demo_line_0000001",
       status: "ACTIVE",
     },
   });
-  console.log(`  ✓ Demo Patient: HN-0000001`);
+  console.log(`  ✓ Demo Patient: HN-0000001 (LINE: U_demo_line_0000001)`);
 
   console.log("✅ Seed complete.");
 }

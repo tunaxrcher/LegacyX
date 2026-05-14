@@ -5,6 +5,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone",
   experimental: {
     // Allow Server Actions through the Windsurf / IDE browser-preview proxy
     // (random 127.0.0.1:<port>) and direct localhost in dev.
