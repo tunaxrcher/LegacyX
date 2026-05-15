@@ -3,6 +3,9 @@ export type ProviderRecipient = {
   ref: string;
   /** Optional display name (for logging). */
   name?: string;
+  /** Optional patient id (used by the dispatcher to write back delivery
+   *  state — e.g. `lineFriendStatus = BLOCKED` after a 403). */
+  patientId?: string;
 };
 
 export type ProviderMessage = {
@@ -19,10 +22,16 @@ export type ProviderMessage = {
 export type SendResult = {
   ok: true;
   providerRef: string;
+  /** Channel-specific status hint surfaced back to the dispatcher
+   *  (e.g. `friend: true` after a successful LINE push). */
+  channelStatus?: Record<string, unknown>;
 } | {
   ok: false;
   error: string;
   retryable: boolean;
+  /** Same idea on the error path — e.g. `{ friend: false }` when LINE
+   *  returns 403 "you can't send messages to this user". */
+  channelStatus?: Record<string, unknown>;
 };
 
 export type NotificationProvider = {

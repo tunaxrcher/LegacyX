@@ -79,12 +79,30 @@ Each entry: **emitter → consumers** + payload contract (TypeScript-style).
 ```
 
 #### `appointment.cancelled` (v1) / `appointment.rescheduled` (v1)
+- **Emitter**: `api-server` (`cancelAppointment` / `rescheduleAppointment`)
+- **Consumers (cancelled)**: `worker-engine` notification handler →
+  inserts `appointment.cancelled` template **and** suppresses any
+  pending `appointment.reminder` rows for the same `appointment_id`
+  (status → FAILED, `lastError="appointment.cancelled — reminder
+  suppressed"`).
+- **Reminder cron contract**: appointment reminders are NOT
+  event-driven — `apps/worker-engine/src/cron/appointment-reminder.ts`
+  scans `Appointment.scheduledAt` against
+  `APPOINTMENT_REMINDER_OFFSETS_MIN` (default `"15"`) and dedupes via
+  JSON path filter on `payload.{appointment_id, minutes_before}`.
+  Rationale: a delayed BullMQ job can't un-schedule itself when an
+  appointment is later cancelled or rescheduled; DB-scan handles it
+  intrinsically.
 ```ts
 { appointment_id, reason?, new_scheduled_at? }
 ```
 
 #### `visit.checked_in` (v1)
 - **Triggers**: Resource Engine prepares room/bed; clinical-pad opens session
+- **Consumers**: `worker-engine` notification handler →
+  `visit-checked-in.handler.ts` looks up branch + assigned
+  room/doctor (`ResourceReservation.appointmentId`) and inserts a
+  `visit.checkedin` notification with those fields in the payload.
 ```ts
 { visit_id, appointment_id?, patient_id, branch_id, checked_in_at }
 ```

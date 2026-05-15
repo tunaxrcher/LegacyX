@@ -5,6 +5,10 @@ import { redis } from "./redis";
 import { dispatchTick, NOTIFICATION_TICK_MS } from "./notification/dispatcher";
 import { runCrmCron, CRM_CRON_TICK_MS } from "./cron/crm-cron";
 import {
+  runAppointmentReminderTick,
+  REMINDER_TICK_MS,
+} from "./cron/appointment-reminder";
+import {
   startMetricsServer,
   stopMetricsServer,
   queueDepth,
@@ -72,10 +76,34 @@ async function main() {
     "CRM cron started",
   );
 
+  // Phase 8.2 — Appointment reminder tick. Scans upcoming appointments and
+  // enqueues `appointment.reminder` rows N minutes before scheduled time
+  // (configurable list via APPOINTMENT_REMINDER_OFFSETS_MIN).
+  //
+  // We fire ONCE immediately on boot to cover the worst case where the
+  // worker restarted seconds before an appointment falls inside a reminder
+  // window. Subsequent ticks are driven by setInterval at the configured
+  // cadence. (setInterval defers the first call by `tickMs` ms — without
+  // this catch-up tick we'd miss anything currently inside the window.)
+  void runAppointmentReminderTick().catch((err) =>
+    logger.error({ err, component: "appointment-reminder" }, "boot tick error"),
+  );
+  const reminderTimer = setInterval(() => {
+    void runAppointmentReminderTick().catch((err) =>
+      logger.error({ err, component: "appointment-reminder" }, "tick error"),
+    );
+  }, REMINDER_TICK_MS);
+  reminderTimer.unref();
+  logger.info(
+    { component: "appointment-reminder", tickMs: REMINDER_TICK_MS },
+    "Appointment reminder cron started",
+  );
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "shutting down");
     clearInterval(notifTimer);
     clearInterval(cronTimer);
+    clearInterval(reminderTimer);
     clearInterval(metricsTimer);
     stopRelay();
     await worker.close();

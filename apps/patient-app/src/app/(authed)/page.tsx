@@ -4,12 +4,15 @@ import { getTranslations, getLocale } from "next-intl/server";
 import {
   ChevronRight,
   HeartPulse,
+  LogIn,
   ShieldCheck,
   Sparkles,
   Stethoscope,
   type LucideIcon,
 } from "lucide-react";
-import { getPatientSession } from "@/lib/session";
+import { getPatientSession, type PatientSession } from "@/lib/session";
+import { patientJson } from "@/lib/api";
+import { LineSection } from "./profile/LineSection";
 
 type Category = {
   id: string;
@@ -21,7 +24,31 @@ type Category = {
   image_url: string | null;
 };
 
+type ProfileLineSummary = {
+  line_linked: boolean;
+  line_display_name: string | null;
+  line_picture_url: string | null;
+  line_linked_at: string | null;
+  line_notifications_opt_in: boolean;
+  line_friend_status: "UNKNOWN" | "FRIEND" | "BLOCKED";
+};
+
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
+
+/** Lightweight profile fetch for the home strip — only the LINE fields. */
+async function getLineSummary(
+  session: PatientSession,
+): Promise<ProfileLineSummary | null> {
+  try {
+    const res = await patientJson<{ data: ProfileLineSummary }>(
+      session,
+      "/api/v1/patient/me",
+    );
+    return res.data;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Visual identity for each category card.
@@ -58,6 +85,7 @@ export default async function WelcomePage() {
   const session = getPatientSession();
   const t = await getTranslations("welcome");
   const tApp = await getTranslations("app");
+  const tLogin = await getTranslations("login");
   const locale = await getLocale();
 
   let categories: Category[] = [];
@@ -74,8 +102,27 @@ export default async function WelcomePage() {
     /* render empty state */
   }
 
+  // For logged-in patients we look up their LINE state — drives both the
+  // avatar in the welcome-back strip and whether to nudge them to link
+  // LINE here on the home screen.
+  const lineSummary = session ? await getLineSummary(session) : null;
+  const lineLinked = !!lineSummary?.line_linked;
+
   return (
-    <main className="px-4 pt-8 pb-6 animate-fade-in">
+    <main className="px-4 pt-4 pb-6 animate-fade-in">
+      {/* Top utility row — Sign in CTA for guests, spacer otherwise */}
+      <div className="mb-2 flex items-center justify-end min-h-[28px]">
+        {!session ? (
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-4 py-1.5 text-xs font-semibold shadow-soft active:scale-[0.98] transition"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            {tLogin("phone_title")}
+          </Link>
+        ) : null}
+      </div>
+
       {/* Trust badge */}
       <div className="flex justify-center mb-4">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em]">
@@ -102,16 +149,31 @@ export default async function WelcomePage() {
       {/* Personalised strip when logged in */}
       {session ? (
         <div className="mb-5 rounded-2xl bg-card border p-3.5 flex items-center justify-between shadow-soft">
-          <div className="min-w-0">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-              {t("welcome_back")}
-            </p>
-            <p className="text-sm font-semibold truncate">
-              {session.patient.first_name} {session.patient.last_name}{" "}
-              <span className="text-muted-foreground text-xs font-normal">
-                ({session.patient.hn})
-              </span>
-            </p>
+          <div className="flex items-center gap-3 min-w-0">
+            {lineLinked && lineSummary?.line_picture_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={lineSummary.line_picture_url}
+                alt={lineSummary.line_display_name ?? "LINE"}
+                className="h-10 w-10 rounded-full object-cover ring-2 ring-[#06C755]/40 shrink-0"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-primary-gradient text-white inline-flex items-center justify-center text-sm font-semibold shrink-0">
+                {(session.patient.first_name?.[0] ?? "").toUpperCase()}
+                {(session.patient.last_name?.[0] ?? "").toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {t("welcome_back")}
+              </p>
+              <p className="text-sm font-semibold truncate">
+                {session.patient.first_name} {session.patient.last_name}{" "}
+                <span className="text-muted-foreground text-xs font-normal">
+                  ({session.patient.hn})
+                </span>
+              </p>
+            </div>
           </div>
           <Link
             href="/profile"
@@ -119,6 +181,23 @@ export default async function WelcomePage() {
           >
             {t("view_profile")} <ChevronRight className="h-3.5 w-3.5" />
           </Link>
+        </div>
+      ) : null}
+
+      {/* LINE binding nudge — only when logged in AND not yet linked. Once
+          linked the section disappears from the home screen and the patient
+          manages it from /profile. */}
+      {session && lineSummary && !lineLinked ? (
+        <div className="mb-5">
+          <LineSection
+            initialLinked={false}
+            initialDisplayName={null}
+            initialPictureUrl={null}
+            initialLinkedAt={null}
+            initialOptIn={lineSummary.line_notifications_opt_in}
+            initialFriendStatus={lineSummary.line_friend_status}
+            addFriendUrl={process.env.NEXT_PUBLIC_LINE_OA_ADD_FRIEND_URL}
+          />
         </div>
       ) : null}
 

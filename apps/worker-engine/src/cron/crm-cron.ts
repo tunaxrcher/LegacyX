@@ -67,9 +67,18 @@ async function enqueueIfNew(opts: {
 }
 
 function patientHasChannel(
-  patient: { lineUserId: string | null; phoneEnc: string | null; emailEnc: string | null },
+  patient: {
+    lineUserId: string | null;
+    lineNotificationsOptIn?: boolean;
+    phoneEnc: string | null;
+    emailEnc: string | null;
+  },
 ): "LINE" | "SMS" | "EMAIL" | null {
-  if (patient.lineUserId) return "LINE";
+  // Prefer LINE iff bound AND opted-in. Patient opted out → fall through so
+  // we still reach them via SMS/EMAIL (more useful than dropping the alert).
+  if (patient.lineUserId && patient.lineNotificationsOptIn !== false) {
+    return "LINE";
+  }
   if (patient.emailEnc) return "EMAIL";
   if (patient.phoneEnc) return "SMS";
   return null;
@@ -104,6 +113,7 @@ async function jobReviewRequestD3(): Promise<number> {
         select: {
           id: true,
           lineUserId: true,
+          lineNotificationsOptIn: true,
           phoneEnc: true,
           emailEnc: true,
         },
@@ -158,6 +168,7 @@ async function jobRebookingReminder(): Promise<number> {
         select: {
           id: true,
           lineUserId: true,
+          lineNotificationsOptIn: true,
           phoneEnc: true,
           emailEnc: true,
         },
@@ -232,6 +243,7 @@ async function jobWalletExpiring(): Promise<number> {
       select: {
         id: true,
         lineUserId: true,
+        lineNotificationsOptIn: true,
         phoneEnc: true,
         emailEnc: true,
       },
@@ -293,6 +305,7 @@ async function jobBirthdayBonus(): Promise<number> {
       homeBranchId: true,
       dob: true,
       lineUserId: true,
+      lineNotificationsOptIn: true,
       phoneEnc: true,
       emailEnc: true,
     },
@@ -322,6 +335,102 @@ async function jobBirthdayBonus(): Promise<number> {
 }
 
 // ============================================================================
+// Job 5 — Aftercare 24h (procedure completed ~24h ago)
+// ============================================================================
+/**
+ * For each `Procedure` completed roughly 24h ago (window [now-25h, now-23h]),
+ * enqueue a `procedure.aftercare` LINE/SMS/EMAIL message — but only if we
+ * haven't already sent one for the SAME procedure_id (JSON dedupe).
+ *
+ * Why per-procedure (not per-visit): a visit can have multiple procedures
+ * with different aftercare instructions; we want a separate message per
+ * procedure so each can carry its own copy. We dedupe by procedure_id (not
+ * patient_id) for the same reason.
+ */
+async function jobAftercare24h(): Promise<number> {
+  const now = Date.now();
+  const start = new Date(now - 25 * 60 * 60 * 1000);
+  const end = new Date(now - 23 * 60 * 60 * 1000);
+
+  const procs = await prisma.procedure.findMany({
+    where: {
+      status: "COMPLETED",
+      completedAt: { gte: start, lt: end },
+    },
+    take: 200,
+    select: {
+      id: true,
+      tenantId: true,
+      branchId: true,
+      patientId: true,
+      procedureCode: true,
+      completedAt: true,
+    },
+  });
+  if (procs.length === 0) return 0;
+
+  // Procedure → Patient is not a Prisma relation; fetch in one batch.
+  const patientIds = Array.from(new Set(procs.map((p) => p.patientId)));
+  const patients = await prisma.patient.findMany({
+    where: { id: { in: patientIds }, deletedAt: null },
+    select: {
+      id: true,
+      lineUserId: true,
+      lineNotificationsOptIn: true,
+      phoneEnc: true,
+      emailEnc: true,
+    },
+  });
+  const patientMap = new Map(patients.map((pt) => [pt.id, pt]));
+
+  let enqueued = 0;
+  for (const p of procs) {
+    const patient = patientMap.get(p.patientId);
+    if (!patient) continue;
+    const channel = patientHasChannel(patient);
+    if (!channel) continue;
+
+    // Dedupe per procedure_id (NOT per patient — a patient may have multiple
+    // procedures in the same visit and we want a message for each).
+    const already = await prisma.notificationLog.findFirst({
+      where: {
+        tenantId: p.tenantId,
+        templateCode: "procedure.aftercare",
+        AND: [
+          {
+            payload: {
+              path: "$.procedure_id",
+              equals: p.id,
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    if (already) continue;
+
+    await prisma.notificationLog.create({
+      data: {
+        tenantId: p.tenantId,
+        branchId: p.branchId,
+        channel,
+        templateCode: "procedure.aftercare",
+        recipientRef: p.patientId,
+        payload: {
+          procedure_id: p.id,
+          procedure_code: p.procedureCode,
+          completed_at: p.completedAt?.toISOString() ?? null,
+          locale: "th",
+        },
+        status: "PENDING",
+      },
+    });
+    enqueued++;
+  }
+  return enqueued;
+}
+
+// ============================================================================
 // Orchestrator
 // ============================================================================
 async function runJob(name: string, fn: () => Promise<number>): Promise<number> {
@@ -342,14 +451,16 @@ export async function runCrmCron(): Promise<{
   rebooking: number;
   wallet: number;
   birthday: number;
+  aftercare: number;
 }> {
   log.info({}, "CRM cron tick");
-  const [review, rebooking, wallet, birthday] = await Promise.all([
+  const [review, rebooking, wallet, birthday, aftercare] = await Promise.all([
     runJob("review", jobReviewRequestD3),
     runJob("rebooking", jobRebookingReminder),
     runJob("wallet", jobWalletExpiring),
     runJob("birthday", jobBirthdayBonus),
+    runJob("aftercare", jobAftercare24h),
   ]);
-  log.info({ review, rebooking, wallet, birthday }, "CRM cron done");
-  return { review, rebooking, wallet, birthday };
+  log.info({ review, rebooking, wallet, birthday, aftercare }, "CRM cron done");
+  return { review, rebooking, wallet, birthday, aftercare };
 }

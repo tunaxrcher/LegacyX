@@ -107,15 +107,33 @@
 
 ## 5. High notification failure rate
 
-**Symptom** — `legacyx_worker_notifications_sent_total{status="failed"}` climbing.
+**Symptom** — `legacyx_worker_notifications_sent_total{status="failed"}` climbing,
+or new rows showing up in `/dlq` filtered by `queue_name=notification-dispatcher`.
 
 **Verify**
-1. `/manager/notifications` UI → filter by FAILED status, check the error column.
-2. Common causes: provider rate-limit, phone-number country-mismatch, LINE OA bot kicked from group.
+1. `/manager/notifications` UI → filter by FAILED status, check `last_error`.
+2. `/dlq` → filter `queue_name=notification-dispatcher` (failed notifications
+   now synthesise a DLQ row so they appear here alongside BullMQ failures).
+3. If `last_error` contains `Could not resolve LINE recipient`:
+   check `Patient.lineUserId` is non-null **AND**
+   `Patient.lineNotificationsOptIn !== false`. If both look fine but
+   `provider_ref` starts with `console:` → the dispatcher is using the
+   console (dev) provider; set `NOTIFICATION_LINE_PROVIDER="line-messaging-api"`
+   in env and restart the worker.
+4. If `last_error` contains a LINE 403 → patient blocked the OA;
+   `Patient.lineFriendStatus = "BLOCKED"` is set by the provider. The
+   patient-app banner asks them to re-add the OA.
+5. Common other causes: provider rate-limit (429), phone-number
+   country-mismatch (SMS), SendGrid bounce.
 
 **Mitigate**
 - Per-channel: bump retry budget in env `NOTIFICATION_RETRY_LIMIT` (default 3).
-- LINE: re-add the bot to the patient's friend list (manual escalation to Reception).
+- LINE OA blocked → only the patient can re-add; nothing to do server-side.
+- Provider mis-configured → see [`docs/NOTIFICATIONS.md`](./NOTIFICATIONS.md)
+  § 9 "Common pitfalls" for the full troubleshooting matrix.
+- To manually re-queue a single row: `UPDATE notification_log SET
+  status='PENDING', attempt=0, last_error=NULL WHERE id='…'` — the next
+  dispatcher tick picks it up.
 
 ---
 

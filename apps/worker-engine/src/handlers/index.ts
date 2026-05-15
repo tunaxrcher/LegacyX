@@ -9,6 +9,8 @@ import { inventoryReconciledHandler } from "./inventory-reconciled.handler";
 import { consentSignedHandler } from "./consent-signed.handler";
 import { documentGeneratedHandler } from "./document-generated.handler";
 import { labResultedHandler } from "./lab-resulted.handler";
+import { visitCheckedInHandler } from "./visit-checked-in.handler";
+import { appointmentCancelledHandler } from "./appointment-cancelled.handler";
 
 const all: Handler[] = [
   appointmentCreatedHandler,
@@ -21,6 +23,8 @@ const all: Handler[] = [
   inventoryReconciledHandler,
   consentSignedHandler,
   labResultedHandler,
+  visitCheckedInHandler,
+  appointmentCancelledHandler,
 ];
 
 /** Map: event_name → handlers subscribed to it (multi-handler ready). */

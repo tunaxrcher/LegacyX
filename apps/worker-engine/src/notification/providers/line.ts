@@ -48,15 +48,26 @@ export const lineProvider: NotificationProvider = {
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         // 4xx are non-retryable (invalid recipient, etc.); 5xx are retryable.
+        // 403 specifically means: "user hasn't added the bot as a friend, or
+        // has blocked it" — surface that so the dispatcher can flip
+        // patient.lineFriendStatus = BLOCKED and the UI can prompt re-add.
+        const isFriendIssue =
+          res.status === 403 ||
+          /not.*friend|blocked/i.test(txt);
         return {
           ok: false,
           error: `LINE ${res.status}: ${txt.slice(0, 200)}`,
           retryable: res.status >= 500,
+          channelStatus: isFriendIssue ? { friend: false } : undefined,
         };
       }
       const requestId = res.headers.get("x-line-request-id") ?? "unknown";
       log.info({ recipient: recipient.ref, requestId }, "LINE push sent");
-      return { ok: true, providerRef: requestId };
+      return {
+        ok: true,
+        providerRef: requestId,
+        channelStatus: { friend: true },
+      };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return { ok: false, error: msg, retryable: true };

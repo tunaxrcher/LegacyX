@@ -234,29 +234,38 @@ export async function cancelAppointment(
     existing.reason ? ` · prior: ${existing.reason}` : ""
   }`;
 
-  const updated = await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: {
-      status: "CANCELLED",
-      reason: note.slice(0, 2000),
-    },
+  return writeWithOutbox(ctx, async (tx) => {
+    const updated = await tx.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: "CANCELLED",
+        reason: note.slice(0, 2000),
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        tenantId: ctx.tenantId,
+        branchId: ctx.branchId ?? null,
+        actorUserId: ctx.actor.id ?? null,
+        action: "appointment.cancel",
+        resourceType: "Appointment",
+        resourceId: appointmentId,
+        correlationId: ctx.correlationId,
+        reason: input.reason,
+        after: { status: "CANCELLED" },
+      },
+    });
+    return {
+      result: updated,
+      events: [
+        {
+          eventName: EVENT_NAMES.APPOINTMENT_CANCELLED,
+          payload: AppointmentEvents.AppointmentCancelledV1Payload.parse({
+            appointment_id: appointmentId,
+            reason: input.reason,
+          }),
+        },
+      ],
+    };
   });
-
-  // Audit log only — no `appointment.cancelled` event schema yet. Compose the
-  // reason into the row so audit viewer surfaces the why.
-  await prisma.auditLog.create({
-    data: {
-      tenantId: ctx.tenantId,
-      branchId: ctx.branchId ?? null,
-      actorUserId: ctx.actor.id ?? null,
-      action: "appointment.cancel",
-      resourceType: "Appointment",
-      resourceId: appointmentId,
-      correlationId: ctx.correlationId,
-      reason: input.reason,
-      after: { status: "CANCELLED" },
-    },
-  });
-
-  return updated;
 }

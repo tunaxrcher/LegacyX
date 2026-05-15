@@ -4,7 +4,76 @@
 > [`ARCHITECTURE.md`](./ARCHITECTURE.md). Updated at the end of each delivery
 > phase.
 
-Last updated: **Option A "เข้มเร็ว" Sprint — Runbook + Clinical Phase 1 + Partial Refund + Reports + Clinical Phase 2 delivered:**
+Last updated: **Phase J — Patient LINE binding (OAuth) + Notification expansion delivered:**
+
+- **Patient LINE binding via OAuth 2.0 + PKCE** — replaces the silent
+  LIFF-only `lineUserId` capture. Patients click **Bind LINE** on
+  `/profile`, get redirected to `access.line.me`, consent, and come back
+  with a stable `userId` plus explicit notification opt-in. New schema on
+  `Patient`: `lineUserId` (unique per tenant), `lineDisplayName`,
+  `linePictureUrl`, `lineLinkedAt`, `lineNotificationsOptIn`,
+  `lineFriendStatus` (UNKNOWN / FRIENDED / BLOCKED). New `PatientLineLinkState`
+  table holds the PKCE state for 10 min single-use. Two LINE channels now
+  required in production — Messaging API (`LINE_CHANNEL_ACCESS_TOKEN` /
+  `LINE_CHANNEL_SECRET`) for pushes, **separate** Login channel
+  (`LINE_LOGIN_CHANNEL_ID` / `LINE_LOGIN_CHANNEL_SECRET`) for OAuth.
+  Routes: `POST /api/v1/patient/me/line/link/{start,callback}` + `POST
+  /api/v1/patient/me/line/unlink` + `PATCH /api/v1/patient/me/notifications`.
+  Patient-app proxy routes at `/api/line/{start,unlink,preferences}` +
+  callback handler at `/profile/line-callback`. Bug guards:
+  `@@unique([tenantId, lineUserId])` blocks dual-bind, `state` is
+  single-use, 409 `LINE_ALREADY_BOUND` if another patient owns the id.
+  Audit rows for `line.linked` / `line.unlinked` / `line.opt_in_toggled`.
+  Rationale + trade-offs in **ADR-0008**.
+- **Notification dispatcher gains opt-in pre-check** —
+  `resolveRecipient` requires `lineNotificationsOptIn !== false` before
+  selecting LINE. CRM cron + appointment-reminder cron pre-filter on the
+  same column so the `notification_log` table stops accumulating PENDING
+  rows that will only ever fail-permanent. LINE provider returns
+  `channelStatus.friend = false` when it gets a 403, dispatcher flips
+  `Patient.lineFriendStatus = "BLOCKED"` and the patient-app shows a
+  re-add-OA banner.
+- **Appointment reminders (T-N minutes)** — new
+  `apps/worker-engine/src/cron/appointment-reminder.ts` ticks every
+  `APPOINTMENT_REMINDER_TICK_MS` (default 60s), scans appointments in a
+  `[NOW + offset − halfTick, NOW + offset + halfTick]` window, and
+  inserts a `NotificationLog` row with template `appointment.reminder`.
+  Multiple offsets supported via `APPOINTMENT_REMINDER_OFFSETS_MIN`
+  (e.g. `"1440,60,15"` = day-ahead + 1h + 15min). Idempotent via JSON
+  path filter on `payload.appointment_id` × `payload.minutes_before`.
+  `runAppointmentReminderTick()` also fires once on worker boot so a
+  restart doesn't skip a tick.
+- **Check-in confirmation** — new `visit-checked-in.handler.ts`
+  consumes `visit.checked_in` events; looks up branch + assigned
+  room/doctor via `ResourceReservation.appointmentId` and emits the
+  new `visit.checkedin` template ("เช็คอินเรียบร้อย — สาขา X, ห้อง Y,
+  แพทย์ Z").
+- **Appointment cancellation notice + reminder suppression** —
+  `cancelAppointment` now emits `appointment.cancelled` via
+  `writeWithOutbox`. New handler sends the
+  `appointment.cancelled` template AND runs `updateMany` on any
+  PENDING `appointment.reminder` rows for that appointment id
+  (status → FAILED, `lastError = "appointment.cancelled — reminder
+  suppressed"`) so the patient never gets a 15-min ping for a slot
+  they were just told is dead.
+- **24h aftercare** — new `jobAftercare24h` in `crm-cron.ts` scans
+  procedures completed 23–25h ago, dedupes by `payload.procedure_id`
+  via JSON path filter, inserts `procedure.aftercare` template (generic
+  post-treatment advice for now; `payload.procedure_code` lets us swap
+  in per-procedure copy later).
+- **Notification failure → DLQ row** — when the dispatcher
+  permanently FAILS a row, it now also writes a `dead_letter` row
+  with `queueName="notification-dispatcher"` so notification failures
+  show up in `/dlq` alongside BullMQ failures. Operators get a single
+  pane of glass.
+- **Single-source documentation** — new `docs/NOTIFICATIONS.md`
+  catalogues every template, trigger, and channel; explains the
+  event-vs-cron decision tree and the JSON path filter idempotency
+  pattern; lists the 7 most common pitfalls with fixes. **ADR-0008**
+  documents the OAuth-not-LIFF decision + schema additions + open
+  questions.
+
+Earlier: **Option A "เข้มเร็ว" Sprint — Runbook + Clinical Phase 1 + Partial Refund + Reports + Clinical Phase 2 delivered:**
 
 - **Operations runbook (`docs/RUNBOOK.md`)** — single-page SRE reference covering DLQ depth alarm, worker hang, OTP miss, DB restore + DR drill SLA (RTO 2h), notification failure, promo abuse, PDPA/DSR (30-day deadline), missed e-Tax export, on-call escalation tree (L1→L4), and SQL one-liners for outbox lag / stuck handler / audit-log tail.
 - **Clinical safety net Phase 1 — Drug-allergy alert.** Allergies upgraded from free-text JSON array to a structured `AllergyRecord` schema (substance + DRUG/FOOD/ENVIRONMENTAL/OTHER + MILD/MODERATE/SEVERE/LIFE_THREATENING + reaction + note + audit fields). New `apps/api-server/src/modules/allergy/allergy.service.ts` with `addAllergy` / `removeAllergy` / `listAllergies` / `assertNoAllergyConflict` (case-insensitive substring match against `Product.attributes.activeIngredients`, fail-closed at the order layer). Hooked into `createOrder` — MEDICATION lines are checked, conflict throws structured 409 with `details.kind = "ALLERGY_CONFLICT"` + per-pair conflicts; UI catches via new `clientApi.ApiError` shape and pops `<AllergyAlertDialog>` (life-threatening = red border, otherwise warning) which collects an explicit acknowledgement; re-submit with `acknowledged_allergy_ids` resumes the order and writes one `allergy.override` audit row per overridden allergy. New patient detail card replaces the old free-text list with structured display + add/remove. Routes: `GET/POST /api/v1/patients/[id]/allergies`, `DELETE /api/v1/patients/[id]/allergies/[allergyId]`. Bilingual i18n (TH/EN) for all severity / category labels.

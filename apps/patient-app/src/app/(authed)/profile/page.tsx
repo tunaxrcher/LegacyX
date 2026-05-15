@@ -1,33 +1,20 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import {
-  AtSign,
-  CalendarDays,
-  Droplet,
-  HeartPulse,
-  LogOut,
-  MapPin,
-  PhoneCall,
-  User as UserIcon,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
 import { patientJson } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { patientLogoutAction } from "../../actions";
+import { LineSection } from "./LineSection";
+import { ProfileEditor, type EditableProfile } from "./ProfileEditor";
 
-type Profile = {
-  hn: string;
-  first_name: string;
-  last_name: string;
-  nickname?: string;
-  dob: string | null;
-  gender: string | null;
-  phone?: string;
-  email?: string;
-  blood_type: string | null;
-  allergies: unknown;
-  home_branch_id: string | null;
+type Profile = EditableProfile & {
   line_linked: boolean;
+  line_display_name: string | null;
+  line_picture_url: string | null;
+  line_linked_at: string | null;
+  line_notifications_opt_in: boolean;
+  line_friend_status: "UNKNOWN" | "FRIEND" | "BLOCKED";
   member_since: string;
 };
 
@@ -39,75 +26,87 @@ export default async function ProfilePage() {
 
   let profile: Profile | null = null;
   try {
-    const res = await patientJson<{ data: Profile }>(session, "/api/v1/patient/me");
+    const res = await patientJson<{ data: Profile }>(
+      session,
+      "/api/v1/patient/me",
+    );
     profile = res.data;
   } catch {
     /* fallthrough */
   }
 
+  const initialEditable: EditableProfile = {
+    hn: profile?.hn ?? session.patient.hn,
+    first_name: profile?.first_name ?? session.patient.first_name,
+    last_name: profile?.last_name ?? session.patient.last_name,
+    nickname: profile?.nickname ?? null,
+    dob: profile?.dob ?? null,
+    gender: profile?.gender ?? null,
+    phone: profile?.phone ?? null,
+    email: profile?.email ?? null,
+    blood_type: profile?.blood_type ?? null,
+    allergies: profile?.allergies ?? [],
+    home_branch_id: profile?.home_branch_id ?? null,
+    home_branch_name: profile?.home_branch_name ?? null,
+  };
+
+  const lineLinked = !!profile?.line_linked;
+  const linePictureUrl = profile?.line_picture_url ?? null;
+
   return (
     <>
       <PageHeader title={t("title")} />
       <main className="px-4 pt-4 pb-4 space-y-4 animate-fade-in">
-        {/* Header card */}
+        {/* Header card — avatar + name. Avatar uses the LINE picture when
+            the patient has linked LINE; otherwise we fall back to initials. */}
         <section className="rounded-2xl border bg-card p-5 shadow-soft flex items-center gap-4">
-          <div className="h-14 w-14 rounded-full bg-primary-gradient text-white inline-flex items-center justify-center text-lg font-semibold">
-            {(profile?.first_name ?? session.patient.first_name)[0]}
-            {(profile?.last_name ?? session.patient.last_name)[0]}
-          </div>
+          {lineLinked && linePictureUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={linePictureUrl}
+              alt={profile?.line_display_name ?? "LINE"}
+              className="h-14 w-14 rounded-full object-cover ring-2 ring-[#06C755]/40"
+            />
+          ) : (
+            <div className="h-14 w-14 rounded-full bg-primary-gradient text-white inline-flex items-center justify-center text-lg font-semibold">
+              {(initialEditable.first_name[0] ?? "").toUpperCase()}
+              {(initialEditable.last_name[0] ?? "").toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="font-semibold truncate">
-              {profile?.first_name ?? session.patient.first_name}{" "}
-              {profile?.last_name ?? session.patient.last_name}
+              {initialEditable.first_name} {initialEditable.last_name}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              HN: {profile?.hn ?? session.patient.hn}
+              HN: {initialEditable.hn}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              {profile?.line_linked ? t("line_linked") : t("line_not_linked")}
+              {lineLinked ? t("line_linked") : t("line_not_linked")}
             </p>
           </div>
         </section>
 
-        {/* Fields */}
-        <section className="rounded-2xl border bg-card shadow-soft divide-y">
-          <Row icon={<UserIcon />} label={t("gender")} value={profile?.gender ?? "—"} />
-          <Row
-            icon={<CalendarDays />}
-            label={t("dob")}
-            value={profile?.dob ? new Date(profile.dob).toLocaleDateString() : "—"}
-          />
-          <Row icon={<PhoneCall />} label={t("phone")} value={profile?.phone ?? "—"} />
-          <Row icon={<AtSign />} label={t("email")} value={profile?.email ?? "—"} />
-          <Row
-            icon={<Droplet />}
-            label={t("blood_type")}
-            value={profile?.blood_type ?? "—"}
-          />
-          <Row
-            icon={<HeartPulse />}
-            label={t("allergies")}
-            value={
-              Array.isArray(profile?.allergies) && profile!.allergies!.length
-                ? (profile!.allergies as string[]).join(", ")
-                : "—"
-            }
-          />
-          <Row
-            icon={<MapPin />}
-            label={t("home_branch")}
-            value={profile?.home_branch_id ?? "—"}
-          />
-          <Row
-            icon={<CalendarDays />}
-            label={t("member_since")}
-            value={
-              profile?.member_since
-                ? new Date(profile.member_since).toLocaleDateString()
-                : "—"
-            }
-          />
-        </section>
+        {/* Editable personal details */}
+        <ProfileEditor initial={initialEditable} />
+
+        {/* Member since (read-only — internal accounting field) */}
+        {profile?.member_since && (
+          <p className="text-[11px] text-muted-foreground text-center">
+            {t("member_since")}:{" "}
+            {new Date(profile.member_since).toLocaleDateString()}
+          </p>
+        )}
+
+        {/* LINE binding */}
+        <LineSection
+          initialLinked={profile?.line_linked ?? false}
+          initialDisplayName={profile?.line_display_name ?? null}
+          initialPictureUrl={profile?.line_picture_url ?? null}
+          initialLinkedAt={profile?.line_linked_at ?? null}
+          initialOptIn={profile?.line_notifications_opt_in ?? true}
+          initialFriendStatus={profile?.line_friend_status ?? "UNKNOWN"}
+          addFriendUrl={process.env.NEXT_PUBLIC_LINE_OA_ADD_FRIEND_URL}
+        />
 
         {/* Logout */}
         <form action={patientLogoutAction}>
@@ -121,29 +120,5 @@ export default async function ProfilePage() {
         </form>
       </main>
     </>
-  );
-}
-
-function Row({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <span className="h-8 w-8 rounded-full bg-accent text-accent-foreground inline-flex items-center justify-center [&_svg]:h-4 [&_svg]:w-4">
-        {icon}
-      </span>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <p className="text-sm truncate">{value}</p>
-      </div>
-    </div>
   );
 }

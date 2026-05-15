@@ -195,6 +195,11 @@ CREATE TABLE `patients` (
     `chronic_conditions` JSON NULL,
     `home_branch_id` VARCHAR(191) NULL,
     `line_user_id` VARCHAR(191) NULL,
+    `line_display_name` VARCHAR(191) NULL,
+    `line_picture_url` TEXT NULL,
+    `line_linked_at` DATETIME(3) NULL,
+    `line_notifications_opt_in` BOOLEAN NOT NULL DEFAULT true,
+    `line_friend_status` ENUM('UNKNOWN', 'FRIEND', 'BLOCKED') NOT NULL DEFAULT 'UNKNOWN',
     `kyc_image_url` VARCHAR(191) NULL,
     `verification_status` ENUM('UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED') NOT NULL DEFAULT 'UNVERIFIED',
     `phone_hash` VARCHAR(191) NULL,
@@ -205,10 +210,26 @@ CREATE TABLE `patients` (
     `deleted_at` DATETIME(3) NULL,
 
     INDEX `patients_tenant_id_last_name_first_name_idx`(`tenant_id`, `last_name`, `first_name`),
-    INDEX `patients_tenant_id_line_user_id_idx`(`tenant_id`, `line_user_id`),
     INDEX `patients_tenant_id_phone_hash_idx`(`tenant_id`, `phone_hash`),
     UNIQUE INDEX `patients_tenant_id_hn_key`(`tenant_id`, `hn`),
+    UNIQUE INDEX `patients_tenant_id_line_user_id_key`(`tenant_id`, `line_user_id`),
     PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `patient_line_link_states` (
+    `state` VARCHAR(191) NOT NULL,
+    `tenant_id` VARCHAR(191) NOT NULL,
+    `patient_id` VARCHAR(191) NOT NULL,
+    `code_verifier` TEXT NOT NULL,
+    `redirect_uri` TEXT NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `expires_at` DATETIME(3) NOT NULL,
+    `consumed_at` DATETIME(3) NULL,
+
+    INDEX `patient_line_link_states_expires_at_idx`(`expires_at`),
+    INDEX `patient_line_link_states_patient_id_idx`(`patient_id`),
+    PRIMARY KEY (`state`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable

@@ -56,6 +56,7 @@ async function resolveRecipient(
       firstName: true,
       lastName: true,
       lineUserId: true,
+      lineNotificationsOptIn: true,
       phoneEnc: true,
       emailEnc: true,
     },
@@ -65,7 +66,9 @@ async function resolveRecipient(
 
   if (channel === "LINE") {
     if (!patient.lineUserId) return null;
-    return { ref: patient.lineUserId, name };
+    // Patient explicitly opted out — skip; dispatcher will fail-permanent.
+    if (!patient.lineNotificationsOptIn) return null;
+    return { ref: patient.lineUserId, name, patientId: patient.id };
   }
   if (channel === "SMS") {
     if (!patient.phoneEnc) return null;
@@ -170,6 +173,22 @@ async function processOne(rowId: string) {
   const message = renderTemplate(row.templateCode, payload, pickLocale(payload));
   const result = await provider.send(recipient, message);
 
+  // LINE-specific: write the friend-state hint back to the patient row so the
+  // UI can prompt the patient to re-add the OA as a friend.
+  if (channel === "LINE" && recipient.patientId) {
+    const hint = result.channelStatus;
+    if (hint && typeof hint.friend === "boolean") {
+      try {
+        await prisma.patient.update({
+          where: { id: recipient.patientId },
+          data: { lineFriendStatus: hint.friend ? "FRIEND" : "BLOCKED" },
+        });
+      } catch (err) {
+        log.warn({ err, patient: recipient.patientId }, "friend-status update failed");
+      }
+    }
+  }
+
   if (result.ok) {
     await prisma.notificationLog.update({
       where: { id: row.id },
@@ -212,6 +231,36 @@ async function processOne(rowId: string) {
       { row: row.id, channel, err: result.error },
       "notification permanently failed",
     );
+
+    // Surface the failure in /dlq so operators see it. Notification
+    // failures are NOT BullMQ-driven so they bypass the regular DLQ
+    // path — we synthesise a row here using the NotificationLog id as
+    // event_id (unique, non-replayable). `queue_name` distinguishes
+    // these from BullMQ failures for filtering.
+    try {
+      await prisma.deadLetter.create({
+        data: {
+          tenantId: row.tenantId,
+          queueName: "notification-dispatcher",
+          eventName: row.templateCode,
+          eventId: row.id,
+          payload: row.payload as object,
+          metadata: {
+            channel,
+            recipient_ref: row.recipientRef,
+            attempts: row.attempt + 1,
+          } as object,
+          error: result.error.slice(0, 1000),
+          attempts: row.attempt + 1,
+          status: "NEW",
+        },
+      });
+    } catch (err) {
+      log.warn(
+        { err, row: row.id },
+        "failed to write notification DLQ row",
+      );
+    }
   }
 }
 

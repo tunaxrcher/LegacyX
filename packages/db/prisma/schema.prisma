@@ -263,7 +263,24 @@ model Patient {
   allergies     Json?
   chronicConditions Json? @map("chronic_conditions")
   homeBranchId  String?   @map("home_branch_id")
-  lineUserId    String?   @map("line_user_id")
+
+  // ── LINE binding (patient-app self-link via LINE Login OAuth 2.0). The
+  //    Messaging API can only push to LINE userIds we explicitly bind to a
+  //    Patient row. `lineUserId` is uniquely scoped per tenant so the same
+  //    LINE account can legitimately register at multiple clinics. NULL is
+  //    allowed (and MySQL permits multiple NULLs in a UNIQUE column).
+  lineUserId             String?   @map("line_user_id")
+  lineDisplayName        String?   @map("line_display_name")
+  linePictureUrl         String?   @map("line_picture_url") @db.Text
+  lineLinkedAt           DateTime? @map("line_linked_at")
+  /// Patient-level opt-out toggle. Kept separate from lineUserId so unlink
+  /// and "stop sending" are different intents (PDPA: explicit consent).
+  lineNotificationsOptIn Boolean   @default(true) @map("line_notifications_opt_in")
+  /// Cached state of LINE OA friendship: BLOCKED = last push returned 403
+  /// ("you can't send messages to this user"), so the UI must prompt the
+  /// patient to re-add the bot as a friend before retrying.
+  lineFriendStatus       LineFriendStatus @default(UNKNOWN) @map("line_friend_status")
+
   // KYC artefact captured at first guest booking (uploaded ID card photo).
   // Stored as opaque ref (e.g. local path / S3 key); resolution & security
   // are handled by the storage adapter, NOT this column.
@@ -290,10 +307,41 @@ model Patient {
   photos            PatientPhoto[]
 
   @@unique([tenantId, hn])
+  // Unique scoped per-tenant: a LINE userId may only bind ONE Patient inside
+  // a tenant. Cross-tenant the same userId may bind different Patient rows
+  // (legitimate when one person uses multiple clinics).
+  @@unique([tenantId, lineUserId], map: "patients_tenant_id_line_user_id_key")
   @@index([tenantId, lastName, firstName])
-  @@index([tenantId, lineUserId])
   @@index([tenantId, phoneHash])
   @@map("patients")
+}
+
+enum LineFriendStatus {
+  UNKNOWN
+  FRIEND
+  BLOCKED
+}
+
+/// Short-lived OAuth state for the patient-app LINE Login flow.
+///
+/// One row is inserted when the patient hits POST /patient/me/line/link/start
+/// and consumed on the OAuth callback. Carries the PKCE verifier + the
+/// patient id who initiated the flow so we can validate that the same logged-
+/// in patient is completing it (defence against CSRF / hijacked callback).
+model PatientLineLinkState {
+  /// Random 32-byte URL-safe nonce; sent verbatim to LINE as `?state=`.
+  state        String   @id
+  tenantId     String   @map("tenant_id")
+  patientId    String   @map("patient_id")
+  codeVerifier String   @map("code_verifier") @db.Text
+  redirectUri  String   @map("redirect_uri") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  expiresAt    DateTime @map("expires_at")
+  consumedAt   DateTime? @map("consumed_at")
+
+  @@index([expiresAt])
+  @@index([patientId])
+  @@map("patient_line_link_states")
 }
 
 enum Gender {

@@ -4,7 +4,8 @@ import { AppointmentEvents, EVENT_NAMES } from "@legacyx/events";
 import { BadRequest, NotFound, Conflict } from "../../shared/errors";
 import { writeWithOutbox } from "../../shared/outbox";
 import { signPatientJwt } from "../../shared/jwt";
-import { decryptField, searchableHash } from "../../shared/crypto";
+import { decryptField, encryptField, searchableHash } from "../../shared/crypto";
+import { normalizePhone } from "@legacyx/db";
 import type { PatientRequestContext } from "../../shared/patientContext";
 import type { RequestContext } from "../../shared/context";
 
@@ -171,10 +172,27 @@ export async function getMyProfile(ctx: PatientRequestContext) {
       allergies: true,
       homeBranchId: true,
       lineUserId: true,
+      lineDisplayName: true,
+      linePictureUrl: true,
+      lineLinkedAt: true,
+      lineNotificationsOptIn: true,
+      lineFriendStatus: true,
       createdAt: true,
     },
   });
   if (!patient) throw NotFound("Patient profile not found");
+
+  // Resolve the home branch name so the patient app doesn't have to render an
+  // opaque cuid as "สาขาประจำ" on the profile screen.
+  const homeBranch = patient.homeBranchId
+    ? await prisma.branch.findFirst({
+        where: {
+          id: patient.homeBranchId,
+          tenantId: ctx.tenantId,
+        },
+        select: { id: true, name: true, code: true },
+      })
+    : null;
 
   return {
     id: patient.id,
@@ -189,9 +207,169 @@ export async function getMyProfile(ctx: PatientRequestContext) {
     blood_type: patient.bloodType,
     allergies: patient.allergies,
     home_branch_id: patient.homeBranchId,
+    home_branch_name: homeBranch?.name ?? null,
+    home_branch_code: homeBranch?.code ?? null,
     line_linked: !!patient.lineUserId,
+    line_display_name: patient.lineDisplayName,
+    line_picture_url: patient.linePictureUrl,
+    line_linked_at: patient.lineLinkedAt?.toISOString() ?? null,
+    line_notifications_opt_in: patient.lineNotificationsOptIn,
+    line_friend_status: patient.lineFriendStatus,
     member_since: patient.createdAt.toISOString(),
   };
+}
+
+// =============================================================================
+// PROFILE UPDATE — patient self-service edit on /profile
+// =============================================================================
+
+/**
+ * Fields the patient is allowed to edit from the patient app.
+ *
+ * Identity-critical fields (`first_name`, `last_name`) are deliberately
+ * excluded — those are tied to the EMR and KYC artefact and need a staff
+ * action to update. The patient may still update demographics, contact
+ * details, allergies, and their preferred branch.
+ *
+ * Allergies arrive as `string[]` (chips); we persist as JSON array. An empty
+ * array clears the field. `home_branch_id` is validated against the
+ * tenant's branch list before write.
+ */
+export const UpdatePatientProfileDto = z
+  .object({
+    nickname: z.string().trim().max(80).optional().nullable(),
+    /** ISO date (YYYY-MM-DD or full ISO) — null clears. */
+    dob: z.string().trim().optional().nullable(),
+    gender: z.enum(["MALE", "FEMALE", "OTHER", "UNDISCLOSED"]).optional().nullable(),
+    phone: z.string().trim().max(20).optional().nullable(),
+    email: z.string().trim().email().max(120).optional().nullable(),
+    blood_type: z
+      .enum(["A", "B", "AB", "O", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
+      .optional()
+      .nullable(),
+    allergies: z.array(z.string().trim().min(1).max(80)).max(40).optional(),
+    home_branch_id: z.string().trim().max(60).optional().nullable(),
+  })
+  .strict();
+
+export async function updateMyProfile(
+  ctx: PatientRequestContext,
+  input: z.infer<typeof UpdatePatientProfileDto>,
+) {
+  const data: Record<string, unknown> = {};
+
+  if ("nickname" in input) {
+    const v = input.nickname?.trim() ?? "";
+    data.nicknameEnc = v ? encryptField(v) : null;
+  }
+
+  if ("dob" in input) {
+    if (input.dob === null || input.dob === undefined || input.dob === "") {
+      data.dob = null;
+    } else {
+      const d = new Date(input.dob);
+      if (Number.isNaN(d.getTime())) throw BadRequest("Invalid date of birth");
+      if (d.getTime() > Date.now()) {
+        throw BadRequest("Date of birth cannot be in the future");
+      }
+      data.dob = d;
+    }
+  }
+
+  if ("gender" in input) {
+    data.gender = input.gender ?? null;
+  }
+
+  if ("phone" in input) {
+    if (!input.phone) {
+      data.phoneEnc = null;
+      data.phoneHash = null;
+    } else {
+      const normalised = normalizePhone(input.phone);
+      if (normalised.length < 6) throw BadRequest("Invalid phone number");
+      // Conflict check — a different patient in the tenant must not already
+      // own this phone (prevents accidental account takeover via the lookup
+      // hash). We allow the same patient to "re-set" the same phone.
+      const phoneHash = searchableHash(ctx.tenantId, input.phone);
+      const conflict = await prisma.patient.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          phoneHash,
+          id: { not: ctx.patientId },
+          deletedAt: null,
+          status: { not: "MERGED" },
+        },
+        select: { id: true },
+      });
+      if (conflict) {
+        throw Conflict(
+          "This phone number is already used by another patient. Please contact reception.",
+        );
+      }
+      data.phoneEnc = encryptField(input.phone);
+      data.phoneHash = phoneHash;
+    }
+  }
+
+  if ("email" in input) {
+    data.emailEnc = input.email ? encryptField(input.email) : null;
+  }
+
+  if ("blood_type" in input) {
+    data.bloodType = input.blood_type ?? null;
+  }
+
+  if ("allergies" in input && Array.isArray(input.allergies)) {
+    const cleaned = input.allergies
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    data.allergies = cleaned.length ? cleaned : null;
+  }
+
+  if ("home_branch_id" in input) {
+    if (!input.home_branch_id) {
+      data.homeBranchId = null;
+    } else {
+      const branch = await prisma.branch.findFirst({
+        where: {
+          id: input.home_branch_id,
+          tenantId: ctx.tenantId,
+          status: "ACTIVE",
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!branch) throw BadRequest("Selected branch is not available");
+      data.homeBranchId = branch.id;
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    // No-op update; just return the current profile. We deliberately don't
+    // throw here so the UI can debounce safely.
+    return getMyProfile(ctx);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.patient.update({
+      where: { id: ctx.patientId },
+      data,
+    });
+    await tx.auditLog.create({
+      data: {
+        tenantId: ctx.tenantId,
+        action: "patient.profile.update",
+        resourceType: "Patient",
+        resourceId: ctx.patientId,
+        correlationId: ctx.correlationId,
+        // We log the SET of fields touched, never the values — those are
+        // PII and would defeat the encryption we just applied.
+        after: { fields: Object.keys(data) } as object,
+      },
+    });
+  });
+
+  return getMyProfile(ctx);
 }
 
 // =============================================================================
