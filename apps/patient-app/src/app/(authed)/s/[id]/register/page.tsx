@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
+import { publicFetch } from "@/lib/api";
 import { RegisterForm } from "./RegisterForm";
 
 type Service = {
@@ -12,8 +13,6 @@ type Service = {
   name_th: string;
   category: { id: string; code: string; name: string; name_th: string };
 };
-
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
 
 /**
  * Registration screen (image 3).
@@ -44,10 +43,7 @@ export default async function ServiceRegisterPage({
 
   let service: Service | null = null;
   try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/public/services/${params.id}?tenant_slug=legacyx`,
-      { cache: "no-store" },
-    );
+    const res = await publicFetch(`/api/v1/public/services/${params.id}`);
     if (res.ok) {
       const json = (await res.json()) as { data: Service };
       service = json.data;

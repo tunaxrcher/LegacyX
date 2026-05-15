@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowLeft, Search } from "lucide-react";
 import { BlurImage } from "@/components/blur-image";
+import { publicFetch } from "@/lib/api";
+import { formatPriceLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Service = {
@@ -28,8 +30,6 @@ type CategoryDetail = {
 
 type Payload = { category: CategoryDetail; services: Service[] };
 
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
-
 /**
  * Category detail screen — image 2 of the new flow.
  *
@@ -50,9 +50,8 @@ export default async function CategoryPage({
 
   let data: Payload | null = null;
   try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/public/categories/${params.code}/services?tenant_slug=legacyx`,
-      { cache: "no-store" },
+    const res = await publicFetch(
+      `/api/v1/public/categories/${params.code}/services`,
     );
     if (res.ok) {
       const json = (await res.json()) as { data: Payload };
@@ -118,19 +117,6 @@ export default async function CategoryPage({
   );
 }
 
-function priceLabel(s: Service, locale: string): string {
-  if (s.price_from == null && s.price_to == null) {
-    return locale === "th" ? "สอบถามราคา" : "Ask for price";
-  }
-  if (s.price_from === 0 && s.price_to == null) {
-    return locale === "th" ? "เริ่มต้น 0.-" : "Starting 0.-";
-  }
-  if (s.price_from != null && s.price_to != null && s.price_from !== s.price_to) {
-    return `${s.price_from.toLocaleString()} - ${s.price_to.toLocaleString()}.-`;
-  }
-  return `${(s.price_from ?? s.price_to ?? 0).toLocaleString()}.-`;
-}
-
 function ServiceCard({
   service,
   locale,
@@ -140,7 +126,7 @@ function ServiceCard({
 }) {
   const title = locale === "th" ? service.name_th : service.name;
   const desc = locale === "th" ? service.description_th : service.description;
-  const price = priceLabel(service, locale);
+  const price = formatPriceLabel(service, locale);
 
   return (
     <article

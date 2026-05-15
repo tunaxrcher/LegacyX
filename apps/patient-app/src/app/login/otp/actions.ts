@@ -1,17 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
-import {
-  PATIENT_SESSION_COOKIE,
-  PATIENT_COOKIE_OPTIONS,
-} from "@/lib/session";
-
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
-// See `book/actions.ts` for tenant-resolution roadmap (multi-tenant via host).
-const TENANT_SLUG =
-  process.env.PATIENT_APP_TENANT_SLUG ??
-  process.env.NEXT_PUBLIC_TENANT_SLUG ??
-  "legacyx";
+import { TENANT_SLUG, publicFetch, setPatientSessionCookie } from "@/lib/api";
 
 export type PhoneLookupResult =
   | { ok: true; exists: boolean }
@@ -27,18 +16,13 @@ export async function phoneLookupAction(input: {
   phone: string;
 }): Promise<PhoneLookupResult> {
   try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/patient/auth/phone/lookup`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          tenant_slug: TENANT_SLUG,
-          phone: input.phone,
-        }),
-        cache: "no-store",
-      },
-    );
+    const res = await publicFetch("/api/v1/patient/auth/phone/lookup", {
+      method: "POST",
+      body: JSON.stringify({
+        tenant_slug: TENANT_SLUG,
+        phone: input.phone,
+      }),
+    });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as {
         error?: { message?: string };
@@ -64,15 +48,13 @@ export async function phoneLoginAction(input: {
   phone: string;
   otp_code: string;
 }): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/patient/auth/phone`, {
+  const res = await publicFetch("/api/v1/patient/auth/phone", {
     method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       tenant_slug: TENANT_SLUG,
       phone: input.phone,
       otp_code: input.otp_code,
     }),
-    cache: "no-store",
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -91,15 +73,5 @@ export async function phoneLoginAction(input: {
       patient: { id: string; hn: string; first_name: string; last_name: string };
     };
   };
-  const s = json.data;
-  cookies().set(
-    PATIENT_SESSION_COOKIE,
-    JSON.stringify({
-      token: s.token,
-      expiresAt: s.expires_at,
-      tenant: s.tenant,
-      patient: s.patient,
-    }),
-    PATIENT_COOKIE_OPTIONS,
-  );
+  setPatientSessionCookie(json.data);
 }

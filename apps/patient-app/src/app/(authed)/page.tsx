@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getPatientSession, type PatientSession } from "@/lib/session";
-import { patientJson } from "@/lib/api";
+import { patientJson, publicJson } from "@/lib/api";
 import { LineSection } from "./profile/LineSection";
 import { HeroMesh } from "@/components/hero-mesh";
 import { BlurImage } from "@/components/blur-image";
@@ -35,8 +35,6 @@ type ProfileLineSummary = {
   line_notifications_opt_in: boolean;
   line_friend_status: "UNKNOWN" | "FRIEND" | "BLOCKED";
 };
-
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
 
 /** Lightweight profile fetch for the home strip — only the LINE fields. */
 async function getLineSummary(
@@ -93,14 +91,10 @@ export default async function WelcomePage() {
 
   let categories: Category[] = [];
   try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/public/categories?tenant_slug=legacyx`,
-      { cache: "no-store" },
+    const res = await publicJson<{ data: Category[] }>(
+      "/api/v1/public/categories",
     );
-    if (res.ok) {
-      const json = (await res.json()) as { data: Category[] };
-      categories = json.data ?? [];
-    }
+    categories = res.data ?? [];
   } catch {
     /* render empty state */
   }

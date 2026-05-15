@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
+import { publicFetch } from "@/lib/api";
 import { BookFlow } from "./BookFlow";
 
 type Service = {
@@ -23,8 +24,6 @@ type Branch = {
   name: string;
   address: string | null;
 };
-
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
 
 /**
  * Booking screen (image 4). Reachable in two modes:
@@ -50,13 +49,8 @@ export default async function ServiceBookPage({
 
   try {
     const [svcRes, brRes] = await Promise.all([
-      fetch(
-        `${API_BASE}/api/v1/public/services/${params.id}?tenant_slug=legacyx`,
-        { cache: "no-store" },
-      ),
-      fetch(`${API_BASE}/api/v1/public/branches?tenant_slug=legacyx`, {
-        cache: "no-store",
-      }),
+      publicFetch(`/api/v1/public/services/${params.id}`),
+      publicFetch("/api/v1/public/branches"),
     ]);
     if (svcRes.ok) {
       const json = (await svcRes.json()) as { data: Service };

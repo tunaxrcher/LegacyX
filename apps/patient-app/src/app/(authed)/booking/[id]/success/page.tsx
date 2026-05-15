@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Info, MapPin } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
+import { patientFetch, publicFetch } from "@/lib/api";
 import { SuccessCheck, Confetti } from "@/components/success-check";
+import { formatPriceLabel } from "@/lib/format";
 
 /**
  * Booking success screen (image 5).
@@ -32,8 +34,6 @@ type AppointmentDetail = {
   } | null;
 };
 
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
-
 export default async function BookingSuccessPage({
   params,
 }: {
@@ -49,21 +49,17 @@ export default async function BookingSuccessPage({
   let serviceName: string | null = null;
   let priceLabel: string | null = null;
   try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/patient/appointments/${params.id}`,
-      {
-        headers: { authorization: `Bearer ${session.token}` },
-        cache: "no-store",
-      },
+    const res = await patientFetch(
+      session,
+      `/api/v1/patient/appointments/${params.id}`,
     );
     if (res.ok) {
       const json = (await res.json()) as { data: AppointmentDetail };
       appt = json.data;
       const meta = json.data.metadata ?? null;
       if (meta?.service_id) {
-        const svcRes = await fetch(
-          `${API_BASE}/api/v1/public/services/${meta.service_id}?tenant_slug=legacyx`,
-          { cache: "no-store" },
+        const svcRes = await publicFetch(
+          `/api/v1/public/services/${meta.service_id}`,
         );
         if (svcRes.ok) {
           const sj = (await svcRes.json()) as {
@@ -75,19 +71,7 @@ export default async function BookingSuccessPage({
             };
           };
           serviceName = locale === "th" ? sj.data.name_th : sj.data.name;
-          if (sj.data.price_from == null && sj.data.price_to == null) {
-            priceLabel = locale === "th" ? "สอบถามราคา" : "Ask for price";
-          } else if (sj.data.price_from === 0 && sj.data.price_to == null) {
-            priceLabel = locale === "th" ? "เริ่มต้น 0.-" : "Starting 0.-";
-          } else if (
-            sj.data.price_from != null &&
-            sj.data.price_to != null &&
-            sj.data.price_from !== sj.data.price_to
-          ) {
-            priceLabel = `${sj.data.price_from.toLocaleString()} - ${sj.data.price_to.toLocaleString()}.-`;
-          } else {
-            priceLabel = `${(sj.data.price_from ?? sj.data.price_to ?? 0).toLocaleString()}.-`;
-          }
+          priceLabel = formatPriceLabel(sj.data, locale);
         }
       } else if (meta?.service_name) {
         serviceName = meta.service_name;

@@ -1,25 +1,12 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
-  PATIENT_SESSION_COOKIE,
-  PATIENT_COOKIE_OPTIONS,
-  getPatientSession,
-} from "@/lib/session";
-
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3001";
-
-/**
- * Which tenant the patient-app belongs to.
- *
- * For single-tenant deployments (default), set `PATIENT_APP_TENANT_SLUG=legacyx`
- * in env. Multi-tenant SaaS rollout (future) should resolve this from the
- * hostname (e.g. `clinic-a.legacyx.app` → `clinic-a`) — placeholder until then.
- */
-const TENANT_SLUG =
-  process.env.PATIENT_APP_TENANT_SLUG ??
-  process.env.NEXT_PUBLIC_TENANT_SLUG ??
-  "legacyx";
+  TENANT_SLUG,
+  patientFetch,
+  publicFetch,
+  setPatientSessionCookie,
+} from "@/lib/api";
+import { getPatientSession } from "@/lib/session";
 
 type Mode = "SCHEDULED" | "WALKIN";
 
@@ -48,10 +35,11 @@ export type BookResult = { appointmentId: string };
  * patient JWT. We set the cookie here so the very next navigation lands the
  * user inside the authed area.
  */
-export async function bookGuestAction(args: GuestBookArgs): Promise<BookResult> {
-  const res = await fetch(`${API_BASE}/api/v1/public/book`, {
+export async function bookGuestAction(
+  args: GuestBookArgs,
+): Promise<BookResult> {
+  const res = await publicFetch("/api/v1/public/book", {
     method: "POST",
-    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       tenant_slug: TENANT_SLUG,
       service_id: args.service_id,
@@ -62,7 +50,6 @@ export async function bookGuestAction(args: GuestBookArgs): Promise<BookResult> 
       phone: args.phone,
       kyc_image_data_url: args.kyc_image_data_url ?? undefined,
     }),
-    cache: "no-store",
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -75,21 +62,16 @@ export async function bookGuestAction(args: GuestBookArgs): Promise<BookResult> 
         token: string;
         expires_at: string;
         tenant: { id: string; slug: string; name: string };
-        patient: { id: string; hn: string; first_name: string; last_name: string };
+        patient: {
+          id: string;
+          hn: string;
+          first_name: string;
+          last_name: string;
+        };
       };
     };
   };
-  const s = json.data.session;
-  cookies().set(
-    PATIENT_SESSION_COOKIE,
-    JSON.stringify({
-      token: s.token,
-      expiresAt: s.expires_at,
-      tenant: s.tenant,
-      patient: s.patient,
-    }),
-    PATIENT_COOKIE_OPTIONS,
-  );
+  setPatientSessionCookie(json.data.session);
   return { appointmentId: json.data.appointment.id };
 }
 
@@ -98,7 +80,9 @@ export async function bookGuestAction(args: GuestBookArgs): Promise<BookResult> 
  * arriving at the booking page. Reuses the existing patient endpoint to
  * preserve all the audit/JWT semantics from Phase 7.
  */
-export async function bookAuthedAction(args: AuthedBookArgs): Promise<BookResult> {
+export async function bookAuthedAction(
+  args: AuthedBookArgs,
+): Promise<BookResult> {
   const session = getPatientSession();
   if (!session) throw new Error("No session");
 
@@ -110,29 +94,25 @@ export async function bookAuthedAction(args: AuthedBookArgs): Promise<BookResult
     scheduledAt = args.scheduled_at;
   }
 
-  const res = await fetch(`${API_BASE}/api/v1/patient/appointments`, {
+  const res = await patientFetch(session, "/api/v1/patient/appointments", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${session.token}`,
-    },
     body: JSON.stringify({
       branch_id: args.branch_id,
       scheduled_at: scheduledAt,
       // Carry service_id so the api-server can hydrate metadata
       // (service_name, category, etc.) — without this the appointment
-      // shows up as "—" on /visits because the metadata snapshot is
-      // empty.
+      // shows up as "—" on /visits because the metadata snapshot is empty.
       service_id: args.service_id,
-      reason: `Booking via patient app${args.mode === "WALKIN" ? " (walk-in)" : ""}`,
+      reason: `Booking via patient app${
+        args.mode === "WALKIN" ? " (walk-in)" : ""
+      }`,
     }),
-    cache: "no-store",
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Booking failed: ${text || res.statusText}`);
   }
-  // patient_portal returns the appointment row directly under `data` (not nested).
+  // patient_portal returns the appointment row directly under `data`.
   const json = (await res.json()) as { data: { id: string } };
   return { appointmentId: json.data.id };
 }

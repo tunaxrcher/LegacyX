@@ -27,7 +27,6 @@ type Branch = {
 
 type Slot = { time_iso: string; label: string; available: boolean };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 const GUEST_HANDOFF_KEY = "lx_pending_registration";
 
 type Mode = "SCHEDULED" | "WALKIN";
@@ -85,10 +84,15 @@ export function BookFlow({
     if (!branchId || !date) return;
     let cancelled = false;
     setLoadingSlots(true);
-    fetch(
-      `${API_BASE}/api/v1/public/slots?tenant_slug=legacyx&branch_id=${branchId}&date=${date}&service_id=${service.id}`,
-      { cache: "no-store" },
-    )
+    // Hit our own /api/slots proxy — keeps the browser on a same-origin URL
+    // (no CORS, no env-var leakage to the client) and lets the proxy inject
+    // tenant_slug centrally.
+    const qs = new URLSearchParams({
+      branch_id: branchId,
+      date,
+      service_id: service.id,
+    });
+    fetch(`/api/slots?${qs.toString()}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((j: { data: { slots: Slot[] } }) => {
         if (cancelled) return;
