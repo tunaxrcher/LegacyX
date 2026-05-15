@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { LocaleSwitcher } from "@/components/app-shell/locale-switcher";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { BranchPicker } from "@/components/app-shell/branch-picker";
+import { ComplianceMenu } from "@/components/app-shell/compliance-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default function AuthedLayout({ children }: { children: React.ReactNode }
           <div className="ml-auto flex items-center gap-2">
             <BranchPicker session={session} />
             <CommandPalette />
+            <ComplianceMenu roles={session.roles ?? []} />
             <LocaleSwitcher />
             <ThemeToggle />
             <UserMenu session={session} />

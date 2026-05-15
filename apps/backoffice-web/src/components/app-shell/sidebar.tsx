@@ -9,28 +9,20 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  Sparkles,
-  AlertOctagon,
   Settings,
   Activity,
   Package,
-  ShieldCheck,
-  ShieldAlert,
   DoorOpen,
   PillBottle,
-  UserCog,
-  Key,
   TrendingUp,
   ChevronsLeft,
   ChevronsRight,
   Banknote,
   FileBarChart2,
-  Bell,
-  GitMerge,
-  ScrollText,
   Tag,
-  Building2,
   BookOpen,
+  LifeBuoy,
+  MessageSquareText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -123,7 +115,7 @@ const groups: NavGroup[] = [
   },
   // Manager — Finance & operational dashboards.
   // Pure money-flow stuff — KPIs, end-of-day reconciliation. Configuration
-  // (catalog, staff, rooms, services) lives in "clinic_setup" below.
+  // (catalog, staff, rooms, services) lives in the `/settings` hub.
   {
     titleKey: "nav.finance",
     items: [
@@ -159,79 +151,16 @@ const groups: NavGroup[] = [
       },
     ],
   },
-  // Manager — Compliance & audit (PDPA, audit log, break-glass, dedupe)
-  {
-    titleKey: "nav.compliance",
-    items: [
-      {
-        href: "/audit",
-        labelKey: "nav.audit",
-        icon: ShieldCheck,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/break-glass",
-        labelKey: "nav.break_glass",
-        icon: ShieldAlert,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/patients/merge",
-        labelKey: "nav.patient_merge",
-        icon: GitMerge,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/pdpa",
-        labelKey: "nav.pdpa",
-        icon: ScrollText,
-        roles: ["MANAGER"],
-      },
-    ],
-  },
-  // Clinic configuration — Manager owns the day-to-day business setup.
-  // "Things you configure once and tweak occasionally": rooms, services,
-  // products/courses (catalog), staff accounts, notification templates.
-  // NOT shown to ADMIN — admin is for system configuration only
-  // (users / roles / branches / DLQ / system settings).
-  {
-    titleKey: "nav.clinic_setup",
-    items: [
-      {
-        href: "/manager/resources",
-        labelKey: "nav.manager_resources",
-        icon: DoorOpen,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/services",
-        labelKey: "nav.manager_services",
-        icon: Sparkles,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/catalog",
-        labelKey: "nav.manager_catalog",
-        icon: Package,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/staff",
-        labelKey: "nav.manager_staff",
-        icon: UserCog,
-        roles: ["MANAGER"],
-      },
-      {
-        href: "/manager/notifications",
-        labelKey: "nav.manager_notifications",
-        icon: Bell,
-        roles: ["MANAGER"],
-      },
-    ],
-  },
-  // System administration — ADMIN-only universe. Clinic operational config
-  // (rooms / services / notifications) moved to "clinic_setup" group above
-  // and is now MANAGER-owned. Admin handles only user/role/system plumbing.
+  // NOTE: The "Compliance & Audit" group (Audit log, Break-glass, Patient
+  // merge, PDPA) was moved from the sidebar into the topbar `ComplianceMenu`
+  // popover (see `compliance-menu.tsx`) to declutter the left rail.
+  //
+  // NOTE: The "Clinic Setup" group (rooms / services / catalog / staff /
+  // notifications) and the configuration items in "System Admin" (users /
+  // roles / branches / DLQ) were moved into the `/settings` hub page so the
+  // sidebar isn't a wall of links. The hub renders cards filtered by role.
+  // Only `/admin` (the ADMIN-only landing dashboard) remains in the sidebar
+  // since it's a dashboard, not a setting.
   {
     titleKey: "nav.admin",
     items: [
@@ -241,39 +170,14 @@ const groups: NavGroup[] = [
         icon: LayoutDashboard,
         roles: ["ADMIN"],
       },
-      {
-        href: "/admin/users",
-        labelKey: "nav.admin_users",
-        icon: UserCog,
-        roles: ["ADMIN"],
-      },
-      {
-        href: "/admin/roles",
-        labelKey: "nav.admin_roles",
-        icon: Key,
-        roles: ["ADMIN"],
-      },
-      {
-        href: "/admin/branches",
-        labelKey: "nav.admin_branches",
-        icon: Building2,
-        roles: ["ADMIN"],
-      },
-      {
-        href: "/dlq",
-        labelKey: "nav.dlq",
-        icon: AlertOctagon,
-        roles: ["ADMIN"],
-      },
-      {
-        href: "/settings",
-        labelKey: "nav.settings",
-        icon: Settings,
-        roles: ["ADMIN"],
-      },
     ],
   },
 ];
+
+// Roles that can see the "Settings" hub at the bottom of the sidebar.
+// MANAGER owns clinic configuration; ADMIN owns system configuration.
+// Receptionists / doctors / nurses / pharmacists never need Settings.
+const SETTINGS_ROLES = ["MANAGER", "ADMIN"];
 
 function canSee(item: NavItem, roles: string[]): boolean {
   if (!item.roles) return true;
@@ -376,6 +280,35 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
       </nav>
 
       <div className="space-y-1 border-t border-sidebar-border p-3">
+        {/* Support — placeholder until the helpdesk integration ships.
+            Kept visible (dimmed) so users discover the upcoming surface. */}
+        <BottomItem
+          icon={LifeBuoy}
+          label={tNav("nav.support")}
+          collapsed={collapsed}
+          disabled
+        />
+
+        {/* Settings hub — visible to MANAGER + ADMIN only. The actual page at
+            /settings further filters cards by role. */}
+        {SETTINGS_ROLES.some((r) => roles.includes(r)) && (
+          <BottomItem
+            icon={Settings}
+            label={tNav("nav.settings")}
+            collapsed={collapsed}
+            href="/settings"
+            active={pathname === "/settings" || pathname.startsWith("/settings/")}
+          />
+        )}
+
+        {/* Feedback — placeholder until the in-product feedback widget ships. */}
+        <BottomItem
+          icon={MessageSquareText}
+          label={tNav("nav.feedback")}
+          collapsed={collapsed}
+          disabled
+        />
+
         {/* Workflow guide — opens a Dialog explaining how every role plays
             together end-to-end. Visible to every authenticated user since
             it doubles as onboarding documentation. */}
@@ -405,5 +338,60 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
         </Button>
       </div>
     </aside>
+  );
+}
+
+// Small reusable row for the bottom cluster (Support / Settings / Feedback).
+// Three states: disabled placeholder, active link, inactive link.
+function BottomItem({
+  icon: Icon,
+  label,
+  collapsed,
+  href,
+  active = false,
+  disabled = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  collapsed: boolean;
+  href?: string;
+  active?: boolean;
+  disabled?: boolean;
+}) {
+  const baseClass = cn(
+    "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
+    collapsed && "justify-center px-0",
+    disabled
+      ? "cursor-not-allowed text-muted-foreground/40"
+      : active
+        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+        : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+  );
+
+  const inner = (
+    <>
+      <Icon className="h-[14px] w-[14px] shrink-0" />
+      {!collapsed && <span className="truncate">{label}</span>}
+    </>
+  );
+
+  if (disabled || !href) {
+    return (
+      <button
+        type="button"
+        disabled
+        title={collapsed ? label : undefined}
+        aria-disabled
+        className={baseClass}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href} title={collapsed ? label : undefined} className={baseClass}>
+      {inner}
+    </Link>
   );
 }

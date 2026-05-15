@@ -39,7 +39,35 @@
     "patient_merge": "รวมเวชระเบียนซ้ำ",
     "pdpa": "PDPA / สิทธิ์ข้อมูล",
     "promotions": "โปรโมชัน",
-    "workflow": "Workflow คู่มือใช้งาน"
+    "workflow": "Workflow คู่มือใช้งาน",
+    "support": "Support",
+    "feedback": "Feedback"
+  },
+  "compliance_menu": {
+    "subtitle": "บันทึก audit, override, รวมเวชระเบียน และ PDPA",
+    "audit_desc": "ดู audit log ของระบบ",
+    "break_glass_desc": "อนุมัติ override กรณีฉุกเฉิน",
+    "patient_merge_desc": "รวมเวชระเบียนซ้ำ",
+    "pdpa_desc": "Export / Anonymise ข้อมูลผู้ป่วย"
+  },
+  "settings_hub": {
+    "title": "ตั้งค่า",
+    "subtitle": "เลือกหมวดที่ต้องการตั้งค่า — เห็นเฉพาะหมวดที่ Role ของคุณเข้าถึงได้",
+    "group_clinic": "ตั้งค่าคลินิก",
+    "group_clinic_desc": "ห้อง, บริการ, สินค้า, พนักงาน และเทมเพลตการแจ้งเตือน — Manager เป็นผู้ดูแล",
+    "group_admin": "ตั้งค่าระบบ",
+    "group_admin_desc": "ผู้ใช้, Role, สาขา และคิวประมวลผล — Admin เป็นผู้ดูแล",
+    "tile_resources_desc": "เพิ่ม / แก้ไข / ปลดประจำการห้องและเครื่องมือ",
+    "tile_services_desc": "หมวดหมู่และบริการที่แสดงบน Patient App",
+    "tile_catalog_desc": "ยา วัสดุ คอร์ส และ BOM ตัดสต็อกอัตโนมัติ",
+    "tile_staff_desc": "เพิ่มและแก้ไขพนักงานปฏิบัติการ",
+    "tile_notifications_desc": "ดูประวัติการส่ง LINE / SMS / Email",
+    "tile_admin_users_desc": "บัญชีผู้ใช้ทั้งระบบ — รีเซ็ตรหัส, ปลดล็อก, ปรับ Role",
+    "tile_admin_roles_desc": "ดู Permission ของแต่ละ Role",
+    "tile_admin_branches_desc": "เพิ่ม / แก้ไขสาขาและ Timezone",
+    "tile_dlq_desc": "Event ที่ประมวลผลล้มเหลว — Retry หรือยกเลิก",
+    "no_access_title": "Role ของคุณยังไม่มีหน้าตั้งค่า",
+    "no_access_desc": "เฉพาะ Manager และ Admin เท่านั้นที่สามารถเข้าหน้านี้ได้"
   },
   "break_glass": {
     "title": "Break-Glass Override",

@@ -39,7 +39,35 @@
     "patient_merge": "Patient Merge",
     "pdpa": "PDPA / DSR",
     "promotions": "Promotions",
-    "workflow": "Workflow guide"
+    "workflow": "Workflow guide",
+    "support": "Support",
+    "feedback": "Feedback"
+  },
+  "compliance_menu": {
+    "subtitle": "Audit log, overrides, patient merge, and PDPA",
+    "audit_desc": "Browse the system-wide audit log",
+    "break_glass_desc": "Approve emergency overrides",
+    "patient_merge_desc": "Merge duplicate patient records",
+    "pdpa_desc": "Export / anonymise patient data"
+  },
+  "settings_hub": {
+    "title": "Settings",
+    "subtitle": "Pick a category — only the ones your role can access are shown",
+    "group_clinic": "Clinic Setup",
+    "group_clinic_desc": "Rooms, services, products, staff, and notification templates — owned by Manager",
+    "group_admin": "System Admin",
+    "group_admin_desc": "Users, roles, branches, and processing queues — owned by Admin",
+    "tile_resources_desc": "Add / edit / retire rooms and equipment",
+    "tile_services_desc": "Categories and services shown in the Patient App",
+    "tile_catalog_desc": "Medications, supplies, courses, and stock-deduct BOMs",
+    "tile_staff_desc": "Add and edit operational staff accounts",
+    "tile_notifications_desc": "Browse LINE / SMS / Email delivery history",
+    "tile_admin_users_desc": "All accounts — reset passwords, unlock, reassign roles",
+    "tile_admin_roles_desc": "Inspect each role's permission matrix",
+    "tile_admin_branches_desc": "Add / edit branches and timezones",
+    "tile_dlq_desc": "Failed events — retry or abandon",
+    "no_access_title": "Your role can't open Settings",
+    "no_access_desc": "Only Manager and Admin can access this hub"
   },
   "break_glass": {
     "title": "Break-Glass Override",
