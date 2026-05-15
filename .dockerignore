@@ -35,8 +35,6 @@ out
 tmp
 **/tmp
 .pnpm-store
-coverage
-**/coverage
 
 # IDE
 .vscode
@@ -53,9 +51,7 @@ docs
 *.md
 !README.md
 
-# Test artifacts
-**/playwright-report
-**/test-results
+# Logs
 **/*.log
 
 # Local infra

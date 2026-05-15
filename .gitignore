@@ -21,9 +21,6 @@ logs/
 npm-debug.log*
 pnpm-debug.log*
 
-# testing
-coverage/
-
 # OS
 .DS_Store
 Thumbs.db
