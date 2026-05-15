@@ -10,7 +10,6 @@
     "finance": "Finance & Operations",
     "marketing": "Marketing",
     "compliance": "Compliance & Audit",
-    "clinic_setup": "Clinic Setup",
     "admin": "System Admin",
     "manager": "Manager",
     "manager_dashboard": "Manager Dashboard",
@@ -44,11 +43,7 @@
     "feedback": "Feedback"
   },
   "compliance_menu": {
-    "subtitle": "Audit log, overrides, patient merge, and PDPA",
-    "audit_desc": "Browse the system-wide audit log",
-    "break_glass_desc": "Approve emergency overrides",
-    "patient_merge_desc": "Merge duplicate patient records",
-    "pdpa_desc": "Export / anonymise patient data"
+    "subtitle": "Audit log, overrides, patient merge, and PDPA"
   },
   "settings_hub": {
     "title": "Settings",

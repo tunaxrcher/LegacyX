@@ -10,7 +10,6 @@
     "finance": "การเงิน & ปฏิบัติการ",
     "marketing": "การตลาด",
     "compliance": "ตรวจสอบ & ความปลอดภัย",
-    "clinic_setup": "ตั้งค่าคลินิก",
     "admin": "ตั้งค่าระบบ",
     "manager": "ผู้จัดการ",
     "manager_dashboard": "แดชบอร์ดผู้บริหาร",
@@ -44,11 +43,7 @@
     "feedback": "Feedback"
   },
   "compliance_menu": {
-    "subtitle": "บันทึก audit, override, รวมเวชระเบียน และ PDPA",
-    "audit_desc": "ดู audit log ของระบบ",
-    "break_glass_desc": "อนุมัติ override กรณีฉุกเฉิน",
-    "patient_merge_desc": "รวมเวชระเบียนซ้ำ",
-    "pdpa_desc": "Export / Anonymise ข้อมูลผู้ป่วย"
+    "subtitle": "บันทึก audit, override, รวมเวชระเบียน และ PDPA"
   },
   "settings_hub": {
     "title": "ตั้งค่า",

@@ -281,13 +281,11 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
       </nav>
 
       <div className="space-y-1 border-t border-sidebar-border p-3">
-        {/* Support — placeholder until the helpdesk integration ships.
-            Kept visible (dimmed) so users discover the upcoming surface. */}
-        <BottomItem
+        {/* Support — placeholder until the helpdesk integration ships. */}
+        <DisabledBottomItem
           icon={LifeBuoy}
           label={tNav("nav.support")}
           collapsed={collapsed}
-          disabled
         />
 
         {/* Settings — opens a dialog with role-filtered tiles instead of
@@ -316,11 +314,10 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
         )}
 
         {/* Feedback — placeholder until the in-product feedback widget ships. */}
-        <BottomItem
+        <DisabledBottomItem
           icon={MessageSquareText}
           label={tNav("nav.feedback")}
           collapsed={collapsed}
-          disabled
         />
 
         {/* Workflow guide — opens a Dialog explaining how every role plays
@@ -355,57 +352,36 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
   );
 }
 
-// Small reusable row for the bottom cluster (Support / Settings / Feedback).
-// Three states: disabled placeholder, active link, inactive link.
-function BottomItem({
+/**
+ * Disabled placeholder row in the bottom cluster — used for surfaces that
+ * are coming-soon (Support, Feedback). Visible but dimmed so users discover
+ * the upcoming feature without being able to click into a 404.
+ *
+ * Once the destination ships, swap this for a `<Link>` (or a Dialog trigger
+ * like `SettingsDialog` for in-place pickers).
+ */
+function DisabledBottomItem({
   icon: Icon,
   label,
   collapsed,
-  href,
-  active = false,
-  disabled = false,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   collapsed: boolean;
-  href?: string;
-  active?: boolean;
-  disabled?: boolean;
 }) {
-  const baseClass = cn(
-    "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
-    collapsed && "justify-center px-0",
-    disabled
-      ? "cursor-not-allowed text-muted-foreground/40"
-      : active
-        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-        : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-  );
-
-  const inner = (
-    <>
+  return (
+    <button
+      type="button"
+      disabled
+      aria-disabled
+      title={collapsed ? label : undefined}
+      className={cn(
+        "group flex w-full cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground/40",
+        collapsed && "justify-center px-0",
+      )}
+    >
       <Icon className="h-[14px] w-[14px] shrink-0" />
       {!collapsed && <span className="truncate">{label}</span>}
-    </>
-  );
-
-  if (disabled || !href) {
-    return (
-      <button
-        type="button"
-        disabled
-        title={collapsed ? label : undefined}
-        aria-disabled
-        className={baseClass}
-      >
-        {inner}
-      </button>
-    );
-  }
-
-  return (
-    <Link href={href} title={collapsed ? label : undefined} className={baseClass}>
-      {inner}
-    </Link>
+    </button>
   );
 }
