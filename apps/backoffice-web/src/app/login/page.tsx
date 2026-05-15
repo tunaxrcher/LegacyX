@@ -1,7 +1,19 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { ShieldCheck, Sparkles, Users } from "lucide-react";
+import {
+  Briefcase,
+  HeartPulse,
+  Headset,
+  KeyRound,
+  Pill,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  TestTube2,
+  Users,
+} from "lucide-react";
 import LoginForm from "./LoginForm";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +41,45 @@ export default async function LoginPage() {
     { icon: ShieldCheck, key: "PDPA-grade encryption" },
     { icon: Sparkles, key: "AI assistive drafts with human approval" },
     { icon: Users, key: "Multi-tenant, multi-branch" },
+  ];
+
+  const devAccounts = [
+    {
+      icon: ShieldCheck,
+      role: "ผู้ดูแลระบบ",
+      phone: "0800000001",
+      color: "bg-violet-100 text-violet-700",
+    },
+    {
+      icon: Briefcase,
+      role: "ผู้จัดการสาขา",
+      phone: "0800000002",
+      color: "bg-blue-100 text-blue-700",
+    },
+    {
+      icon: Stethoscope,
+      role: "หมอแพทย์",
+      phone: "0800000003",
+      color: "bg-emerald-100 text-emerald-700",
+    },
+    {
+      icon: HeartPulse,
+      role: "พยาบาล",
+      phone: "0800000004",
+      color: "bg-rose-100 text-rose-700",
+    },
+    {
+      icon: Headset,
+      role: "พนักงานต้อนรับ",
+      phone: "0800000005",
+      color: "bg-amber-100 text-amber-700",
+    },
+    {
+      icon: Pill,
+      role: "เภสัชกร",
+      phone: "0800000006",
+      color: "bg-cyan-100 text-cyan-700",
+    },
   ];
 
   return (
@@ -108,56 +159,40 @@ export default async function LoginPage() {
             <p className="text-sm text-muted-foreground">{tLogin("subtitle")}</p>
           </div>
           <LoginForm tenants={tenants} />
-          <div className="rounded-md border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
-            {/* {tLogin("dev_notice")} */}
-            <br />
-            <p className="mb-3 font-semibold text-slate-800">
-              สำหรับทดสอบระบบ
-            </p>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                <span className="text-slate-600">ผู้ดูแลระบบ</span>
-                <span className="font-medium tabular-nums text-slate-900">
-                  0800000001
-                </span>
-              </div>
-              <hr />
-              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                <span className="text-slate-600">ผู้จัดการสาขา</span>
-                <span className="font-medium tabular-nums text-slate-900">
-                  0800000002
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                <span className="text-slate-600">หมอแพทย์</span>
-                <span className="font-medium tabular-nums text-slate-900">
-                  0800000003
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                <span className="text-slate-600">พยาบาล</span>
-                <span className="font-medium tabular-nums text-slate-900">
-                  0800000004
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                <span className="text-slate-600">พนักงานต้อนรับ</span>
-                <span className="font-medium tabular-nums text-slate-900">
-                  0800000005
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                <span className="text-slate-600">เภสัชกร</span>
-                <span className="font-medium tabular-nums text-slate-900">
-                  0800000006
-                </span>
+          <div className="rounded-xl border border-slate-300 bg-gradient-to-br from-slate-50 to-white p-4">
+            <div className="mb-3 text-center">
+              <div className="min-w-0 ">
+                <p className="text-sm font-semibold text-slate-800">
+                  บัญชีสำหรับทดสอบระบบ
+                </p>
               </div>
             </div>
+
+            <ul className="space-y-1.5">
+              {devAccounts.map(({ icon: Icon, role, phone, color }) => (
+                <li
+                  key={phone}
+                  className="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-primary/40 hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                        color,
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-medium text-slate-700">
+                      {role}
+                    </span>
+                  </div>
+                  <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 group-hover:text-primary">
+                    {phone}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
