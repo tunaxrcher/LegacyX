@@ -94,6 +94,14 @@ export default function LoginForm({ tenants, defaultTenantSlug }: Props) {
       setPhoneError(r.error);
       return;
     }
+    // Phone-not-on-file → block the OTP step. Better UX than letting the user
+    // type a 6-digit OTP only to be told the account doesn't exist. The lookup
+    // endpoint deliberately returns an empty list (rather than 404) for
+    // unknown phones, so we classify here.
+    if (r.roles.length === 0) {
+      setPhoneError(t("phone_not_found"));
+      return;
+    }
     setRoles(r.roles);
     setPickedRole(r.roles.length === 1 ? r.roles[0]!.code : null);
     resetOtp();

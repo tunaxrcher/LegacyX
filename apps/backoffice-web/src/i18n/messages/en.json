@@ -125,6 +125,7 @@
     "otp_dev_hint": "Dev mode: any phone accepts the universal OTP 123456",
     "otp_too_short": "Enter all 6 digits",
     "phone_too_short": "Phone number is too short",
+    "phone_not_found": "This phone number isn't registered. Please check with your administrator.",
     "pick_role": "Choose role",
     "pick_role_placeholder": "Select which role to sign in as",
     "select_role_first": "Please pick a role first"

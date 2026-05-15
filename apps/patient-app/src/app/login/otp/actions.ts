@@ -13,6 +13,48 @@ const TENANT_SLUG =
   process.env.NEXT_PUBLIC_TENANT_SLUG ??
   "legacyx";
 
+export type PhoneLookupResult =
+  | { ok: true; exists: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Pre-flight existence check before opening the OTP dialog. Patients only
+ * become patients after they book at least once, so it's a much better UX to
+ * tell them up-front "ไม่พบเบอร์โทรนี้ในระบบ — กรุณาจองบริการก่อน" than to let
+ * them type a 6-digit OTP and then fail.
+ */
+export async function phoneLookupAction(input: {
+  phone: string;
+}): Promise<PhoneLookupResult> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/v1/patient/auth/phone/lookup`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          tenant_slug: TENANT_SLUG,
+          phone: input.phone,
+        }),
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: { message?: string };
+      };
+      return { ok: false, error: body.error?.message ?? "Lookup failed" };
+    }
+    const body = (await res.json()) as { data: { exists: boolean } };
+    return { ok: true, exists: !!body.data?.exists };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Cannot reach API server: ${(err as Error).message}`,
+    };
+  }
+}
+
 /**
  * Forward (phone, otp_code) to the api-server phone-login endpoint. The OTP is
  * mocked server-side; the actual auth happens by matching phoneHash → Patient

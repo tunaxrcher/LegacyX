@@ -76,6 +76,7 @@
     "phone_placeholder": "08X-XXX-XXXX",
     "phone_hint": "We'll send a 6-digit code to the number above",
     "send_otp": "Send OTP",
+    "checking_phone": "Checking phone…",
     "otp_title": "Verify OTP",
     "otp_subtitle": "Enter the 6-digit code sent to",
     "verify_otp": "Verify",
@@ -84,6 +85,7 @@
     "not_member": "Not a member yet?",
     "book_to_register": "Book a service",
     "err_phone_short": "Please enter a valid phone number",
+    "err_phone_not_found": "This phone number isn't registered. Please book a service first to sign up.",
     "err_otp_length": "Please enter all 6 digits",
     "err_otp_invalid": "Invalid code",
     "logout": "Sign out"

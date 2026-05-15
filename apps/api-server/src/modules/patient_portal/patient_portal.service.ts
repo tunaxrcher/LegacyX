@@ -82,6 +82,45 @@ export async function patientLogin(input: z.infer<typeof PatientLoginDto>) {
 // In production, swap the OTP check for the real provider before exposing it
 // publicly.
 
+export const PatientPhoneLookupDto = z.object({
+  tenant_slug: z.string().min(1),
+  phone: z.string().min(4).max(20),
+});
+
+/**
+ * Step 1 of patient phone-login: cheap existence check before we ask the
+ * patient to type a 6-digit OTP. Avoids the bad UX of "type the OTP, fail,
+ * try again with a different number" — a problem because patients only get
+ * a Patient row after they've BOOKED a service at least once.
+ *
+ * Returns `{ exists: true }` only when (tenant, phoneHash) maps to an active
+ * Patient row. We deliberately do NOT include any patient PII in the
+ * response (no name, no HN, no masking) because the caller is unauthenticated
+ * — anyone who guesses a phone number could otherwise harvest names.
+ *
+ * Tenant-not-found returns `{ exists: false }` (don't leak tenant existence).
+ */
+export async function patientPhoneLookup(
+  input: z.infer<typeof PatientPhoneLookupDto>,
+): Promise<{ exists: boolean }> {
+  const tenant = await prisma.tenant.findFirst({
+    where: { slug: input.tenant_slug, status: "ACTIVE" },
+  });
+  if (!tenant) return { exists: false };
+
+  const phoneHash = searchableHash(tenant.id, input.phone);
+  const patient = await prisma.patient.findFirst({
+    where: {
+      tenantId: tenant.id,
+      phoneHash,
+      deletedAt: null,
+      status: { not: "MERGED" },
+    },
+    select: { id: true },
+  });
+  return { exists: !!patient };
+}
+
 export const PatientPhoneLoginDto = z.object({
   tenant_slug: z.string().min(1),
   phone: z.string().min(8).max(20),

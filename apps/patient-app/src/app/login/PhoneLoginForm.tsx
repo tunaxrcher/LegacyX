@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, Phone, Smartphone, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { phoneLoginAction } from "./otp/actions";
+import { phoneLookupAction, phoneLoginAction } from "./otp/actions";
 
 const OTP_LENGTH = 6;
 
@@ -25,6 +25,7 @@ export function PhoneLoginForm() {
 
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [lookupPending, setLookupPending] = useState(false);
   const [otpOpen, setOtpOpen] = useState(false);
 
   // OTP dialog state
@@ -58,11 +59,22 @@ export function PhoneLoginForm() {
     }
   }, [otpOpen]);
 
-  function onSendOtp(e: React.FormEvent<HTMLFormElement>) {
+  async function onSendOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPhoneError(null);
     if (phone.length !== 10) {
       setPhoneError(t("err_phone_short"));
+      return;
+    }
+    setLookupPending(true);
+    const r = await phoneLookupAction({ phone });
+    setLookupPending(false);
+    if (!r.ok) {
+      setPhoneError(r.error);
+      return;
+    }
+    if (!r.exists) {
+      setPhoneError(t("err_phone_not_found"));
       return;
     }
     setDigits(Array(OTP_LENGTH).fill(""));
@@ -163,9 +175,11 @@ export function PhoneLoginForm() {
 
         <button
           type="submit"
-          className="w-full rounded-2xl bg-primary text-primary-foreground font-semibold py-3.5 active:scale-[0.98] transition"
+          disabled={lookupPending}
+          className="w-full rounded-2xl bg-primary text-primary-foreground font-semibold py-3.5 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition inline-flex items-center justify-center gap-2"
         >
-          {t("send_otp")}
+          {lookupPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {lookupPending ? t("checking_phone") : t("send_otp")}
         </button>
       </form>
 
