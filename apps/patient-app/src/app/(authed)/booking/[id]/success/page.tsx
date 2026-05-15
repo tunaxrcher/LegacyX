@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
-import { CheckCircle2, Info, MapPin } from "lucide-react";
+import { Info, MapPin } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
+import { SuccessCheck, Confetti } from "@/components/success-check";
 
 /**
  * Booking success screen (image 5).
@@ -104,11 +105,12 @@ export default async function BookingSuccessPage({
     : null;
 
   return (
-    <main className="mx-auto max-w-md px-4 pt-10 pb-10 animate-fade-in min-h-[80vh] flex flex-col items-center justify-center">
+    <main className="mx-auto max-w-md px-4 pt-10 pb-10 min-h-[80vh] flex flex-col items-center justify-center">
+      <Confetti />
       <div className="w-full max-w-sm text-center">
-        {/* Success icon */}
-        <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
-          <CheckCircle2 className="h-9 w-9" />
+        {/* Success icon — SVG checkmark draws in over ~0.8s */}
+        <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-success/10 mb-4 animate-scale-in">
+          <SuccessCheck size={56} />
         </div>
 
         <h1 className="text-2xl font-bold">{t("title")}</h1>

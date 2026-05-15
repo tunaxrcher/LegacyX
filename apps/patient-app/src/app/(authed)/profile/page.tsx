@@ -56,7 +56,7 @@ export default async function ProfilePage() {
   return (
     <>
       <PageHeader title={t("title")} />
-      <main className="px-4 pt-4 pb-4 space-y-4 animate-fade-in">
+      <main className="px-4 pt-4 pb-4 space-y-4">
         {/* Header card — avatar + name. Avatar uses the LINE picture when
             the patient has linked LINE; otherwise we fall back to initials. */}
         <section className="rounded-2xl border bg-card p-5 shadow-soft flex items-center gap-4">

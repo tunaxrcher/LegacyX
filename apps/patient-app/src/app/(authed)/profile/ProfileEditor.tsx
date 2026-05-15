@@ -433,7 +433,7 @@ export function ProfileEditor({
           type="button"
           onClick={onSave}
           disabled={pending}
-          className="flex-1 h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-60"
+          className="btn-gradient flex-1 h-11 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2"
         >
           {pending ? (
             <>

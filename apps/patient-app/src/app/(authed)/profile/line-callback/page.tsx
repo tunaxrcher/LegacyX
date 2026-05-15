@@ -60,7 +60,7 @@ export default async function LineCallbackPage({
   }
 
   return (
-    <main className="px-4 pt-10 pb-10 min-h-[80vh] flex flex-col items-center justify-center animate-fade-in">
+    <main className="px-4 pt-10 pb-10 min-h-[80vh] flex flex-col items-center justify-center">
       <div className="w-full max-w-sm text-center space-y-4">
         {success ? (
           <>

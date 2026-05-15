@@ -75,7 +75,7 @@ export default async function ServiceBookPage({
   if (!service) notFound();
 
   return (
-    <main className="mx-auto max-w-md px-4 pt-4 pb-10 animate-fade-in">
+    <main className="mx-auto max-w-md px-4 pt-4 pb-10">
       <div className="mb-4">
         <Link
           href={

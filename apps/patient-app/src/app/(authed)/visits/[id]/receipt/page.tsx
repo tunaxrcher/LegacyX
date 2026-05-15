@@ -55,7 +55,7 @@ export default async function ReceiptPage({
           </Link>
         }
       />
-      <main className="px-4 pt-4 pb-4 animate-fade-in">
+      <main className="px-4 pt-4 pb-4">
         {!receipt ? (
           <p className="text-center text-sm text-muted-foreground py-12">
             {t("no_receipt")}

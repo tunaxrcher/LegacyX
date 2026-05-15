@@ -19,6 +19,7 @@ import {
 import { getPatientSession } from "@/lib/session";
 import { patientJson } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
+import { AnimatedNumber } from "@/components/animated-number";
 import { formatCurrency } from "@/lib/utils";
 
 type Visit = {
@@ -97,7 +98,7 @@ export default async function VisitsPage() {
   return (
     <>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <main className="px-4 pt-4 pb-4 animate-fade-in space-y-7">
+      <main className="px-4 pt-4 pb-4 space-y-7">
         {/* Upcoming appointments */}
         {upcoming.length > 0 ? (
           <section>
@@ -107,23 +108,28 @@ export default async function VisitsPage() {
               count={upcoming.length}
             />
             <ul className="space-y-3">
-              {upcoming.map((a) => (
-                <AppointmentCard
+              {upcoming.map((a, i) => (
+                <li
                   key={a.id}
-                  appointment={a}
-                  locale={locale}
-                  labels={{
-                    walkin: t("walkin"),
-                    scheduled: t("scheduled"),
-                    statusBooked: t("status_booked"),
-                    statusConfirmed: t("status_confirmed"),
-                    statusCheckedIn: t("status_checked_in"),
-                    durationMin: t("duration_min"),
-                    askPrice: t("ask_price"),
-                    priceLabel: t("price_label"),
-                    detailsCta: t("details_cta"),
-                  }}
-                />
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <AppointmentCard
+                    appointment={a}
+                    locale={locale}
+                    labels={{
+                      walkin: t("walkin"),
+                      scheduled: t("scheduled"),
+                      statusBooked: t("status_booked"),
+                      statusConfirmed: t("status_confirmed"),
+                      statusCheckedIn: t("status_checked_in"),
+                      durationMin: t("duration_min"),
+                      askPrice: t("ask_price"),
+                      priceLabel: t("price_label"),
+                      detailsCta: t("details_cta"),
+                    }}
+                  />
+                </li>
               ))}
             </ul>
           </section>
@@ -138,24 +144,29 @@ export default async function VisitsPage() {
               count={visits.length}
             />
             <ul className="space-y-3">
-              {visits.map((v) => (
-                <VisitCard
+              {visits.map((v, i) => (
+                <li
                   key={v.id}
-                  visit={v}
-                  locale={locale}
-                  labels={{
-                    statusKey: statusLabelKey(v.status),
-                    statusCompleted: t("completed"),
-                    statusInProgress: t("in_progress"),
-                    statusOpen: t("open"),
-                    statusCancelled: t("cancelled"),
-                    invoice: t("invoice"),
-                    viewReceipt: t("view_receipt"),
-                    noServices: t("no_services"),
-                    totalLabel: t("total_label"),
-                    qtyLabel: t("qty_label"),
-                  }}
-                />
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <VisitCard
+                    visit={v}
+                    locale={locale}
+                    labels={{
+                      statusKey: statusLabelKey(v.status),
+                      statusCompleted: t("completed"),
+                      statusInProgress: t("in_progress"),
+                      statusOpen: t("open"),
+                      statusCancelled: t("cancelled"),
+                      invoice: t("invoice"),
+                      viewReceipt: t("view_receipt"),
+                      noServices: t("no_services"),
+                      totalLabel: t("total_label"),
+                      qtyLabel: t("qty_label"),
+                    }}
+                  />
+                </li>
               ))}
             </ul>
           </section>
@@ -169,7 +180,7 @@ export default async function VisitsPage() {
             <p className="text-sm text-muted-foreground">{t("empty")}</p>
             <Link
               href="/"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-xs font-semibold shadow-soft active:scale-[0.98] transition"
+              className="btn-gradient mt-4 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-xs font-semibold"
             >
               <Sparkles className="h-3.5 w-3.5" />
               {t("book_cta")}
@@ -195,7 +206,7 @@ function SectionHeader({
       {icon}
       <span className="text-foreground">{title}</span>
       <span className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-        {count}
+        <AnimatedNumber value={count} />
       </span>
     </h2>
   );
@@ -268,6 +279,10 @@ function AppointmentCard({
         ? "bg-primary/10 text-primary"
         : "bg-muted text-muted-foreground";
 
+  // Live status — checked-in patients are "active right now", walk-ins are
+  // happening immediately. Both get a soft breathing dot to feel alive.
+  const isLive = appointment.status === "CHECKED_IN" || isWalkin;
+
   const serviceName =
     (locale === "th" ? appointment.service_name_th : appointment.service_name) ??
     appointment.service_name ??
@@ -288,7 +303,7 @@ function AppointmentCard({
   );
 
   return (
-    <li className="rounded-3xl border bg-card shadow-soft animate-slide-up overflow-hidden">
+    <div className="rounded-3xl border bg-card shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
       {/* Top row: date tile + service info */}
       <div className="flex items-stretch gap-3 p-4">
         {/* Date tile */}
@@ -330,8 +345,14 @@ function AppointmentCard({
               <span />
             )}
             <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone}`}
+              className={`inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone}`}
             >
+              {isLive ? (
+                <span
+                  aria-hidden="true"
+                  className="pulse-dot inline-block h-1.5 w-1.5 rounded-full"
+                />
+              ) : null}
               {statusLabel}
             </span>
           </div>
@@ -367,7 +388,7 @@ function AppointmentCard({
           />
         ) : null}
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -452,7 +473,7 @@ function VisitCard({
   const currency = visit.invoices[0]?.currency ?? "THB";
 
   return (
-    <li className="rounded-3xl border bg-card shadow-soft animate-slide-up overflow-hidden">
+    <div className="rounded-3xl border bg-card shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
       <header className="px-4 pt-4 pb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -467,8 +488,14 @@ function VisitCard({
           ) : null}
         </div>
         <span
-          className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone}`}
+          className={`shrink-0 inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone}`}
         >
+          {visit.status === "IN_PROGRESS" ? (
+            <span
+              aria-hidden="true"
+              className="pulse-dot inline-block h-1.5 w-1.5 rounded-full"
+            />
+          ) : null}
           {statusLabel}
         </span>
       </header>
@@ -532,7 +559,7 @@ function VisitCard({
           ) : null}
         </footer>
       ) : null}
-    </li>
+    </div>
   );
 }
 

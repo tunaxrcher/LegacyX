@@ -61,7 +61,7 @@ export default async function ServiceRegisterPage({
   if (!service) notFound();
 
   return (
-    <main className="mx-auto max-w-md px-4 pt-4 pb-10 animate-fade-in">
+    <main className="mx-auto max-w-md px-4 pt-4 pb-10">
       {/* Header */}
       <div className="mb-6">
         <Link

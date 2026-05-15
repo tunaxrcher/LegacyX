@@ -62,13 +62,23 @@ const config: Config = {
       keyframes: {
         "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
         "slide-up": {
-          from: { transform: "translateY(8px)", opacity: "0" },
+          from: { transform: "translateY(12px)", opacity: "0" },
           to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "slide-in-right": {
+          from: { transform: "translateX(16px)", opacity: "0" },
+          to: { transform: "translateX(0)", opacity: "1" },
+        },
+        "scale-in": {
+          from: { transform: "scale(0.92)", opacity: "0" },
+          to: { transform: "scale(1)", opacity: "1" },
         },
       },
       animation: {
         "fade-in": "fade-in 0.3s ease-out",
-        "slide-up": "slide-up 0.25s ease-out",
+        "slide-up": "slide-up 0.4s cubic-bezier(0.4,0,0.2,1) both",
+        "slide-in-right": "slide-in-right 0.35s ease-out both",
+        "scale-in": "scale-in 0.4s cubic-bezier(0.16,1,0.3,1) both",
       },
     },
   },

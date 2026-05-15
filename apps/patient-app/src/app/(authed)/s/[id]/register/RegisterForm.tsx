@@ -171,7 +171,7 @@ export function RegisterForm({ serviceId }: { serviceId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-2xl bg-primary text-primary-foreground font-semibold py-3.5 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition inline-flex items-center justify-center gap-2"
+        className="btn-gradient w-full rounded-2xl font-semibold py-3.5 inline-flex items-center justify-center gap-2"
       >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {t("submit")}

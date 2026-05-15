@@ -251,22 +251,23 @@ export function BookFlow({
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {slots.map((s) => (
+                {slots.map((s, i) => (
                   <button
                     key={s.time_iso}
                     type="button"
                     disabled={!s.available}
                     onClick={() => setSelectedIso(s.time_iso)}
+                    style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
                     className={cn(
-                      "rounded-xl border py-2.5 text-sm font-semibold transition",
+                      "rounded-xl border py-2.5 text-sm font-semibold transition-all duration-200 animate-slide-up",
                       !s.available &&
                         "opacity-40 cursor-not-allowed line-through bg-muted",
                       s.available &&
                         selectedIso === s.time_iso &&
-                        "border-primary bg-primary text-primary-foreground",
+                        "border-primary bg-primary text-primary-foreground scale-105 shadow-soft",
                       s.available &&
                         selectedIso !== s.time_iso &&
-                        "hover:bg-accent active:scale-[0.97]",
+                        "hover:bg-accent hover:-translate-y-0.5 active:scale-[0.97]",
                     )}
                   >
                     {s.label}
@@ -326,7 +327,7 @@ export function BookFlow({
         type="button"
         onClick={onSubmit}
         disabled={pending}
-        className="w-full rounded-2xl bg-primary text-primary-foreground font-semibold py-3.5 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition inline-flex items-center justify-center gap-2"
+        className="btn-gradient w-full rounded-2xl font-semibold py-3.5 inline-flex items-center justify-center gap-2"
       >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
         {t("submit")}

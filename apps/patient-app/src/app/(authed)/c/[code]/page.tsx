@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowLeft, Search } from "lucide-react";
+import { BlurImage } from "@/components/blur-image";
+import { cn } from "@/lib/utils";
 
 type Service = {
   id: string;
@@ -67,7 +69,7 @@ export default async function CategoryPage({
   const title = locale === "th" ? category.name_th : category.name;
 
   return (
-    <main className="mx-auto max-w-md px-4 pt-4 pb-6 animate-fade-in">
+    <main className="mx-auto max-w-md px-4 pt-4 pb-6">
       {/* Header strip */}
       <div className="flex items-center justify-between mb-4">
         <Link
@@ -101,8 +103,14 @@ export default async function CategoryPage({
         </div>
       ) : (
         <ul className="grid gap-4">
-          {services.map((s) => (
-            <ServiceCard key={s.id} service={s} locale={locale} />
+          {services.map((s, i) => (
+            <li
+              key={s.id}
+              className="animate-slide-up"
+              style={{ animationDelay: `${i * 70}ms` }}
+            >
+              <ServiceCard service={s} locale={locale} />
+            </li>
           ))}
         </ul>
       )}
@@ -135,17 +143,34 @@ function ServiceCard({
   const price = priceLabel(service, locale);
 
   return (
-    <li className="rounded-3xl border bg-card shadow-soft overflow-hidden">
-      {/* Image */}
-      <div className="relative aspect-[16/10] bg-muted">
+    <article
+      className={cn(
+        "group rounded-3xl border bg-card shadow-soft overflow-hidden",
+        // `isolate` forces a stacking context so child compositing layers
+        // (created by the inner image's transform) still respect this
+        // article's border-radius. Without it Chrome/Safari briefly render
+        // square corners during the hover scale tween.
+        "isolate",
+        // Scope hover lift to the card; only animate transform + shadow so we
+        // don't accidentally tween the border colour every time the cursor
+        // crosses the inner CTA.
+        "transition-[transform,box-shadow] duration-300 hover:shadow-soft-lg hover:-translate-y-0.5",
+      )}
+    >
+      {/* Image — clipped here so the inner scale transform never spills past
+          the rounded top edge of the card. The wrapper itself has its own
+          rounded-t-3xl so the clip happens on the same layer as the image. */}
+      <div className="relative aspect-[16/10] rounded-t-3xl overflow-hidden">
         {service.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <BlurImage
             src={service.image_url}
             alt={service.name}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full"
+            imgClassName="group-hover:scale-105 transition-transform duration-700 ease-out"
           />
-        ) : null}
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-100 to-brand-300" />
+        )}
         {/* Price chip */}
         <span className="absolute bottom-3 left-3 rounded-full bg-white/90 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-foreground shadow">
           {price}
@@ -163,11 +188,19 @@ function ServiceCard({
 
         <Link
           href={`/s/${service.id}/register`}
-          className="mt-4 block w-full rounded-2xl border bg-card py-3 text-center text-sm font-semibold hover:bg-accent/50 active:scale-[0.98] transition"
+          className={cn(
+            "mt-4 block w-full rounded-2xl py-3 text-center text-sm font-semibold text-white shadow-soft",
+            // Animated brand gradient — same `bg-primary-gradient` keyframe
+            // (4s shift) used elsewhere. No border to avoid hover quirks.
+            "bg-primary-gradient",
+            // Press feedback only — no hover colour change because the card
+            // itself already lifts on hover.
+            "transition-transform duration-200 active:scale-[0.97]",
+          )}
         >
           {locale === "th" ? "เลือกบริการนี้" : "Choose this service"}
         </Link>
       </div>
-    </li>
+    </article>
   );
 }

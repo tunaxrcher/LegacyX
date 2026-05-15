@@ -4,6 +4,7 @@ import { CalendarClock, Wallet as WalletIcon } from "lucide-react";
 import { getPatientSession } from "@/lib/session";
 import { patientJson } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
+import { AnimatedNumber } from "@/components/animated-number";
 import { cn } from "@/lib/utils";
 
 type WalletEntry = {
@@ -47,7 +48,7 @@ export default async function WalletPage() {
   return (
     <>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <main className="px-4 pt-4 pb-4 animate-fade-in">
+      <main className="px-4 pt-4 pb-4">
         {wallets.length === 0 ? (
           <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
             <WalletIcon className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -55,10 +56,11 @@ export default async function WalletPage() {
           </div>
         ) : (
           <ul className="space-y-4">
-            {wallets.map((w) => (
+            {wallets.map((w, i) => (
               <li
                 key={w.id}
                 className="rounded-2xl border bg-card overflow-hidden shadow-soft animate-slide-up"
+                style={{ animationDelay: `${i * 80}ms` }}
               >
                 <div className="bg-primary-gradient text-white px-4 py-4">
                   <p className="text-xs opacity-90">{w.product_sku}</p>
@@ -68,9 +70,10 @@ export default async function WalletPage() {
                       <p className="text-[10px] uppercase opacity-80">
                         {t("balance")}
                       </p>
-                      <p className="text-3xl font-bold tabular-nums leading-none">
-                        {w.balance}
-                      </p>
+                      <AnimatedNumber
+                        value={w.balance}
+                        className="text-3xl font-bold tabular-nums leading-none block"
+                      />
                     </div>
                     <ExpiryBadge
                       expiresInDays={w.expires_in_days}

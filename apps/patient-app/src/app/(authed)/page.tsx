@@ -13,6 +13,9 @@ import {
 import { getPatientSession, type PatientSession } from "@/lib/session";
 import { patientJson } from "@/lib/api";
 import { LineSection } from "./profile/LineSection";
+import { HeroMesh } from "@/components/hero-mesh";
+import { BlurImage } from "@/components/blur-image";
+import { RippleSurface } from "@/components/ripple";
 
 type Category = {
   id: string;
@@ -109,7 +112,8 @@ export default async function WelcomePage() {
   // ────────────────────────────────────────────────────────────────────────
   if (!session) {
     return (
-      <div className="min-h-screen flex flex-col bg-background animate-fade-in">
+      <div className="relative min-h-screen flex flex-col bg-background overflow-hidden">
+        <HeroMesh />
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-md border-b">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between gap-3">
@@ -125,7 +129,7 @@ export default async function WelcomePage() {
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold shadow-soft active:scale-[0.98] hover:opacity-95 transition"
+              className="btn-gradient inline-flex items-center gap-1.5 rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold"
             >
               <LogIn className="h-4 w-4" />
               {tLogin("phone_title")}
@@ -164,8 +168,14 @@ export default async function WelcomePage() {
               </div>
             ) : (
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-                {categories.map((c) => (
-                  <CategoryCard key={c.id} category={c} locale={locale} />
+                {categories.map((c, i) => (
+                  <div
+                    key={c.id}
+                    className="animate-slide-up"
+                    style={{ animationDelay: `${i * 70}ms` }}
+                  >
+                    <CategoryCard category={c} locale={locale} />
+                  </div>
                 ))}
               </div>
             )}
@@ -193,7 +203,7 @@ export default async function WelcomePage() {
   const lineLinked = !!lineSummary?.line_linked;
 
   return (
-    <main className="px-4 pt-4 pb-6 animate-fade-in">
+    <main className="px-4 pt-4 pb-6">
       {/* Trust badge */}
       <div className="flex justify-center mb-4">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em]">
@@ -276,8 +286,14 @@ export default async function WelcomePage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {categories.map((c) => (
-            <CategoryCard key={c.id} category={c} locale={locale} />
+          {categories.map((c, i) => (
+            <div
+              key={c.id}
+              className="animate-slide-up"
+              style={{ animationDelay: `${i * 70}ms` }}
+            >
+              <CategoryCard category={c} locale={locale} />
+            </div>
           ))}
         </div>
       )}
@@ -304,15 +320,15 @@ function CategoryCard({
   return (
     <Link
       href={`/c/${category.code}`}
-      className="relative block overflow-hidden rounded-[28px] aspect-[3/4] md:aspect-[4/5] shadow-soft-lg group active:scale-[0.98] transition"
+      className="relative block overflow-hidden isolate rounded-[28px] aspect-[3/4] md:aspect-[4/5] shadow-soft-lg group active:scale-[0.98] hover:shadow-2xl hover:-translate-y-1 transition-[transform,box-shadow] duration-300"
     >
-      {/* Background image */}
+      {/* Background image — blur-up via skeleton shimmer until loaded */}
       {category.image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <BlurImage
           src={category.image_url}
           alt={category.name}
-          className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105"
+          className="absolute inset-0 h-full w-full rounded-[28px]"
+          imgClassName="group-hover:scale-110 transition-transform duration-700 ease-out"
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-primary/60" />
@@ -349,6 +365,9 @@ function CategoryCard({
       <span className="absolute right-4 bottom-4 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white">
         <ChevronRight className="h-4 w-4" />
       </span>
+
+      {/* Material-style ripple on tap */}
+      <RippleSurface />
     </Link>
   );
 }

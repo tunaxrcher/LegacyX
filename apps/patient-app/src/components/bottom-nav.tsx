@@ -12,12 +12,13 @@ const PROTECTED_HREFS = new Set(["/visits", "/wallet", "/profile"]);
  * Mobile bottom navigation.
  *
  * Two modes:
- *   - hasSession=true   → 5 tabs (Home / Visits / Wallet / Profile + login swapped out)
- *   - hasSession=false  → tabs that would 401 are replaced with a "Login" CTA so
- *                          guests don't get bounced to /login mid-stride.
+ *   - hasSession=true   → 4 tabs (Home / Visits / Wallet / Profile)
+ *   - hasSession=false  → tabs that would 401 are replaced with a "Login" CTA
  *
- * The "Book" tab from the old design is gone — booking now starts at the Home
- * tab (`/` → categories → service → register → book).
+ * The active "pill" is a single absolutely-positioned div behind all tabs
+ * that translates X based on the active index. Browsers tween the
+ * `transform` cheaply on the GPU so we get a buttery glide for free without
+ * pulling in framer-motion.
  */
 export function BottomNav({ hasSession }: { hasSession: boolean }) {
   const pathname = usePathname();
@@ -35,6 +36,17 @@ export function BottomNav({ hasSession }: { hasSession: boolean }) {
         { href: "/login", key: "login", icon: LogIn },
       ] as const);
 
+  // Highlight rule: active tab gets primary colour + a tiny accent dot under
+  // the label. Earlier revision had a sliding "pill" pad behind the active
+  // tab — removed because it competed with the icon's colour change for
+  // attention.
+  const activeIdx = (() => {
+    const idx = items.findIndex((it) =>
+      it.href === "/" ? pathname === "/" : pathname.startsWith(it.href),
+    );
+    return idx === -1 ? 0 : idx;
+  })();
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur-md pb-safe-bottom">
       <ul
@@ -43,25 +55,29 @@ export function BottomNav({ hasSession }: { hasSession: boolean }) {
           hasSession ? "grid-cols-4" : "grid-cols-2",
         )}
       >
-        {items.map((it) => {
-          const active =
-            it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
+        {items.map((it, i) => {
+          const active = i === activeIdx;
           const Icon = it.icon;
-          // Guard against rendering protected tabs without session — fall back
-          // to /login link if we somehow get into that state.
-          const safeHref = !hasSession && PROTECTED_HREFS.has(it.href) ? "/login" : it.href;
+          // Guard against rendering protected tabs without session.
+          const safeHref =
+            !hasSession && PROTECTED_HREFS.has(it.href) ? "/login" : it.href;
           return (
             <li key={it.key} className="flex">
               <Link
                 href={safeHref}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition",
+                  "relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
                   active
                     ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground",
+                    : "text-muted-foreground hover:text-foreground active:scale-95",
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "stroke-[2.4]")} />
+                <Icon
+                  className={cn(
+                    "h-5 w-5 transition-transform duration-300",
+                    active && "stroke-[2.4]",
+                  )}
+                />
                 <span>{t(it.key)}</span>
               </Link>
             </li>
