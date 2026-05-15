@@ -495,6 +495,12 @@ export async function listSlots(
 export const CreatePatientAppointmentDto = z.object({
   branch_id: z.string().min(1),
   scheduled_at: z.string().datetime({ offset: true }),
+  /** Optional — if provided, durationMin is derived from the Service row and
+   *  the appointment carries a metadata snapshot (service_id, service_name,
+   *  category_code, …) so /visits and downstream surfaces can show "what was
+   *  booked" without an extra service lookup. */
+  service_id: z.string().min(1).optional(),
+  /** Used when the caller doesn't pass service_id (e.g. legacy clients). */
   duration_min: z.number().int().positive().max(8 * 60).default(30),
   reason: z.string().max(2000).optional(),
 });
@@ -505,6 +511,12 @@ export const CreatePatientAppointmentDto = z.object({
  * Auth model: ABAC `authorize()` is bypassed (patient is not a staff user). We
  * synthesise a `RequestContext` so we can reuse `writeWithOutbox`. Actor is
  * marked as `{ type: "PATIENT", id: patientId }` for audit traceability.
+ *
+ * If `service_id` is supplied, we copy a snapshot of the service into the
+ * appointment's `metadata` field — same shape as the public `book` endpoint —
+ * so the /visits screen can render the service name without a follow-up
+ * fetch, and so historical bookings still show the original service even if
+ * the catalog row is later renamed/deleted.
  */
 export async function createPatientAppointment(
   ctx: PatientRequestContext,
@@ -519,6 +531,28 @@ export async function createPatientAppointment(
   if (scheduled.getTime() <= Date.now()) {
     throw BadRequest("Scheduled time must be in the future");
   }
+
+  // Optional service hydration — we accept patient_app callers that pass a
+  // service_id so we can capture the catalog snapshot. Validate tenancy +
+  // active flag here (don't trust client-supplied id).
+  const service = input.service_id
+    ? await prisma.service.findFirst({
+        where: {
+          id: input.service_id,
+          tenantId: ctx.tenantId,
+          active: true,
+        },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          procedureCode: true,
+          durationMin: true,
+          category: { select: { code: true } },
+        },
+      })
+    : null;
+  if (input.service_id && !service) throw NotFound("Service not found");
 
   // Conflict check — same patient already booked at exact same slot.
   const conflict = await prisma.appointment.findFirst({
@@ -538,6 +572,20 @@ export async function createPatientAppointment(
     actor: { type: "PATIENT", id: ctx.patientId },
   };
 
+  // Mirror the metadata shape used by the public/book endpoint so /visits +
+  // /booking/<id>/success render identically regardless of which path created
+  // the appointment.
+  const apptMetadata = service
+    ? ({
+        service_id: service.id,
+        service_code: service.code,
+        service_name: service.name,
+        procedure_code: service.procedureCode,
+        category_code: service.category?.code ?? null,
+        source: "patient_app_authed",
+      } as object)
+    : undefined;
+
   return writeWithOutbox(synthCtx, async (tx) => {
     const appt = await tx.appointment.create({
       data: {
@@ -545,10 +593,13 @@ export async function createPatientAppointment(
         branchId: branch.id,
         patientId: ctx.patientId,
         scheduledAt: scheduled,
-        durationMin: input.duration_min,
+        // Prefer the service's canonical duration over the client-supplied
+        // value so the slot length matches the catalog.
+        durationMin: service?.durationMin ?? input.duration_min,
         channel: "LIFF",
         reason: input.reason,
         status: "BOOKED",
+        ...(apptMetadata ? { metadata: apptMetadata } : {}),
       },
     });
     await tx.auditLog.create({
@@ -563,6 +614,7 @@ export async function createPatientAppointment(
           channel: "LIFF",
           patient_self_booked: true,
           line_user_id: ctx.lineUserId,
+          service_id: service?.id ?? null,
         } as object,
       },
     });
@@ -637,32 +689,86 @@ export async function listMyAppointments(
     }),
   ]);
 
-  // Look up branches in one shot.
+  // Hydrate branches + services in two extra queries (rather than per-row) so
+  // the patient app can render "service name + price + branch + address" on
+  // each appointment card without needing N more round-trips.
+  //
+  // Legacy fallback: bookings made before the metadata-snapshot fix (May 2026)
+  // didn't store service_id in metadata — they only embedded it as text in
+  // `reason` ("Booking via patient app — service_id=xxx"). We parse that here
+  // so historical appointments still render with a service name.
   const branchIds = Array.from(new Set(rows.map((r) => r.branchId)));
-  const branches = branchIds.length
-    ? await prisma.branch.findMany({
-        where: { id: { in: branchIds } },
-        select: { id: true, name: true },
-      })
-    : [];
+  const resolveServiceId = (
+    r: (typeof rows)[number],
+  ): string | null => {
+    const meta = (r.metadata ?? {}) as Record<string, unknown>;
+    if (typeof meta.service_id === "string") return meta.service_id;
+    const m = r.reason?.match(/service_id=([A-Za-z0-9_-]+)/);
+    return m ? m[1]! : null;
+  };
+  const serviceIds = Array.from(
+    new Set(
+      rows
+        .map(resolveServiceId)
+        .filter((s): s is string => !!s),
+    ),
+  );
+
+  const [branches, services] = await Promise.all([
+    branchIds.length
+      ? prisma.branch.findMany({
+          where: { id: { in: branchIds } },
+          select: { id: true, name: true, address: true },
+        })
+      : Promise.resolve([]),
+    serviceIds.length
+      ? prisma.service.findMany({
+          where: { id: { in: serviceIds } },
+          select: {
+            id: true,
+            name: true,
+            nameTh: true,
+            priceFrom: true,
+            priceTo: true,
+            durationMin: true,
+            category: { select: { code: true, name: true, nameTh: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
   const branchMap = new Map(branches.map((b) => [b.id, b]));
+  const serviceMap = new Map(services.map((s) => [s.id, s]));
 
   return {
     pagination: { page, perPage, total },
     data: rows.map((r) => {
       const meta = (r.metadata ?? {}) as Record<string, unknown>;
+      const serviceId = resolveServiceId(r);
+      const svc = serviceId ? serviceMap.get(serviceId) : undefined;
+      const branch = branchMap.get(r.branchId);
       return {
         id: r.id,
         branch_id: r.branchId,
-        branch_name: branchMap.get(r.branchId)?.name ?? null,
+        branch_name: branch?.name ?? null,
+        branch_address: branch?.address ?? null,
         scheduled_at: r.scheduledAt.toISOString(),
         duration_min: r.durationMin,
         channel: r.channel,
         status: r.status,
         reason: r.reason,
+        service_id: serviceId,
         service_name:
-          typeof meta.service_name === "string" ? meta.service_name : null,
-        service_id: typeof meta.service_id === "string" ? meta.service_id : null,
+          svc?.name ??
+          (typeof meta.service_name === "string" ? meta.service_name : null),
+        service_name_th: svc?.nameTh ?? null,
+        service_category_code: svc?.category?.code ?? null,
+        service_category_name: svc?.category?.name ?? null,
+        service_category_name_th: svc?.category?.nameTh ?? null,
+        price_from:
+          svc?.priceFrom != null ? Number(svc.priceFrom.toString()) : null,
+        price_to:
+          svc?.priceTo != null ? Number(svc.priceTo.toString()) : null,
         created_at: r.createdAt.toISOString(),
       };
     }),
@@ -754,32 +860,46 @@ export async function listMyVisits(
     }),
   ]);
 
+  const branchIds = Array.from(new Set(rows.map((r) => r.branchId)));
+  const branches = branchIds.length
+    ? await prisma.branch.findMany({
+        where: { id: { in: branchIds } },
+        select: { id: true, name: true, address: true },
+      })
+    : [];
+  const branchMap = new Map(branches.map((b) => [b.id, b]));
+
   return {
     pagination: { page, perPage, total },
-    data: rows.map((v) => ({
-      id: v.id,
-      branch_id: v.branchId,
-      status: v.status,
-      checked_in_at: v.checkedInAt?.toISOString() ?? null,
-      started_at: v.startedAt?.toISOString() ?? null,
-      completed_at: v.completedAt?.toISOString() ?? null,
-      created_at: v.createdAt.toISOString(),
-      invoices: v.invoices.map((i) => ({
-        id: i.id,
-        number: i.number,
-        status: i.status,
-        total: i.total.toString(),
-        currency: i.currency,
-      })),
-      services: v.orders.flatMap((o) =>
-        o.items.map((l) => ({
-          description: l.description,
-          qty: l.qty.toString(),
-          total: l.total.toString(),
-          kind: l.itemType,
+    data: rows.map((v) => {
+      const branch = branchMap.get(v.branchId);
+      return {
+        id: v.id,
+        branch_id: v.branchId,
+        branch_name: branch?.name ?? null,
+        branch_address: branch?.address ?? null,
+        status: v.status,
+        checked_in_at: v.checkedInAt?.toISOString() ?? null,
+        started_at: v.startedAt?.toISOString() ?? null,
+        completed_at: v.completedAt?.toISOString() ?? null,
+        created_at: v.createdAt.toISOString(),
+        invoices: v.invoices.map((i) => ({
+          id: i.id,
+          number: i.number,
+          status: i.status,
+          total: i.total.toString(),
+          currency: i.currency,
         })),
-      ),
-    })),
+        services: v.orders.flatMap((o) =>
+          o.items.map((l) => ({
+            description: l.description,
+            qty: l.qty.toString(),
+            total: l.total.toString(),
+            kind: l.itemType,
+          })),
+        ),
+      };
+    }),
   };
 }
 

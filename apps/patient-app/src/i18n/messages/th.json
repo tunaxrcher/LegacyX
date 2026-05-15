@@ -145,7 +145,13 @@
     "no_services": "ไม่มีรายการบริการ",
     "view_receipt": "ดูใบเสร็จ",
     "no_receipt": "ยังไม่มีใบเสร็จ",
-    "branch": "สาขา"
+    "branch": "สาขา",
+    "duration_min": "นาที",
+    "ask_price": "สอบถามราคา",
+    "price_label": "ราคา",
+    "details_cta": "ดูรายละเอียด",
+    "total_label": "ยอดรวม",
+    "qty_label": "จำนวน"
   },
   "wallet": {
     "title": "คอร์สของฉัน",

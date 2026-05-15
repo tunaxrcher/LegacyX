@@ -78,8 +78,15 @@ export default async function ServiceBookPage({
     <main className="mx-auto max-w-md px-4 pt-4 pb-10 animate-fade-in">
       <div className="mb-4">
         <Link
-          href={`/s/${service.id}/register`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+          href={
+            // Logged-in patients skip /register (it auto-redirects to /book)
+            // so going "back" there would deadloop. Always return to the
+            // category page — that's the real previous step in the browse flow.
+            session
+              ? `/c/${service.category.code}`
+              : `/s/${service.id}/register`
+          }
+          className="inline-flex items-center gap-1.5 -ml-2 px-2 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground active:bg-muted transition"
         >
           <ArrowLeft className="h-4 w-4" />
           {t("back")}

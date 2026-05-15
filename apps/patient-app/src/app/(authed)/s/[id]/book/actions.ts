@@ -119,8 +119,12 @@ export async function bookAuthedAction(args: AuthedBookArgs): Promise<BookResult
     body: JSON.stringify({
       branch_id: args.branch_id,
       scheduled_at: scheduledAt,
-      duration_min: 30,
-      reason: `Booking via patient app — service_id=${args.service_id}`,
+      // Carry service_id so the api-server can hydrate metadata
+      // (service_name, category, etc.) — without this the appointment
+      // shows up as "—" on /visits because the metadata snapshot is
+      // empty.
+      service_id: args.service_id,
+      reason: `Booking via patient app${args.mode === "WALKIN" ? " (walk-in)" : ""}`,
     }),
     cache: "no-store",
   });

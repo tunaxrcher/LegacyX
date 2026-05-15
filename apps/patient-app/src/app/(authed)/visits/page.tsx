@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import {
@@ -7,6 +8,11 @@ import {
   Clock,
   FileText,
   MapPin,
+  Receipt,
+  Sparkles,
+  Stethoscope,
+  Tag,
+  Timer,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -18,6 +24,8 @@ import { formatCurrency } from "@/lib/utils";
 type Visit = {
   id: string;
   branch_id: string;
+  branch_name: string | null;
+  branch_address: string | null;
   status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   checked_in_at: string | null;
   completed_at: string | null;
@@ -40,11 +48,23 @@ type Visit = {
 type Appointment = {
   id: string;
   branch_name: string | null;
+  branch_address: string | null;
   scheduled_at: string;
   duration_min: number;
   channel: "WALKIN" | "LIFF" | "ONLINE" | "PHONE";
-  status: "BOOKED" | "CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+  status:
+    | "BOOKED"
+    | "CONFIRMED"
+    | "CHECKED_IN"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "NO_SHOW";
   service_name: string | null;
+  service_name_th: string | null;
+  service_category_name: string | null;
+  service_category_name_th: string | null;
+  price_from: number | null;
+  price_to: number | null;
 };
 
 export default async function VisitsPage() {
@@ -72,25 +92,21 @@ export default async function VisitsPage() {
     /* empty */
   }
 
-  // Hide appointments that already have a corresponding visit (avoid double
-  // counting once reception has done check-in).
   const hasNothing = visits.length === 0 && upcoming.length === 0;
 
   return (
     <>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <main className="px-4 pt-4 pb-4 animate-fade-in space-y-6">
+      <main className="px-4 pt-4 pb-4 animate-fade-in space-y-7">
         {/* Upcoming appointments */}
         {upcoming.length > 0 ? (
           <section>
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-1.5 px-1">
-              <CalendarClock className="h-4 w-4 text-primary" />
-              {t("upcoming_title")}
-              <span className="text-muted-foreground text-xs font-normal">
-                ({upcoming.length})
-              </span>
-            </h2>
-            <ul className="space-y-2">
+            <SectionHeader
+              icon={<CalendarClock className="h-4 w-4 text-primary" />}
+              title={t("upcoming_title")}
+              count={upcoming.length}
+            />
+            <ul className="space-y-3">
               {upcoming.map((a) => (
                 <AppointmentCard
                   key={a.id}
@@ -102,6 +118,10 @@ export default async function VisitsPage() {
                     statusBooked: t("status_booked"),
                     statusConfirmed: t("status_confirmed"),
                     statusCheckedIn: t("status_checked_in"),
+                    durationMin: t("duration_min"),
+                    askPrice: t("ask_price"),
+                    priceLabel: t("price_label"),
+                    detailsCta: t("details_cta"),
                   }}
                 />
               ))}
@@ -112,95 +132,89 @@ export default async function VisitsPage() {
         {/* Past visits */}
         {visits.length > 0 ? (
           <section>
-            <h2 className="text-sm font-semibold mb-2 flex items-center gap-1.5 px-1">
-              <FileText className="h-4 w-4 text-primary" />
-              {t("past_title")}
-              <span className="text-muted-foreground text-xs font-normal">
-                ({visits.length})
-              </span>
-            </h2>
+            <SectionHeader
+              icon={<FileText className="h-4 w-4 text-primary" />}
+              title={t("past_title")}
+              count={visits.length}
+            />
             <ul className="space-y-3">
-              {visits.map((v) => {
-                const date = new Date(v.completed_at ?? v.created_at);
-                return (
-                  <li
-                    key={v.id}
-                    className="rounded-2xl border bg-card p-4 shadow-soft animate-slide-up"
-                  >
-                    <header className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <StatusIcon status={v.status} />
-                        <p className="text-sm font-medium">
-                          {date.toLocaleDateString(locale === "th" ? "th-TH" : undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
-                      </div>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        {t(statusLabelKey(v.status))}
-                      </span>
-                    </header>
-
-                    {v.services.length > 0 ? (
-                      <ul className="text-xs space-y-1">
-                        {v.services.map((s, i) => (
-                          <li
-                            key={i}
-                            className="flex items-center justify-between gap-3"
-                          >
-                            <span className="truncate text-muted-foreground">
-                              {s.description}
-                            </span>
-                            <span className="tabular-nums text-foreground">
-                              {formatCurrency(s.total)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        {t("no_services")}
-                      </p>
-                    )}
-
-                    {v.invoices.length > 0 && (
-                      <footer className="mt-3 pt-3 border-t flex items-center justify-between">
-                        <div className="text-[11px] text-muted-foreground">
-                          {t("invoice")} #{v.invoices[0]!.number}
-                        </div>
-                        <a
-                          href={`/visits/${v.id}/receipt`}
-                          className="text-xs font-semibold text-primary inline-flex items-center gap-1"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          {t("view_receipt")}
-                        </a>
-                      </footer>
-                    )}
-                  </li>
-                );
-              })}
+              {visits.map((v) => (
+                <VisitCard
+                  key={v.id}
+                  visit={v}
+                  locale={locale}
+                  labels={{
+                    statusKey: statusLabelKey(v.status),
+                    statusCompleted: t("completed"),
+                    statusInProgress: t("in_progress"),
+                    statusOpen: t("open"),
+                    statusCancelled: t("cancelled"),
+                    invoice: t("invoice"),
+                    viewReceipt: t("view_receipt"),
+                    noServices: t("no_services"),
+                    totalLabel: t("total_label"),
+                    qtyLabel: t("qty_label"),
+                  }}
+                />
+              ))}
             </ul>
           </section>
         ) : null}
 
         {hasNothing ? (
-          <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-            <CalendarClock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>{t("empty")}</p>
-            <a
+          <div className="rounded-3xl border border-dashed bg-card p-10 text-center">
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+              <CalendarClock className="h-7 w-7" />
+            </div>
+            <p className="text-sm text-muted-foreground">{t("empty")}</p>
+            <Link
               href="/"
-              className="inline-block mt-3 text-xs font-semibold text-primary"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-xs font-semibold shadow-soft active:scale-[0.98] transition"
             >
-              {t("book_cta")} →
-            </a>
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("book_cta")}
+            </Link>
           </div>
         ) : null}
       </main>
     </>
   );
+}
+
+function SectionHeader({
+  icon,
+  title,
+  count,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+}) {
+  return (
+    <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2.5 flex items-center gap-1.5 px-1 text-muted-foreground">
+      {icon}
+      <span className="text-foreground">{title}</span>
+      <span className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+        {count}
+      </span>
+    </h2>
+  );
+}
+
+function formatPrice(
+  priceFrom: number | null,
+  priceTo: number | null,
+  locale: string,
+  fallbackAsk: string,
+): string {
+  if (priceFrom == null && priceTo == null) return fallbackAsk;
+  if (priceFrom === 0 && priceTo == null) {
+    return locale === "th" ? "ฟรี" : "Free";
+  }
+  if (priceFrom != null && priceTo != null && priceFrom !== priceTo) {
+    return `${priceFrom.toLocaleString()} - ${priceTo.toLocaleString()}.-`;
+  }
+  return `${(priceFrom ?? priceTo ?? 0).toLocaleString()}.-`;
 }
 
 function AppointmentCard({
@@ -216,18 +230,28 @@ function AppointmentCard({
     statusBooked: string;
     statusConfirmed: string;
     statusCheckedIn: string;
+    durationMin: string;
+    askPrice: string;
+    priceLabel: string;
+    detailsCta: string;
   };
 }) {
   const d = new Date(appointment.scheduled_at);
-  const date = d.toLocaleDateString(locale === "th" ? "th-TH" : undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-  const time = d.toLocaleTimeString(locale === "th" ? "th-TH" : "en-US", {
+  const dayLabel = d.toLocaleDateString(
+    locale === "th" ? "th-TH" : undefined,
+    { weekday: "short", day: "numeric", month: "short", year: "numeric" },
+  );
+  const timeLabel = d.toLocaleTimeString(locale === "th" ? "th-TH" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const dayNum = d.toLocaleDateString(locale === "th" ? "th-TH" : undefined, {
+    day: "numeric",
+  });
+  const monthShort = d.toLocaleDateString(
+    locale === "th" ? "th-TH" : undefined,
+    { month: "short" },
+  );
   const isWalkin = appointment.channel === "WALKIN";
 
   const statusLabel =
@@ -237,43 +261,284 @@ function AppointmentCard({
         ? labels.statusConfirmed
         : labels.statusBooked;
 
+  const statusTone =
+    appointment.status === "CHECKED_IN"
+      ? "bg-success/10 text-success"
+      : appointment.status === "CONFIRMED"
+        ? "bg-primary/10 text-primary"
+        : "bg-muted text-muted-foreground";
+
+  const serviceName =
+    (locale === "th" ? appointment.service_name_th : appointment.service_name) ??
+    appointment.service_name ??
+    "—";
+
+  const categoryName =
+    (locale === "th"
+      ? appointment.service_category_name_th
+      : appointment.service_category_name) ??
+    appointment.service_category_name ??
+    null;
+
+  const priceText = formatPrice(
+    appointment.price_from,
+    appointment.price_to,
+    locale,
+    labels.askPrice,
+  );
+
   return (
-    <li className="rounded-2xl border bg-card p-4 shadow-soft animate-slide-up">
-      <header className="flex items-center justify-between mb-2">
-        <span className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+    <li className="rounded-3xl border bg-card shadow-soft animate-slide-up overflow-hidden">
+      {/* Top row: date tile + service info */}
+      <div className="flex items-stretch gap-3 p-4">
+        {/* Date tile */}
+        <div
+          className={`shrink-0 w-16 rounded-2xl flex flex-col items-center justify-center py-2 ${
+            isWalkin
+              ? "bg-amber-500/10 text-amber-600"
+              : "bg-primary/10 text-primary"
+          }`}
+        >
           {isWalkin ? (
-            <Zap className="h-3 w-3" />
+            <>
+              <Zap className="h-4 w-4" />
+              <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">
+                {labels.walkin}
+              </span>
+            </>
           ) : (
-            <CalendarClock className="h-3 w-3" />
+            <>
+              <span className="text-2xl font-extrabold leading-none">
+                {dayNum}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider mt-0.5">
+                {monthShort}
+              </span>
+            </>
           )}
-          {isWalkin ? labels.walkin : labels.scheduled}
-        </span>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-          {statusLabel}
-        </span>
-      </header>
+        </div>
 
-      <p className="text-sm font-semibold leading-tight">
-        {appointment.service_name ?? "—"}
-      </p>
+        {/* Right column */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            {categoryName ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+                <Tag className="h-3 w-3" />
+                {categoryName}
+              </span>
+            ) : (
+              <span />
+            )}
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone}`}
+            >
+              {statusLabel}
+            </span>
+          </div>
 
-      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          {date} · {time}
-        </span>
+          <h3 className="text-base font-bold leading-tight truncate">
+            {serviceName}
+          </h3>
+
+          {!isWalkin ? (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {dayLabel} · {timeLabel}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Detail strip */}
+      <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+        <DetailPill
+          icon={<Timer className="h-3.5 w-3.5" />}
+          label={`${appointment.duration_min} ${labels.durationMin}`}
+        />
+        <DetailPill
+          icon={<Stethoscope className="h-3.5 w-3.5 text-primary" />}
+          label={priceText}
+          highlight
+        />
         {appointment.branch_name ? (
-          <span className="inline-flex items-center gap-1 truncate">
-            <MapPin className="h-3 w-3" />
-            {appointment.branch_name}
-          </span>
+          <DetailPill
+            icon={<MapPin className="h-3.5 w-3.5" />}
+            label={appointment.branch_name}
+            full
+          />
         ) : null}
       </div>
     </li>
   );
 }
 
-function statusLabelKey(s: Visit["status"]): "completed" | "in_progress" | "open" | "cancelled" {
+function DetailPill({
+  icon,
+  label,
+  highlight,
+  full,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  highlight?: boolean;
+  full?: boolean;
+}) {
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs ${
+        highlight
+          ? "bg-primary/5 text-primary font-semibold"
+          : "bg-muted/60 text-muted-foreground"
+      } ${full ? "col-span-2" : ""}`}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
+function VisitCard({
+  visit,
+  locale,
+  labels,
+}: {
+  visit: Visit;
+  locale: string;
+  labels: {
+    statusKey: "completed" | "in_progress" | "open" | "cancelled";
+    statusCompleted: string;
+    statusInProgress: string;
+    statusOpen: string;
+    statusCancelled: string;
+    invoice: string;
+    viewReceipt: string;
+    noServices: string;
+    totalLabel: string;
+    qtyLabel: string;
+  };
+}) {
+  const date = new Date(visit.completed_at ?? visit.created_at);
+  const dayLabel = date.toLocaleDateString(
+    locale === "th" ? "th-TH" : undefined,
+    { weekday: "short", day: "numeric", month: "short", year: "numeric" },
+  );
+  const statusLabel =
+    labels.statusKey === "completed"
+      ? labels.statusCompleted
+      : labels.statusKey === "in_progress"
+        ? labels.statusInProgress
+        : labels.statusKey === "cancelled"
+          ? labels.statusCancelled
+          : labels.statusOpen;
+  const statusTone =
+    visit.status === "COMPLETED"
+      ? "bg-success/10 text-success"
+      : visit.status === "IN_PROGRESS"
+        ? "bg-primary/10 text-primary"
+        : visit.status === "CANCELLED"
+          ? "bg-destructive/10 text-destructive"
+          : "bg-muted text-muted-foreground";
+
+  // Sum invoices for headline total. Falls back to service-line sum when no
+  // invoice has been created yet (e.g. visit still in progress).
+  const invoiceTotal = visit.invoices.reduce(
+    (acc, i) => acc + Number(i.total || 0),
+    0,
+  );
+  const serviceTotal = visit.services.reduce(
+    (acc, s) => acc + Number(s.total || 0),
+    0,
+  );
+  const total = invoiceTotal > 0 ? invoiceTotal : serviceTotal;
+  const currency = visit.invoices[0]?.currency ?? "THB";
+
+  return (
+    <li className="rounded-3xl border bg-card shadow-soft animate-slide-up overflow-hidden">
+      <header className="px-4 pt-4 pb-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <StatusIcon status={visit.status} />
+            <p className="text-sm font-semibold">{dayLabel}</p>
+          </div>
+          {visit.branch_name ? (
+            <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <MapPin className="h-3 w-3" />
+              {visit.branch_name}
+            </p>
+          ) : null}
+        </div>
+        <span
+          className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusTone}`}
+        >
+          {statusLabel}
+        </span>
+      </header>
+
+      {visit.services.length > 0 ? (
+        <ul className="px-4 pt-2 pb-2 space-y-1.5">
+          {visit.services.map((s, i) => (
+            <li
+              key={i}
+              className="flex items-start justify-between gap-3 text-xs"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-foreground truncate">{s.description}</p>
+                {Number(s.qty) > 1 ? (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {labels.qtyLabel}: {Number(s.qty).toLocaleString()}
+                  </p>
+                ) : null}
+              </div>
+              <span className="tabular-nums text-foreground font-medium shrink-0">
+                {formatCurrency(s.total, currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="px-4 pb-2 text-xs text-muted-foreground">
+          {labels.noServices}
+        </p>
+      )}
+
+      {total > 0 || visit.invoices.length > 0 ? (
+        <footer className="mx-4 mt-2 mb-4 rounded-2xl bg-muted/40 px-3 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Receipt className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <div className="min-w-0">
+              {visit.invoices.length > 0 ? (
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {labels.invoice} #{visit.invoices[0]!.number}
+                </p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {labels.totalLabel}
+                </p>
+              )}
+              {total > 0 ? (
+                <p className="text-sm font-bold tabular-nums">
+                  {formatCurrency(total.toString(), currency)}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {visit.invoices.length > 0 ? (
+            <Link
+              href={`/visits/${visit.id}/receipt`}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/15 active:scale-[0.97] transition"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {labels.viewReceipt}
+            </Link>
+          ) : null}
+        </footer>
+      ) : null}
+    </li>
+  );
+}
+
+function statusLabelKey(
+  s: Visit["status"],
+): "completed" | "in_progress" | "open" | "cancelled" {
   if (s === "COMPLETED") return "completed";
   if (s === "IN_PROGRESS") return "in_progress";
   if (s === "CANCELLED") return "cancelled";

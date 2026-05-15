@@ -145,7 +145,13 @@
     "no_services": "No services recorded",
     "view_receipt": "View receipt",
     "no_receipt": "No receipt yet",
-    "branch": "Branch"
+    "branch": "Branch",
+    "duration_min": "min",
+    "ask_price": "Ask for price",
+    "price_label": "Price",
+    "details_cta": "Details",
+    "total_label": "Total",
+    "qty_label": "Qty"
   },
   "wallet": {
     "title": "My courses",
