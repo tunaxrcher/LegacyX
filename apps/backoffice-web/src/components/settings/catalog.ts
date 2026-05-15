@@ -1,17 +1,3 @@
-import {
-  DoorOpen,
-  Sparkles,
-  Package,
-  UserCog,
-  Bell,
-  Key,
-  Building2,
-  AlertOctagon,
-  Hotel,
-  ServerCog,
-  type LucideIcon,
-} from "lucide-react";
-
 /**
  * Single source of truth for the Settings hub. Used by:
  *  • `SettingsDialog` — the popup launched from the sidebar
@@ -20,13 +6,18 @@ import {
  * Every consumer must filter by `tile.roles` against the current session
  * roles. The backend ABAC layer is still the real authority — this is just
  * for tidy UX (don't dangle inaccessible links in the user's face).
+ *
+ * Icons use Iconify names (`<collection>:<name>`), mostly Microsoft Fluent
+ * Emoji Flat for the colorful "branded" look. Browse the catalog at
+ * https://icon-sets.iconify.design/fluent-emoji-flat/ to find new icons.
  */
 export interface SettingTile {
   href: string;
   titleKey: string;
   descriptionKey: string;
-  icon: LucideIcon;
-  /** Tailwind classes for the icon tile (background + foreground colors). */
+  /** Iconify icon name, e.g. `"fluent-emoji-flat:hospital"`. */
+  icon: string;
+  /** Tailwind classes for the icon tile background (the icon itself is colorful). */
   tone: string;
   roles: string[];
 }
@@ -34,8 +25,9 @@ export interface SettingTile {
 export interface SettingGroup {
   titleKey: string;
   descriptionKey: string;
-  icon: LucideIcon;
-  /** Tailwind classes for the group header icon tile. */
+  /** Iconify icon name for the group header. */
+  icon: string;
+  /** Tailwind classes for the group header icon tile background. */
   tone: string;
   tiles: SettingTile[];
 }
@@ -44,47 +36,47 @@ export const SETTINGS_GROUPS: SettingGroup[] = [
   {
     titleKey: "settings_hub.group_clinic",
     descriptionKey: "settings_hub.group_clinic_desc",
-    icon: Hotel,
-    tone: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-300",
+    icon: "fluent-emoji-flat:hospital",
+    tone: "bg-fuchsia-500/10",
     tiles: [
       {
         href: "/manager/resources",
         titleKey: "nav.manager_resources",
         descriptionKey: "settings_hub.tile_resources_desc",
-        icon: DoorOpen,
-        tone: "bg-sky-500/10 text-sky-600 dark:text-sky-300",
+        icon: "fluent-emoji-flat:hospital",
+        tone: "bg-sky-500/10",
         roles: ["MANAGER"],
       },
       {
         href: "/manager/services",
         titleKey: "nav.manager_services",
         descriptionKey: "settings_hub.tile_services_desc",
-        icon: Sparkles,
-        tone: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-300",
+        icon: "fluent-emoji-flat:sparkles",
+        tone: "bg-fuchsia-500/10",
         roles: ["MANAGER"],
       },
       {
         href: "/manager/catalog",
         titleKey: "nav.manager_catalog",
         descriptionKey: "settings_hub.tile_catalog_desc",
-        icon: Package,
-        tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+        icon: "fluent-emoji-flat:pill",
+        tone: "bg-emerald-500/10",
         roles: ["MANAGER"],
       },
       {
         href: "/manager/staff",
         titleKey: "nav.manager_staff",
         descriptionKey: "settings_hub.tile_staff_desc",
-        icon: UserCog,
-        tone: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+        icon: "fluent-emoji-flat:woman-health-worker",
+        tone: "bg-amber-500/10",
         roles: ["MANAGER"],
       },
       {
         href: "/manager/notifications",
         titleKey: "nav.manager_notifications",
         descriptionKey: "settings_hub.tile_notifications_desc",
-        icon: Bell,
-        tone: "bg-rose-500/10 text-rose-600 dark:text-rose-300",
+        icon: "fluent-emoji-flat:bell",
+        tone: "bg-rose-500/10",
         roles: ["MANAGER"],
       },
     ],
@@ -92,39 +84,39 @@ export const SETTINGS_GROUPS: SettingGroup[] = [
   {
     titleKey: "settings_hub.group_admin",
     descriptionKey: "settings_hub.group_admin_desc",
-    icon: ServerCog,
-    tone: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-300",
+    icon: "fluent-emoji-flat:gear",
+    tone: "bg-indigo-500/10",
     tiles: [
       {
         href: "/admin/users",
         titleKey: "nav.admin_users",
         descriptionKey: "settings_hub.tile_admin_users_desc",
-        icon: UserCog,
-        tone: "bg-violet-500/10 text-violet-600 dark:text-violet-300",
+        icon: "fluent-emoji-flat:identification-card",
+        tone: "bg-violet-500/10",
         roles: ["ADMIN"],
       },
       {
         href: "/admin/roles",
         titleKey: "nav.admin_roles",
         descriptionKey: "settings_hub.tile_admin_roles_desc",
-        icon: Key,
-        tone: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-300",
+        icon: "fluent-emoji-flat:key",
+        tone: "bg-indigo-500/10",
         roles: ["ADMIN"],
       },
       {
         href: "/admin/branches",
         titleKey: "nav.admin_branches",
         descriptionKey: "settings_hub.tile_admin_branches_desc",
-        icon: Building2,
-        tone: "bg-teal-500/10 text-teal-600 dark:text-teal-300",
+        icon: "fluent-emoji-flat:office-building",
+        tone: "bg-teal-500/10",
         roles: ["ADMIN"],
       },
       {
         href: "/dlq",
         titleKey: "nav.dlq",
         descriptionKey: "settings_hub.tile_dlq_desc",
-        icon: AlertOctagon,
-        tone: "bg-orange-500/10 text-orange-600 dark:text-orange-300",
+        icon: "fluent-emoji-flat:warning",
+        tone: "bg-orange-500/10",
         roles: ["ADMIN"],
       },
     ],

@@ -3,10 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  ChevronRight,
-  Settings as SettingsIcon,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { EmojiIcon } from "@/components/ui/emoji-icon";
 import {
   Dialog,
   DialogClose,
@@ -32,8 +30,7 @@ interface SettingsDialogProps {
  * in one go.
  *
  * Design intent: this is a *menu*, not a landing page — keep the chrome
- * minimal so the tiles are the visual focus. The deep-link page at
- * `/settings` still has the full hero treatment for direct visits.
+ * minimal so the colorful Fluent Emoji icons are the visual focus.
  */
 export function SettingsDialog({ roles, trigger }: SettingsDialogProps) {
   const t = useTranslations();
@@ -43,10 +40,10 @@ export function SettingsDialog({ roles, trigger }: SettingsDialogProps) {
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="grid max-h-[85vh] w-[calc(100vw-2rem)] max-w-2xl grid-rows-[auto_1fr] gap-0 overflow-hidden p-0 sm:rounded-2xl">
-        {/* Compact header — icon + title on one row, subtitle below */}
+        {/* Compact header — colorful gear icon + title + subtitle */}
         <div className="flex items-start gap-3 border-b px-5 py-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <SettingsIcon className="h-[18px] w-[18px]" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+            <EmojiIcon icon="fluent-emoji-flat:gear" size={28} />
           </div>
           <div className="min-w-0 flex-1 pt-0.5">
             <DialogTitle className="text-base leading-tight">
@@ -68,50 +65,49 @@ export function SettingsDialog({ roles, trigger }: SettingsDialogProps) {
                     {t(group.titleKey)}
                   </h3>
                   <span className="text-[11px] tabular-nums text-muted-foreground/70">
-                    {t("settings_hub.dialog_count", { count: group.tiles.length })}
+                    {t("settings_hub.dialog_count", {
+                      count: group.tiles.length,
+                    })}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {group.tiles.map((tile) => {
-                    const Icon = tile.icon;
-                    return (
-                      <DialogClose asChild key={tile.href}>
-                        <Link
-                          href={tile.href}
+                  {group.tiles.map((tile) => (
+                    <DialogClose asChild key={tile.href}>
+                      <Link
+                        href={tile.href}
+                        className={cn(
+                          "group relative flex items-center gap-3 overflow-hidden rounded-xl border bg-card p-3 transition-all",
+                          "hover:-translate-y-[1px] hover:border-primary/40 hover:shadow-soft-lg",
+                        )}
+                      >
+                        <span
+                          aria-hidden
+                          className="absolute inset-x-0 top-0 h-[2px] bg-primary-gradient opacity-0 transition-opacity group-hover:opacity-100"
+                        />
+                        <span
                           className={cn(
-                            "group relative flex items-center gap-3 overflow-hidden rounded-xl border bg-card p-3 transition-all",
-                            "hover:-translate-y-[1px] hover:border-primary/40 hover:shadow-soft-lg",
+                            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110",
+                            tile.tone,
                           )}
                         >
-                          <span
-                            aria-hidden
-                            className="absolute inset-x-0 top-0 h-[2px] bg-primary-gradient opacity-0 transition-opacity group-hover:opacity-100"
-                          />
-                          <span
-                            className={cn(
-                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
-                              tile.tone,
-                            )}
-                          >
-                            <Icon className="h-[16px] w-[16px]" />
+                          <EmojiIcon icon={tile.icon} size={26} />
+                        </span>
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className="line-clamp-1 text-sm font-medium text-foreground">
+                            {t(tile.titleKey)}
                           </span>
-                          <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="line-clamp-1 text-sm font-medium text-foreground">
-                              {t(tile.titleKey)}
-                            </span>
-                            <span className="line-clamp-1 text-[11px] text-muted-foreground">
-                              {t(tile.descriptionKey)}
-                            </span>
-                          </div>
-                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
-                        </Link>
-                      </DialogClose>
-                    );
-                  })}
+                          <span className="line-clamp-1 text-[11px] text-muted-foreground">
+                            {t(tile.descriptionKey)}
+                          </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
+                      </Link>
+                    </DialogClose>
+                  ))}
                 </div>
 
-                {/* Subtle divider between groups (except after last) */}
+                {/* Subtle gap between groups (except after last) */}
                 {idx < groups.length - 1 && (
                   <div aria-hidden className="pt-3" />
                 )}

@@ -4,9 +4,9 @@ import { getTranslations } from "next-intl/server";
 import {
   ChevronRight,
   ShieldOff,
-  Settings as SettingsIcon,
   Layers,
 } from "lucide-react";
+import { EmojiIcon } from "@/components/ui/emoji-icon";
 import { getSessionFromCookies } from "@/lib/session";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -81,71 +81,65 @@ export default async function SettingsPage() {
         }
       />
 
-      {groups.map((group) => {
-        const GroupIcon = group.icon;
-        return (
-          <Card key={group.titleKey} className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b bg-muted/20 py-4">
-              <div
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  group.tone,
-                )}
-              >
-                <GroupIcon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <CardTitle className="text-base">{t(group.titleKey)}</CardTitle>
-                <CardDescription className="mt-0.5 text-xs">
-                  {t(group.descriptionKey)}
-                </CardDescription>
-              </div>
-              <Badge variant="muted" className="hidden sm:inline-flex">
-                {group.tiles.length}
-              </Badge>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {group.tiles.map((tile) => {
-                  const Icon = tile.icon;
-                  return (
-                    <Link
-                      key={tile.href}
-                      href={tile.href}
-                      className={cn(
-                        "group relative flex items-start gap-3 overflow-hidden rounded-xl border bg-card p-4 transition-all",
-                        "hover:-translate-y-[1px] hover:border-primary/40 hover:shadow-soft-lg",
-                      )}
-                    >
-                      <span
-                        aria-hidden
-                        className="absolute inset-x-0 top-0 h-[2px] bg-primary-gradient opacity-0 transition-opacity group-hover:opacity-100"
-                      />
-                      <span
-                        className={cn(
-                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-border/40 transition-transform group-hover:scale-105",
-                          tile.tone,
-                        )}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="line-clamp-1 text-sm font-semibold text-foreground">
-                          {t(tile.titleKey)}
-                        </span>
-                        <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                          {t(tile.descriptionKey)}
-                        </span>
-                      </div>
-                      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+      {groups.map((group) => (
+        <Card key={group.titleKey} className="overflow-hidden">
+          <CardHeader className="flex flex-row items-center gap-3 space-y-0 border-b bg-muted/20 py-4">
+            <div
+              className={cn(
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+                group.tone,
+              )}
+            >
+              <EmojiIcon icon={group.icon} size={26} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-base">{t(group.titleKey)}</CardTitle>
+              <CardDescription className="mt-0.5 text-xs">
+                {t(group.descriptionKey)}
+              </CardDescription>
+            </div>
+            <Badge variant="muted" className="hidden sm:inline-flex">
+              {group.tiles.length}
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {group.tiles.map((tile) => (
+                <Link
+                  key={tile.href}
+                  href={tile.href}
+                  className={cn(
+                    "group relative flex items-start gap-3 overflow-hidden rounded-xl border bg-card p-4 transition-all",
+                    "hover:-translate-y-[1px] hover:border-primary/40 hover:shadow-soft-lg",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 top-0 h-[2px] bg-primary-gradient opacity-0 transition-opacity group-hover:opacity-100"
+                  />
+                  <span
+                    className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110",
+                      tile.tone,
+                    )}
+                  >
+                    <EmojiIcon icon={tile.icon} size={28} />
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="line-clamp-1 text-sm font-semibold text-foreground">
+                      {t(tile.titleKey)}
+                    </span>
+                    <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                      {t(tile.descriptionKey)}
+                    </span>
+                  </div>
+                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -170,8 +164,8 @@ function SettingsHero({
         className="pointer-events-none absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-fuchsia-500/10 blur-3xl"
       />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-gradient text-primary-foreground shadow-soft-lg">
-          <SettingsIcon className="h-7 w-7" />
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-card shadow-soft-lg ring-1 ring-border/50">
+          <EmojiIcon icon="fluent-emoji-flat:gear" size={40} />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
