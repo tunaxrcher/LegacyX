@@ -57,15 +57,17 @@
     "approver": "ผู้อนุมัติ",
     "resource": "Resource",
     "empty_title": "ยังไม่มี Override",
-    "empty_desc": "เมื่อ Manager อนุมัติ override จะปรากฏที่นี่"
+    "empty_desc": "เมื่อ Manager อนุมัติ override จะปรากฏที่นี่",
+    "search_placeholder": "ค้น Resource type, ID หรือเหตุผล…"
   },
   "audit": {
     "title": "บันทึกการตรวจสอบ (Audit Log)",
     "subtitle": "ทุกการเปลี่ยนแปลงสำคัญถูกบันทึกแบบ append-only เพื่อรองรับ PDPA / HIPAA",
     "resource_type": "ประเภท Resource",
     "resource_id": "Resource ID",
-    "action_prefix": "Action (prefix)",
+    "action_prefix": "Action",
     "search": "ค้นหา",
+    "search_placeholder": "ค้นจาก Resource ID, เหตุผล หรือ correlation…",
     "empty_title": "ไม่พบรายการ",
     "empty_desc": "ลองปรับเงื่อนไขการกรอง",
     "when": "เมื่อ",
@@ -102,7 +104,22 @@
     "theme_light": "โหมดสว่าง",
     "theme_dark": "โหมดมืด",
     "theme_system": "ตามระบบ",
-    "created_at": "สร้างเมื่อ"
+    "created_at": "สร้างเมื่อ",
+    "filters": "ตัวกรอง",
+    "clear": "ล้าง",
+    "reset": "รีเซ็ต",
+    "view_table": "ตาราง",
+    "view_grid": "การ์ด",
+    "pagination": {
+      "showing": "แสดง {from}–{to} จาก {total} รายการ",
+      "empty": "ไม่มีรายการ",
+      "per_page": "แถว/หน้า",
+      "first": "หน้าแรก",
+      "prev": "หน้าก่อนหน้า",
+      "next": "หน้าถัดไป",
+      "last": "หน้าสุดท้าย",
+      "go_to_page": "ไปหน้า {page}"
+    }
   },
   "login": {
     "title": "เข้าสู่ระบบ",
@@ -430,7 +447,11 @@
     "col_recipient": "ผู้รับ",
     "col_status": "สถานะ",
     "col_attempts": "ครั้งที่",
-    "col_error": "ข้อผิดพลาด"
+    "col_error": "ข้อผิดพลาด",
+    "search_placeholder": "ค้น template code หรือผู้รับ…",
+    "status_pending": "รอส่ง",
+    "status_sent": "ส่งแล้ว",
+    "status_failed": "ล้มเหลว"
   },
   "manager": {
     "title": "แดชบอร์ดผู้บริหาร (Strategic Dashboard)",
@@ -597,7 +618,16 @@
     "retire_confirm": "ปลดประจำการ {name}? บัญชีจะถูกตั้งเป็น INACTIVE และถูก logout ทุกที่ · ประวัติงาน (visit, ลายเซ็น EMR, audit log) ยังคงอยู่ครบ · กลับมาเปิดใช้งานใหม่ได้ตลอด",
     "retire_success": "ปลดประจำการเรียบร้อย",
     "reactivate": "เปิดใช้งานอีกครั้ง",
-    "reactivate_success": "เปิดใช้งานเรียบร้อย"
+    "reactivate_success": "เปิดใช้งานเรียบร้อย",
+    "search_placeholder": "ค้นหาชื่อหรือเบอร์โทร…",
+    "filter_role": "บทบาท",
+    "filter_status": "สถานะ",
+    "status_active": "ใช้งานอยู่",
+    "status_inactive": "ไม่ใช้งาน",
+    "status_locked": "ถูกล็อก",
+    "no_branch_access": "ยังไม่มีสาขา",
+    "list_empty_title": "ไม่พบผู้ใช้ที่ตรงกับเงื่อนไข",
+    "list_empty_desc": "ลองล้างตัวกรองหรือขยายคำค้นหา"
   },
   "manager_staff": {
     "title": "จัดการพนักงาน",
@@ -622,7 +652,13 @@
     "create": "สร้าง",
     "create_success": "เพิ่มสาขาเรียบร้อย",
     "edit": "แก้ไขสาขา",
-    "update_success": "อัปเดตเรียบร้อย"
+    "update_success": "อัปเดตเรียบร้อย",
+    "search_placeholder": "ค้นหา code, ชื่อ หรือที่อยู่…",
+    "filter_status": "สถานะ",
+    "status_active": "ใช้งานอยู่",
+    "status_inactive": "ไม่ใช้งาน",
+    "list_empty_title": "ไม่พบสาขาที่ตรงกับเงื่อนไข",
+    "list_empty_desc": "ลองล้างตัวกรองหรือสร้างสาขาใหม่"
   },
   "admin_roles": {
     "title": "Role & สิทธิ์",
@@ -808,7 +844,22 @@
     "update_failed": "อัปเดตไม่สำเร็จ",
     "nickname": "ชื่อเล่น",
     "email": "อีเมล",
-    "chronic_placeholder": "เบาหวาน ความดัน …"
+    "chronic_placeholder": "เบาหวาน ความดัน …",
+    "age": "อายุ",
+    "age_value": "{age} ปี",
+    "age_unknown": "—",
+    "gender_undisclosed": "ไม่เปิดเผย",
+    "filter_gender": "เพศ",
+    "filter_status": "สถานะ",
+    "filter_all_genders": "ทุกเพศ",
+    "filter_all_statuses": "ทุกสถานะ",
+    "list_empty_title": "ไม่พบผู้ป่วยที่ตรงกับเงื่อนไข",
+    "list_empty_desc": "ลองล้างตัวกรองหรือขยายคำค้นหา",
+    "status_active": "กำลังใช้งาน",
+    "status_inactive": "ไม่ใช้งาน",
+    "status_merged": "รวมเวชระเบียนแล้ว",
+    "results_count": "{count} คน",
+    "open_profile": "เปิดประวัติ"
   },
   "medical_cert": {
     "issue": "ออกใบรับรองแพทย์",
@@ -916,7 +967,10 @@
     "anonymize": "Anonymise",
     "anonymize_confirm": "ยืนยัน Anonymise ผู้ป่วยนี้? ข้อมูลชื่อ/เบอร์/อีเมลจะถูกแทนด้วย pseudonym ไม่สามารถย้อนกลับได้",
     "anonymize_success": "Anonymise สำเร็จ",
-    "anonymize_failed": "Anonymise ไม่สำเร็จ"
+    "anonymize_failed": "Anonymise ไม่สำเร็จ",
+    "filter_action": "การกระทำ",
+    "action_export": "ส่งออกข้อมูล",
+    "action_anonymize": "ทำเป็นนิรนาม"
   },
   "labs": {
     "title": "รายการแล็บ",
@@ -1047,7 +1101,15 @@
     "applied_success": "ใช้ส่วนลดสำเร็จ",
     "applied_failed": "ใช้ส่วนลดไม่สำเร็จ",
     "already_applied": "โปรนี้ใช้กับ invoice นี้แล้ว",
-    "invalid_code": "กรุณาใส่โค้ดให้ถูกต้อง (อย่างน้อย 2 ตัวอักษร)"
+    "invalid_code": "กรุณาใส่โค้ดให้ถูกต้อง (อย่างน้อย 2 ตัวอักษร)",
+    "search_placeholder": "ค้นหา code หรือชื่อ…",
+    "filter_type": "ประเภท",
+    "filter_status": "สถานะ",
+    "status_active": "ใช้งานอยู่",
+    "status_inactive": "ปิดใช้งาน",
+    "status_expired": "หมดอายุ",
+    "list_empty_title": "ไม่พบโปรโมชั่นที่ตรงกับเงื่อนไข",
+    "list_empty_desc": "ลองล้างตัวกรองหรือสร้างโปรโมชั่นใหม่"
   },
   "orders": {
     "title": "รายการสั่ง",
@@ -1190,7 +1252,12 @@
     "replay_success": "ส่งกลับเข้าคิวแล้ว",
     "replay_failed": "Retry ไม่สำเร็จ",
     "empty_title": "ระบบทำงานปกติ ✨",
-    "empty_desc": "ไม่มีเหตุการณ์ที่ล้มเหลวในตอนนี้"
+    "empty_desc": "ไม่มีเหตุการณ์ที่ล้มเหลวในตอนนี้",
+    "search_placeholder": "ค้นชื่อ event หรือข้อความผิดพลาด…",
+    "filter_status": "สถานะ",
+    "status_new": "ใหม่",
+    "status_reprocessed": "ประมวลผลซ้ำแล้ว",
+    "status_abandoned": "ยกเลิกแล้ว"
   },
   "workflow": {
     "title": "Workflow — แต่ละ Role ทำงานร่วมกันยังไง",

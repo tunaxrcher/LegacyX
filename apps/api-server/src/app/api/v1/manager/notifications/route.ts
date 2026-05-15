@@ -3,6 +3,7 @@ import { prisma } from "@legacyx/db";
 import { getRequestContext } from "../../../../../shared/context";
 import { toErrorResponse } from "../../../../../shared/errors";
 import { authorize } from "../../../../../shared/auth";
+import { parsePagination } from "../../../../../shared/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,10 @@ export async function GET(req: NextRequest) {
     const status = url.searchParams.get("status") ?? undefined;
     const channel = url.searchParams.get("channel") ?? undefined;
     const template = url.searchParams.get("template") ?? undefined;
-    const limit = Math.min(200, Number(url.searchParams.get("limit") ?? 50));
+    const { page, perPage, skip, take } = parsePagination(url, {
+      defaultPerPage: 25,
+      maxPerPage: 200,
+    });
 
     const where: Record<string, unknown> = { tenantId: ctx.tenantId };
     if (status) where.status = status;
@@ -31,7 +35,8 @@ export async function GET(req: NextRequest) {
       prisma.notificationLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        take: limit,
+        skip,
+        take,
       }),
     ]);
 
@@ -52,7 +57,7 @@ export async function GET(req: NextRequest) {
         createdAt: r.createdAt.toISOString(),
         payload: r.payload,
       })),
-      pagination: { total, limit },
+      pagination: { total, page, perPage },
       correlation_id: ctx.correlationId,
     });
   } catch (err) {

@@ -64,15 +64,35 @@ export async function createBreakGlass(
 
 export async function listBreakGlass(
   ctx: RequestContext,
-  filters: { resourceType?: string; resourceId?: string; limit?: number } = {},
+  filters: {
+    resourceType?: string;
+    resourceId?: string;
+    q?: string;
+    page?: number;
+    perPage?: number;
+  } = {},
 ) {
   await authorize(ctx, { resource: "audit", action: "read", target: {} });
   const where: Record<string, unknown> = { tenantId: ctx.tenantId };
   if (filters.resourceType) where.resourceType = filters.resourceType;
   if (filters.resourceId) where.resourceId = filters.resourceId;
-  return prisma.breakGlassOverride.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: Math.min(200, filters.limit ?? 50),
-  });
+  if (filters.q) {
+    where.OR = [
+      { resourceType: { contains: filters.q } },
+      { resourceId: { contains: filters.q } },
+      { reason: { contains: filters.q } },
+    ];
+  }
+  const page = Math.max(1, filters.page ?? 1);
+  const perPage = Math.min(200, Math.max(1, filters.perPage ?? 25));
+  const [total, rows] = await Promise.all([
+    prisma.breakGlassOverride.count({ where }),
+    prisma.breakGlassOverride.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * perPage,
+      take: perPage,
+    }),
+  ]);
+  return { data: rows, pagination: { total, page, perPage } };
 }

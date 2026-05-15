@@ -57,15 +57,17 @@
     "approver": "Approver",
     "resource": "Resource",
     "empty_title": "No overrides yet",
-    "empty_desc": "Manager-approved overrides will appear here"
+    "empty_desc": "Manager-approved overrides will appear here",
+    "search_placeholder": "Search resource type, ID or reason…"
   },
   "audit": {
     "title": "Audit Log",
     "subtitle": "Every important mutation is appended for PDPA / HIPAA traceability",
     "resource_type": "Resource type",
     "resource_id": "Resource ID",
-    "action_prefix": "Action (prefix)",
+    "action_prefix": "Action",
     "search": "Search",
+    "search_placeholder": "Search resource ID, reason or correlation…",
     "empty_title": "No entries match",
     "empty_desc": "Try widening your filters",
     "when": "When",
@@ -102,7 +104,22 @@
     "theme_light": "Light",
     "theme_dark": "Dark",
     "theme_system": "System",
-    "created_at": "Created at"
+    "created_at": "Created at",
+    "filters": "Filters",
+    "clear": "Clear",
+    "reset": "Reset",
+    "view_table": "Table",
+    "view_grid": "Grid",
+    "pagination": {
+      "showing": "Showing {from}–{to} of {total}",
+      "empty": "No results",
+      "per_page": "Rows per page",
+      "first": "First page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "last": "Last page",
+      "go_to_page": "Go to page {page}"
+    }
   },
   "login": {
     "title": "Sign in",
@@ -430,7 +447,11 @@
     "col_recipient": "Recipient",
     "col_status": "Status",
     "col_attempts": "Attempts",
-    "col_error": "Last error"
+    "col_error": "Last error",
+    "search_placeholder": "Search template code or recipient…",
+    "status_pending": "Pending",
+    "status_sent": "Sent",
+    "status_failed": "Failed"
   },
   "manager": {
     "title": "Manager Dashboard (Strategic)",
@@ -597,7 +618,16 @@
     "retire_confirm": "Retire {name}? They will be set INACTIVE and signed out everywhere. Their work history (visits, EMR signatures, audit log) is preserved. You can reactivate at any time.",
     "retire_success": "Staff retired",
     "reactivate": "Reactivate",
-    "reactivate_success": "Staff reactivated"
+    "reactivate_success": "Staff reactivated",
+    "search_placeholder": "Search name or phone…",
+    "filter_role": "Role",
+    "filter_status": "Status",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "status_locked": "Locked",
+    "no_branch_access": "No branch access",
+    "list_empty_title": "No users match your filters",
+    "list_empty_desc": "Try clearing filters or broaden your search."
   },
   "manager_staff": {
     "title": "Staff Management",
@@ -622,7 +652,13 @@
     "create": "Create",
     "create_success": "Branch created",
     "edit": "Edit branch",
-    "update_success": "Branch updated"
+    "update_success": "Branch updated",
+    "search_placeholder": "Search code, name or address…",
+    "filter_status": "Status",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "list_empty_title": "No branches match your filters",
+    "list_empty_desc": "Try clearing filters or create a new branch."
   },
   "admin_roles": {
     "title": "Roles & Permissions",
@@ -808,7 +844,22 @@
     "update_failed": "Failed to update patient",
     "nickname": "Nickname",
     "email": "Email",
-    "chronic_placeholder": "DM, HT, …"
+    "chronic_placeholder": "DM, HT, …",
+    "age": "Age",
+    "age_value": "{age} y/o",
+    "age_unknown": "—",
+    "gender_undisclosed": "Undisclosed",
+    "filter_gender": "Gender",
+    "filter_status": "Status",
+    "filter_all_genders": "All genders",
+    "filter_all_statuses": "All statuses",
+    "list_empty_title": "No patients match your filters",
+    "list_empty_desc": "Try clearing filters or broadening your search.",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "status_merged": "Merged",
+    "results_count": "{count} patients",
+    "open_profile": "Open profile"
   },
   "medical_cert": {
     "issue": "Issue Medical Certificate",
@@ -916,7 +967,10 @@
     "anonymize": "Anonymise",
     "anonymize_confirm": "Anonymise this patient? This replaces name/phone/email with a pseudonym and cannot be reversed.",
     "anonymize_success": "Patient anonymised",
-    "anonymize_failed": "Anonymise failed"
+    "anonymize_failed": "Anonymise failed",
+    "filter_action": "Action",
+    "action_export": "Export",
+    "action_anonymize": "Anonymise"
   },
   "labs": {
     "title": "Lab Orders",
@@ -1047,7 +1101,15 @@
     "applied_success": "Promo applied",
     "applied_failed": "Could not apply promo",
     "already_applied": "This promo was already applied",
-    "invalid_code": "Enter a valid code (≥2 chars)"
+    "invalid_code": "Enter a valid code (≥2 chars)",
+    "search_placeholder": "Search code or name…",
+    "filter_type": "Type",
+    "filter_status": "Status",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "status_expired": "Expired",
+    "list_empty_title": "No promotions match your filters",
+    "list_empty_desc": "Try clearing filters or create a new promotion."
   },
   "orders": {
     "title": "Orders",
@@ -1190,7 +1252,12 @@
     "replay_success": "Sent back to queue",
     "replay_failed": "Replay failed",
     "empty_title": "All systems healthy ✨",
-    "empty_desc": "No failed events at the moment"
+    "empty_desc": "No failed events at the moment",
+    "search_placeholder": "Search event name or error…",
+    "filter_status": "Status",
+    "status_new": "New",
+    "status_reprocessed": "Reprocessed",
+    "status_abandoned": "Abandoned"
   },
   "workflow": {
     "title": "Workflow — how each role plays together",

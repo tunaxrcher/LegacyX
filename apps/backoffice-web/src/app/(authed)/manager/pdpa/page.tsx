@@ -15,7 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
 import { formatDateTime } from "@/lib/utils";
+import {
+  makeListHrefBuilder,
+  parseListSearchParams,
+} from "@/lib/list-params";
 import { PdpaActionBar } from "./PdpaActionBar";
 
 export const dynamic = "force-dynamic";
@@ -31,24 +37,73 @@ type AuditRow = {
   actor: { id: string; fullName: string; phone: string | null } | null;
 };
 
-const PDPA_ACTIONS = ["pdpa.export", "pdpa.anonymize"];
+type Resp = {
+  data: AuditRow[];
+  pagination: { total: number; page: number; perPage: number };
+};
 
-export default async function PdpaPage() {
+const VALID_ACTIONS = new Set(["pdpa.export", "pdpa.anonymize"]);
+
+export default async function PdpaPage({
+  searchParams,
+}: {
+  searchParams?: {
+    q?: string;
+    action?: string;
+    page?: string;
+    per_page?: string;
+  };
+}) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
 
-  // Pull recent PDPA audit rows. Audit endpoint already supports search;
-  // we filter client-side here since it only returns the last 200 rows.
-  const auditRes = await apiJson<{ data: AuditRow[] }>(
-    session,
-    "/api/v1/audit?limit=200",
-  ).catch(() => ({ data: [] as AuditRow[] }));
-  const all = auditRes.data ?? [];
-  const pdpaRows = all.filter((r) => PDPA_ACTIONS.includes(r.action));
+  const { q, page, perPage } = parseListSearchParams(searchParams, {
+    defaultPerPage: 25,
+  });
+  const actionInput = searchParams?.action ?? "";
+  const actionFilter = VALID_ACTIONS.has(actionInput) ? actionInput : "";
+  // If no explicit action filter, default to all pdpa.* actions.
+  const apiAction = actionFilter || "pdpa";
 
-  const lastExport = pdpaRows.find((r) => r.action === "pdpa.export");
-  const lastAnonymize = pdpaRows.find((r) => r.action === "pdpa.anonymize");
+  const apiParams = new URLSearchParams();
+  apiParams.set("page", String(page));
+  apiParams.set("per_page", String(perPage));
+  apiParams.set("action", apiAction);
+  if (q) apiParams.set("q", q);
+
+  // The audit list endpoint also returns top-of-the-stack records, which the
+  // KPI cards use; we fetch the unfiltered head of pdpa rows separately just
+  // for those.
+  const [historyRes, latestRes] = await Promise.all([
+    apiJson<Resp>(session, `/api/v1/audit?${apiParams.toString()}`).catch(
+      () =>
+        ({
+          data: [] as AuditRow[],
+          pagination: { total: 0, page: 1, perPage },
+        }) as Resp,
+    ),
+    apiJson<Resp>(session, `/api/v1/audit?action=pdpa&per_page=10`).catch(
+      () =>
+        ({
+          data: [] as AuditRow[],
+          pagination: { total: 0, page: 1, perPage: 10 },
+        }) as Resp,
+    ),
+  ]);
+  const pdpaRows = historyRes.data;
+  const total = historyRes.pagination.total;
+  const latest = latestRes.data;
+
+  const lastExport = latest.find((r) => r.action === "pdpa.export");
+  const lastAnonymize = latest.find((r) => r.action === "pdpa.anonymize");
+
+  const buildHref = makeListHrefBuilder("/manager/pdpa", {
+    q: q || undefined,
+    action: actionFilter || undefined,
+    page,
+    per_page: perPage,
+  });
 
   return (
     <div className="space-y-6">
@@ -87,7 +142,9 @@ export default async function PdpaPage() {
                 </div>
               </>
             ) : (
-              <span className="text-muted-foreground">{t("pdpa.no_history")}</span>
+              <span className="text-muted-foreground">
+                {t("pdpa.no_history")}
+              </span>
             )}
           </CardContent>
         </Card>
@@ -107,7 +164,9 @@ export default async function PdpaPage() {
                 </div>
               </>
             ) : (
-              <span className="text-muted-foreground">{t("pdpa.no_history")}</span>
+              <span className="text-muted-foreground">
+                {t("pdpa.no_history")}
+              </span>
             )}
           </CardContent>
         </Card>
@@ -121,21 +180,47 @@ export default async function PdpaPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* `roles` drives the lock on the irreversible `Anonymise` button —
-              MANAGER can export but only ADMIN may anonymise. The server still
-              enforces this via ABAC; the prop is purely UX. */}
           <PdpaActionBar roles={session.roles ?? []} />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" />
             {t("pdpa.history_heading")}
+            {total > 0 && (
+              <Badge variant="secondary" className="rounded-full px-2 text-xs">
+                {total.toLocaleString()}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="px-4 pb-3">
+            <ListToolbar
+              basePath="/manager/pdpa"
+              q={q}
+              filters={{ action: actionFilter }}
+              perPage={perPage}
+              searchKey="q"
+              searchPlaceholder={t("audit.search_placeholder")}
+              selects={[
+                {
+                  key: "action",
+                  label: t("pdpa.filter_action"),
+                  widthClass: "w-[170px]",
+                  options: [
+                    { value: "pdpa.export", label: t("pdpa.action_export") },
+                    {
+                      value: "pdpa.anonymize",
+                      label: t("pdpa.action_anonymize"),
+                    },
+                  ],
+                },
+              ]}
+            />
+          </div>
           {pdpaRows.length === 0 ? (
             <EmptyState
               className="m-6"
@@ -145,7 +230,7 @@ export default async function PdpaPage() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/40">
                   <TableHead>{t("common.created_at")}</TableHead>
                   <TableHead>{t("pdpa.action")}</TableHead>
                   <TableHead>{t("pdpa.patient_id")}</TableHead>
@@ -156,7 +241,8 @@ export default async function PdpaPage() {
               <TableBody>
                 {pdpaRows.map((r) => {
                   const reason =
-                    typeof (r.after as Record<string, unknown> | null)?.reason === "string"
+                    typeof (r.after as Record<string, unknown> | null)?.reason ===
+                    "string"
                       ? String((r.after as Record<string, unknown>).reason)
                       : "—";
                   return (
@@ -167,7 +253,9 @@ export default async function PdpaPage() {
                       <TableCell>
                         <Badge
                           variant={
-                            r.action === "pdpa.anonymize" ? "destructive" : "info"
+                            r.action === "pdpa.anonymize"
+                              ? "destructive"
+                              : "info"
                           }
                         >
                           {r.action}
@@ -187,6 +275,16 @@ export default async function PdpaPage() {
                 })}
               </TableBody>
             </Table>
+          )}
+
+          {total > 0 && (
+            <Pagination
+              total={total}
+              page={page}
+              perPage={perPage}
+              getPageHref={(p) => buildHref({ page: p })}
+              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+            />
           )}
         </CardContent>
       </Card>

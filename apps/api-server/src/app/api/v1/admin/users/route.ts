@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestContext } from "../../../../../shared/context";
 import { toErrorResponse } from "../../../../../shared/errors";
+import { parsePagination } from "../../../../../shared/pagination";
 import {
   CreateUserDto,
   createUser,
@@ -9,13 +10,28 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   let correlationId: string | undefined;
   try {
     const ctx = await getRequestContext();
     correlationId = ctx.correlationId;
-    const data = await listUsers(ctx);
-    return NextResponse.json({ data, correlation_id: ctx.correlationId });
+    const url = new URL(req.url);
+    const { page, perPage } = parsePagination(url, {
+      defaultPerPage: 25,
+      maxPerPage: 200,
+    });
+    const result = await listUsers(ctx, {
+      q: url.searchParams.get("q") ?? undefined,
+      role: url.searchParams.get("role") ?? undefined,
+      status: url.searchParams.get("status") ?? undefined,
+      page,
+      perPage,
+    });
+    return NextResponse.json({
+      data: result.data,
+      pagination: result.pagination,
+      correlation_id: ctx.correlationId,
+    });
   } catch (err) {
     return toErrorResponse(err, correlationId);
   }

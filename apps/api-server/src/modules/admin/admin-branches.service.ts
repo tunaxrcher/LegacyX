@@ -39,15 +39,45 @@ export const UpdateBranchDto = z.object({
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });
 
-export async function listBranches(ctx: RequestContext) {
+export interface ListBranchesFilters {
+  q?: string;
+  status?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export async function listBranches(
+  ctx: RequestContext,
+  filters: ListBranchesFilters = {},
+) {
   // Gate on user:read so any role with admin-pages access can list branches
   // (needed for the staff-branch picker dialog as well).
   await authorize(ctx, { resource: "user", action: "read", target: {} });
-  const branches = await prisma.branch.findMany({
-    where: { tenantId: ctx.tenantId, deletedAt: null },
-    orderBy: [{ status: "asc" }, { code: "asc" }],
-  });
-  return branches.map((b) => ({
+  const where: Record<string, unknown> = {
+    tenantId: ctx.tenantId,
+    deletedAt: null,
+  };
+  if (filters.status) where.status = filters.status;
+  if (filters.q) {
+    where.OR = [
+      { code: { contains: filters.q } },
+      { name: { contains: filters.q } },
+      { address: { contains: filters.q } },
+    ];
+  }
+  const page = Math.max(1, filters.page ?? 1);
+  const perPage = Math.min(200, Math.max(1, filters.perPage ?? 25));
+
+  const [total, branches] = await Promise.all([
+    prisma.branch.count({ where }),
+    prisma.branch.findMany({
+      where,
+      orderBy: [{ status: "asc" }, { code: "asc" }],
+      skip: (page - 1) * perPage,
+      take: perPage,
+    }),
+  ]);
+  const data = branches.map((b) => ({
     id: b.id,
     code: b.code,
     name: b.name,
@@ -57,6 +87,7 @@ export async function listBranches(ctx: RequestContext) {
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
   }));
+  return { data, pagination: { total, page, perPage } };
 }
 
 export async function createBranch(

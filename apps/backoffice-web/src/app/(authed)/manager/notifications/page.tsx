@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -15,7 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
 import { formatDateTime } from "@/lib/utils";
+import {
+  makeListHrefBuilder,
+  parseListSearchParams,
+} from "@/lib/list-params";
 
 export const dynamic = "force-dynamic";
 
@@ -32,83 +38,113 @@ type NotificationRow = {
   createdAt: string;
 };
 
-const STATUSES = ["PENDING", "SENT", "FAILED"] as const;
-const CHANNELS = ["LINE", "SMS", "EMAIL", "PUSH", "IN_APP"] as const;
+type Resp = {
+  data: NotificationRow[];
+  pagination: { total: number; page: number; perPage: number };
+};
+
+const VALID_STATUSES = new Set(["PENDING", "SENT", "FAILED"]);
+const VALID_CHANNELS = new Set(["LINE", "SMS", "EMAIL", "PUSH", "IN_APP"]);
 
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; channel?: string; template?: string };
+  searchParams?: {
+    q?: string;
+    status?: string;
+    channel?: string;
+    page?: string;
+    per_page?: string;
+  };
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
 
-  const params = new URLSearchParams();
-  if (searchParams.status) params.set("status", searchParams.status);
-  if (searchParams.channel) params.set("channel", searchParams.channel);
-  if (searchParams.template) params.set("template", searchParams.template);
-  params.set("limit", "150");
+  const { q, page, perPage } = parseListSearchParams(searchParams, {
+    defaultPerPage: 25,
+    maxPerPage: 200,
+  });
+  const statusInput = (searchParams?.status ?? "").toUpperCase();
+  const channelInput = (searchParams?.channel ?? "").toUpperCase();
+  const status = VALID_STATUSES.has(statusInput) ? statusInput : "";
+  const channel = VALID_CHANNELS.has(channelInput) ? channelInput : "";
 
-  const res = await apiJson<{
-    data: NotificationRow[];
-    pagination: { total: number; limit: number };
-  }>(session, `/api/v1/manager/notifications?${params.toString()}`).catch(() => ({
-    data: [] as NotificationRow[],
-    pagination: { total: 0, limit: 150 },
-  }));
+  const apiParams = new URLSearchParams();
+  apiParams.set("page", String(page));
+  apiParams.set("per_page", String(perPage));
+  if (status) apiParams.set("status", status);
+  if (channel) apiParams.set("channel", channel);
+  if (q) apiParams.set("template", q);
+
+  const res = await apiJson<Resp>(
+    session,
+    `/api/v1/manager/notifications?${apiParams.toString()}`,
+  ).catch(
+    () =>
+      ({
+        data: [] as NotificationRow[],
+        pagination: { total: 0, page: 1, perPage },
+      }) as Resp,
+  );
   const rows = res.data;
+  const total = res.pagination.total;
 
-  const counts = {
-    pending: rows.filter((r) => r.status === "PENDING").length,
-    sent: rows.filter((r) => r.status === "SENT").length,
-    failed: rows.filter((r) => r.status === "FAILED").length,
-  };
+  const buildHref = makeListHrefBuilder("/manager/notifications", {
+    q: q || undefined,
+    status: status || undefined,
+    channel: channel || undefined,
+    page,
+    per_page: perPage,
+  });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title={t("notifications.title")}
+        title={
+          <span className="flex items-center gap-3">
+            {t("notifications.title")}
+            {total > 0 && (
+              <Badge variant="secondary" className="rounded-full px-2 text-xs">
+                {total.toLocaleString()}
+              </Badge>
+            )}
+          </span>
+        }
         description={t("notifications.subtitle")}
       />
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label={t("notifications.kpi_total")} value={res.pagination.total} />
-        <KpiCard label={t("notifications.kpi_pending")} value={counts.pending} tone="warning" />
-        <KpiCard label={t("notifications.kpi_sent")} value={counts.sent} tone="success" />
-        <KpiCard label={t("notifications.kpi_failed")} value={counts.failed} tone="destructive" />
-      </div>
+      <ListToolbar
+        basePath="/manager/notifications"
+        q={q}
+        filters={{ status, channel }}
+        perPage={perPage}
+        searchKey="q"
+        searchPlaceholder={t("notifications.search_placeholder")}
+        selects={[
+          {
+            key: "status",
+            label: t("notifications.f_status"),
+            widthClass: "w-[140px]",
+            options: [
+              { value: "PENDING", label: t("notifications.status_pending") },
+              { value: "SENT", label: t("notifications.status_sent") },
+              { value: "FAILED", label: t("notifications.status_failed") },
+            ],
+          },
+          {
+            key: "channel",
+            label: t("notifications.f_channel"),
+            widthClass: "w-[140px]",
+            options: ["LINE", "SMS", "EMAIL", "PUSH", "IN_APP"].map((v) => ({
+              value: v,
+              label: v,
+            })),
+          },
+        ]}
+      />
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="py-4">
-          <form className="grid grid-cols-1 gap-3 md:grid-cols-4" method="GET">
-            <Filter label={t("notifications.f_status")} name="status" options={STATUSES} value={searchParams.status} all={t("notifications.f_all")} />
-            <Filter label={t("notifications.f_channel")} name="channel" options={CHANNELS} value={searchParams.channel} all={t("notifications.f_all")} />
-            <label className="space-y-1 block">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("notifications.f_template")}
-              </span>
-              <input
-                name="template"
-                defaultValue={searchParams.template ?? ""}
-                placeholder="review, rebooking, ..."
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </label>
-            <button
-              type="submit"
-              className="self-end inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-background px-3 text-sm hover:bg-muted"
-            >
-              <Search className="h-4 w-4" />
-              {t("notifications.f_search")}
-            </button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
           {rows.length === 0 ? (
             <EmptyState
@@ -120,7 +156,7 @@ export default async function NotificationsPage({
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/40">
                   <TableHead>{t("notifications.col_when")}</TableHead>
                   <TableHead>{t("notifications.col_channel")}</TableHead>
                   <TableHead>{t("notifications.col_template")}</TableHead>
@@ -141,14 +177,20 @@ export default async function NotificationsPage({
                         {r.channel}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{r.templateCode}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {r.templateCode}
+                    </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {r.recipientRef.length > 22 ? r.recipientRef.slice(0, 22) + "…" : r.recipientRef}
+                      {r.recipientRef.length > 22
+                        ? r.recipientRef.slice(0, 22) + "…"
+                        : r.recipientRef}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={r.status} />
                     </TableCell>
-                    <TableCell className="text-xs tabular-nums">{r.attempt}</TableCell>
+                    <TableCell className="text-xs tabular-nums">
+                      {r.attempt}
+                    </TableCell>
                     <TableCell className="max-w-[280px] truncate text-xs text-destructive">
                       {r.lastError ?? "—"}
                     </TableCell>
@@ -157,79 +199,38 @@ export default async function NotificationsPage({
               </TableBody>
             </Table>
           )}
+
+          {total > 0 && (
+            <Pagination
+              total={total}
+              page={page}
+              perPage={perPage}
+              getPageHref={(p) => buildHref({ page: p })}
+              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function Filter({
-  label,
-  name,
-  options,
-  value,
-  all,
-}: {
-  label: string;
-  name: string;
-  options: readonly string[];
-  value?: string;
-  all: string;
-}) {
-  return (
-    <label className="space-y-1 block">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <select
-        name={name}
-        defaultValue={value ?? ""}
-        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      >
-        <option value="">{all}</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function StatusBadge({ status }: { status: NotificationRow["status"] }) {
   if (status === "SENT")
-    return <Badge variant="success" className="font-mono text-[10px]">SENT</Badge>;
+    return (
+      <Badge variant="success" className="font-mono text-[10px]">
+        SENT
+      </Badge>
+    );
   if (status === "FAILED")
-    return <Badge variant="destructive" className="font-mono text-[10px]">FAILED</Badge>;
-  return <Badge variant="warning" className="font-mono text-[10px]">PENDING</Badge>;
-}
-
-function KpiCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "warning" | "success" | "destructive";
-}) {
-  const colour =
-    tone === "warning"
-      ? "text-warning"
-      : tone === "success"
-        ? "text-success"
-        : tone === "destructive"
-          ? "text-destructive"
-          : "text-foreground";
+    return (
+      <Badge variant="destructive" className="font-mono text-[10px]">
+        FAILED
+      </Badge>
+    );
   return (
-    <Card>
-      <CardContent className="py-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <p className={`text-2xl font-semibold tabular-nums ${colour}`}>{value}</p>
-      </CardContent>
-    </Card>
+    <Badge variant="warning" className="font-mono text-[10px]">
+      PENDING
+    </Badge>
   );
 }

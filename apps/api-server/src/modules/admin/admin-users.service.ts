@@ -133,7 +133,18 @@ export const ResetPasswordDto = z.object({
 
 // ---- Queries -----------------------------------------------------------
 
-export async function listUsers(ctx: RequestContext) {
+export interface ListUsersFilters {
+  q?: string;
+  role?: string;
+  status?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export async function listUsers(
+  ctx: RequestContext,
+  filters: ListUsersFilters = {},
+) {
   await authorize(ctx, { resource: "user", action: "read", target: {} });
 
   // SoD filter — managers must not see ADMIN rows. Empty allowlist (= no
@@ -142,16 +153,37 @@ export async function listUsers(ctx: RequestContext) {
   const actorRole = await getActorRoleCode(ctx);
   const visibleRoles = getVisibleRoleCodes(actorRole);
 
-  const users = await prisma.user.findMany({
-    where: {
-      tenantId: ctx.tenantId,
-      deletedAt: null,
-      ...(visibleRoles.length > 0
-        ? { primaryRoleCode: { in: [...visibleRoles] } }
-        : {}),
-    },
-    orderBy: [{ status: "asc" }, { fullName: "asc" }],
-  });
+  const where: Record<string, unknown> = {
+    tenantId: ctx.tenantId,
+    deletedAt: null,
+  };
+  if (visibleRoles.length > 0) {
+    where.primaryRoleCode = { in: [...visibleRoles] };
+  }
+  // Caller may further restrict by role (within visible set).
+  if (filters.role && (visibleRoles.length === 0 || visibleRoles.includes(filters.role as never))) {
+    where.primaryRoleCode = filters.role;
+  }
+  if (filters.status) where.status = filters.status;
+  if (filters.q) {
+    where.OR = [
+      { fullName: { contains: filters.q } },
+      { phone: { contains: filters.q } },
+    ];
+  }
+
+  const page = Math.max(1, filters.page ?? 1);
+  const perPage = Math.min(200, Math.max(1, filters.perPage ?? 25));
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: [{ status: "asc" }, { fullName: "asc" }],
+      skip: (page - 1) * perPage,
+      take: perPage,
+    }),
+  ]);
 
   const userIds = users.map((u) => u.id);
   const [userRoles, access, branches] = await Promise.all([
@@ -184,7 +216,7 @@ export async function listUsers(ctx: RequestContext) {
     branchesByUser.set(a.userId, arr);
   }
 
-  return users.map((u) => ({
+  const data = users.map((u) => ({
     id: u.id,
     phone: u.phone,
     avatarUrl: u.avatarUrl,
@@ -198,6 +230,7 @@ export async function listUsers(ctx: RequestContext) {
     roles: rolesByUser.get(u.id) ?? [],
     branches: branchesByUser.get(u.id) ?? [],
   }));
+  return { data, pagination: { total, page, perPage } };
 }
 
 export async function listRolesWithPermissions(ctx: RequestContext) {

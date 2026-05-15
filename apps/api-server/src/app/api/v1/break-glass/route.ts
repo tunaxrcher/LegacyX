@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestContext } from "../../../../shared/context";
 import { toErrorResponse } from "../../../../shared/errors";
+import { parsePagination } from "../../../../shared/pagination";
 import {
   CreateBreakGlassDto,
   createBreakGlass,
@@ -15,12 +16,22 @@ export async function GET(req: NextRequest) {
     const ctx = await getRequestContext();
     correlationId = ctx.correlationId;
     const url = new URL(req.url);
-    const data = await listBreakGlass(ctx, {
+    const { page, perPage } = parsePagination(url, {
+      defaultPerPage: 25,
+      maxPerPage: 200,
+    });
+    const result = await listBreakGlass(ctx, {
       resourceType: url.searchParams.get("resource_type") ?? undefined,
       resourceId: url.searchParams.get("resource_id") ?? undefined,
-      limit: Number(url.searchParams.get("limit") ?? 50),
+      q: url.searchParams.get("q") ?? undefined,
+      page,
+      perPage,
     });
-    return NextResponse.json({ data, correlation_id: ctx.correlationId });
+    return NextResponse.json({
+      data: result.data,
+      pagination: result.pagination,
+      correlation_id: ctx.correlationId,
+    });
   } catch (err) {
     return toErrorResponse(err, correlationId);
   }

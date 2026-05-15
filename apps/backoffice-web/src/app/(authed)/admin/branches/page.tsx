@@ -6,6 +6,7 @@ import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -14,7 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { Pagination } from "@/components/ui/pagination";
 import { formatDateTime } from "@/lib/utils";
+import {
+  makeListHrefBuilder,
+  parseListSearchParams,
+} from "@/lib/list-params";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { BranchRowActions } from "./BranchRowActions";
 
@@ -31,136 +38,249 @@ type Branch = {
   updatedAt: string;
 };
 
-export default async function AdminBranchesPage() {
+type Resp = {
+  data: Branch[];
+  pagination: { total: number; page: number; perPage: number };
+};
+
+export default async function AdminBranchesPage({
+  searchParams,
+}: {
+  searchParams?: {
+    q?: string;
+    status?: string;
+    view?: string;
+    page?: string;
+    per_page?: string;
+  };
+}) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
 
-  const branchesRes = await apiJson<{ data: Branch[] }>(
+  const { q, view, page, perPage } = parseListSearchParams(searchParams, {
+    defaultPerPage: 24,
+  });
+  const status = (searchParams?.status ?? "").toUpperCase();
+
+  const apiParams = new URLSearchParams();
+  apiParams.set("page", String(page));
+  apiParams.set("per_page", String(perPage));
+  if (q) apiParams.set("q", q);
+  if (status) apiParams.set("status", status);
+
+  const branchesRes = await apiJson<Resp>(
     session,
-    "/api/v1/admin/branches",
-  ).catch(() => ({ data: [] as Branch[] }));
+    `/api/v1/admin/branches?${apiParams}`,
+  ).catch(
+    () =>
+      ({
+        data: [] as Branch[],
+        pagination: { total: 0, page: 1, perPage },
+      }) as Resp,
+  );
   const branches = branchesRes.data;
-  const active = branches.filter((b) => b.status === "ACTIVE").length;
-  const inactive = branches.length - active;
+  const total = branchesRes.pagination.total;
+
+  const buildHref = makeListHrefBuilder("/admin/branches", {
+    q: q || undefined,
+    status: status || undefined,
+    view: view === "grid" ? "grid" : undefined,
+    page,
+    per_page: perPage,
+  });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title={t("admin_branches.title")}
+        title={
+          <span className="flex items-center gap-3">
+            {t("admin_branches.title")}
+            {total > 0 && (
+              <Badge variant="secondary" className="rounded-full px-2 text-xs">
+                {total.toLocaleString()}
+              </Badge>
+            )}
+          </span>
+        }
         description={t("admin_branches.subtitle")}
         actions={<CreateBranchDialog />}
       />
 
-      <div className="grid grid-cols-3 gap-3">
-        <Stat
-          label={t("admin_branches.kpi_total")}
-          value={branches.length}
-          tone="muted"
-        />
-        <Stat
-          label={t("admin_branches.kpi_active")}
-          value={active}
-          tone="success"
-        />
-        <Stat
-          label={t("admin_branches.kpi_inactive")}
-          value={inactive}
-          tone="muted"
-        />
-      </div>
+      <ListToolbar
+        basePath="/admin/branches"
+        q={q}
+        filters={{ status }}
+        view={view}
+        perPage={perPage}
+        searchKey="q"
+        searchPlaceholder={t("admin_branches.search_placeholder")}
+        showViewToggle
+        selects={[
+          {
+            key: "status",
+            label: t("admin_branches.filter_status"),
+            widthClass: "w-[150px]",
+            options: [
+              { value: "ACTIVE", label: t("admin_branches.status_active") },
+              { value: "INACTIVE", label: t("admin_branches.status_inactive") },
+            ],
+          },
+        ]}
+      />
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("admin_branches.branch")}</TableHead>
-                <TableHead>{t("admin_branches.address")}</TableHead>
-                <TableHead>{t("admin_branches.timezone")}</TableHead>
-                <TableHead>{t("admin_branches.status")}</TableHead>
-                <TableHead>{t("admin_branches.updated_at")}</TableHead>
-                <TableHead className="text-right">
-                  {t("admin_branches.actions")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {branches.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                        <Building2 className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">{b.name}</div>
-                        <div className="font-mono text-[11px] text-muted-foreground">
-                          {b.code}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {b.address ? (
-                      <div className="flex items-start gap-1">
-                        <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span className="line-clamp-2">{b.address}</span>
-                      </div>
-                    ) : (
-                      <span className="italic">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" /> {b.timezone}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={b.status === "ACTIVE" ? "success" : "muted"}
-                    >
-                      {b.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatDateTime(b.updatedAt)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <BranchRowActions branch={b} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {branches.length === 0 ? (
+            <EmptyState
+              className="m-6"
+              icon={<Building2 className="h-5 w-5" />}
+              title={t("admin_branches.list_empty_title")}
+              description={t("admin_branches.list_empty_desc")}
+            />
+          ) : view === "grid" ? (
+            <BranchGrid branches={branches} t={t} />
+          ) : (
+            <BranchTable branches={branches} t={t} />
+          )}
+          {total > 0 && (
+            <Pagination
+              total={total}
+              page={page}
+              perPage={perPage}
+              getPageHref={(p) => buildHref({ page: p })}
+              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone,
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
+
+function BranchTable({
+  branches,
+  t,
 }: {
-  label: string;
-  value: number;
-  tone: "success" | "muted" | "destructive";
+  branches: Branch[];
+  t: Translator;
 }) {
-  const colour = {
-    success: "text-success",
-    destructive: "text-destructive",
-    muted: "text-muted-foreground",
-  }[tone];
   return (
-    <Card>
-      <CardContent className="py-4">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-          {label}
-        </div>
-        <div className={`mt-1 text-2xl font-bold ${colour}`}>{value}</div>
-      </CardContent>
-    </Card>
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-muted/40">
+          <TableHead>{t("admin_branches.branch")}</TableHead>
+          <TableHead>{t("admin_branches.address")}</TableHead>
+          <TableHead>{t("admin_branches.timezone")}</TableHead>
+          <TableHead>{t("admin_branches.status")}</TableHead>
+          <TableHead>{t("admin_branches.updated_at")}</TableHead>
+          <TableHead className="text-right">
+            {t("admin_branches.actions")}
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {branches.map((b) => (
+          <TableRow key={b.id} className="transition-colors hover:bg-accent/40">
+            <TableCell>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">{b.name}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    {b.code}
+                  </div>
+                </div>
+              </div>
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground">
+              {b.address ? (
+                <div className="flex items-start gap-1">
+                  <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                  <span className="line-clamp-2">{b.address}</span>
+                </div>
+              ) : (
+                <span className="italic">—</span>
+              )}
+            </TableCell>
+            <TableCell>
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" /> {b.timezone}
+              </span>
+            </TableCell>
+            <TableCell>
+              <Badge variant={b.status === "ACTIVE" ? "success" : "muted"}>
+                {b.status}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground">
+              {formatDateTime(b.updatedAt)}
+            </TableCell>
+            <TableCell className="text-right">
+              <BranchRowActions branch={b} />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function BranchGrid({
+  branches,
+  t,
+}: {
+  branches: Branch[];
+  t: Translator;
+}) {
+  return (
+    <ul className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {branches.map((b) => (
+        <li
+          key={b.id}
+          className="group relative flex h-full flex-col items-center gap-3 rounded-xl border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg"
+        >
+          <div className="absolute right-2 top-2">
+            <BranchRowActions branch={b} />
+          </div>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary ring-2 ring-background shadow-soft">
+            <Building2 className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <div className="truncate text-sm font-semibold leading-tight">
+              {b.name}
+            </div>
+            <div className="font-mono text-[11px] text-muted-foreground">
+              {b.code}
+            </div>
+          </div>
+          {b.address && (
+            <p className="line-clamp-2 text-xs text-muted-foreground">
+              <MapPin className="mr-1 inline h-3 w-3" />
+              {b.address}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {b.timezone}
+            </span>
+            <Badge
+              variant={b.status === "ACTIVE" ? "success" : "muted"}
+              className="text-[10px]"
+            >
+              {b.status}
+            </Badge>
+          </div>
+          <div className="mt-auto text-[10px] text-muted-foreground">
+            {t("admin_branches.updated_at")} · {formatDateTime(b.updatedAt)}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

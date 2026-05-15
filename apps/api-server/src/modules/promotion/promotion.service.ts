@@ -66,16 +66,67 @@ export const CreatePromotionDto = z.object({
 
 export const UpdatePromotionDto = CreatePromotionDto.partial().omit({ code: true });
 
-export async function listPromotions(ctx: RequestContext, includeInactive = false) {
+export interface ListPromotionsFilters {
+  q?: string;
+  type?: string;
+  status?: "active" | "inactive" | "expired" | "all";
+  includeInactive?: boolean;
+  page?: number;
+  perPage?: number;
+}
+
+export async function listPromotions(
+  ctx: RequestContext,
+  filters: ListPromotionsFilters | boolean = {},
+) {
   await authorize(ctx, { resource: "promotion", action: "read" });
-  return prisma.promotion.findMany({
-    where: {
-      tenantId: ctx.tenantId,
-      deletedAt: null,
-      ...(includeInactive ? {} : { active: true }),
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  // Back-compat — older callers pass `includeInactive` as a plain boolean.
+  const opts: ListPromotionsFilters =
+    typeof filters === "boolean" ? { includeInactive: filters } : filters;
+
+  const includeInactive = opts.includeInactive ?? opts.status !== undefined;
+  const where: Record<string, unknown> = {
+    tenantId: ctx.tenantId,
+    deletedAt: null,
+  };
+  if (!includeInactive) where.active = true;
+  if (opts.status === "active") where.active = true;
+  if (opts.status === "inactive") where.active = false;
+  if (opts.type) where.type = opts.type;
+  if (opts.q) {
+    where.OR = [
+      { code: { contains: opts.q } },
+      { name: { contains: opts.q } },
+    ];
+  }
+
+  // When pagination is explicitly requested, return paginated shape;
+  // otherwise keep the legacy "return array" behaviour so other callers
+  // (e.g. internal pricing service) don't break.
+  const wantsPaginated =
+    typeof filters === "object" &&
+    filters !== null &&
+    ("page" in filters || "perPage" in filters || "q" in filters || "type" in filters);
+
+  if (!wantsPaginated) {
+    return prisma.promotion.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  const page = Math.max(1, opts.page ?? 1);
+  const perPage = Math.min(200, Math.max(1, opts.perPage ?? 25));
+  const [total, rows] = await Promise.all([
+    prisma.promotion.count({ where }),
+    prisma.promotion.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * perPage,
+      take: perPage,
+    }),
+  ]);
+  return { data: rows, pagination: { total, page, perPage } };
 }
 
 export async function createPromotion(
