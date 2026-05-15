@@ -34,7 +34,23 @@ export default async function LoginPage() {
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}
-      <section className="relative hidden flex-col justify-between bg-sidebar p-12 text-sidebar-foreground lg:flex">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex">
+        {/* Video background — slightly blurred, muted, looping */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/IzOJ8ujF9Bc?autoplay=1&mute=1&loop=1&playlist=IzOJ8ujF9Bc&controls=0&showinfo=0&modestbranding=1&iv_load_policy=3&playsinline=1&rel=0&disablekb=1&fs=0"
+            title="Background video"
+            tabIndex={-1}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            className="absolute left-1/2 top-1/2 aspect-video min-h-[110vh] min-w-[110vw] -translate-x-1/2 -translate-y-1/2 scale-125 border-0"
+            style={{ filter: "blur(3px)" }}
+          />
+          {/* Dark tint so the white text and gradient headline stay readable */}
+          <div className="absolute inset-0 bg-sidebar/55" />
+        </div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.15),transparent_50%)]" />
         <div className="relative">
           <Image
@@ -52,7 +68,7 @@ export default async function LoginPage() {
 
         <div className="relative space-y-6">
           <h2 className="max-w-md text-3xl font-bold leading-tight">
-            {t("login.title")} —<br />
+            ระบบจัดการคลินิกครบวงจร —<br />
             <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">
               built for clinical excellence.
             </span>
@@ -96,52 +112,52 @@ export default async function LoginPage() {
             {/* {tLogin("dev_notice")} */}
             <br />
             <p className="mb-3 font-semibold text-slate-800">
-                สำหรับทดสอบระบบ
-              </p>
+              สำหรับทดสอบระบบ
+            </p>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                  <span className="text-slate-600">ผู้ดูแลระบบ</span>
-                  <span className="font-medium tabular-nums text-slate-900">
-                    0800000001
-                  </span>
-                </div>
-                <hr />
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                  <span className="text-slate-600">ผู้จัดการสาขา</span>
-                  <span className="font-medium tabular-nums text-slate-900">
-                    0800000002
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                  <span className="text-slate-600">หมอแพทย์</span>
-                  <span className="font-medium tabular-nums text-slate-900">
-                    0800000003
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                  <span className="text-slate-600">พยาบาล</span>
-                  <span className="font-medium tabular-nums text-slate-900">
-                    0800000004
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                  <span className="text-slate-600">พนักงานต้อนรับ</span>
-                  <span className="font-medium tabular-nums text-slate-900">
-                    0800000005
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
-                  <span className="text-slate-600">เภสัชกร</span>
-                  <span className="font-medium tabular-nums text-slate-900">
-                    0800000006
-                  </span>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                <span className="text-slate-600">ผู้ดูแลระบบ</span>
+                <span className="font-medium tabular-nums text-slate-900">
+                  0800000001
+                </span>
               </div>
+              <hr />
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                <span className="text-slate-600">ผู้จัดการสาขา</span>
+                <span className="font-medium tabular-nums text-slate-900">
+                  0800000002
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                <span className="text-slate-600">หมอแพทย์</span>
+                <span className="font-medium tabular-nums text-slate-900">
+                  0800000003
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                <span className="text-slate-600">พยาบาล</span>
+                <span className="font-medium tabular-nums text-slate-900">
+                  0800000004
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                <span className="text-slate-600">พนักงานต้อนรับ</span>
+                <span className="font-medium tabular-nums text-slate-900">
+                  0800000005
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                <span className="text-slate-600">เภสัชกร</span>
+                <span className="font-medium tabular-nums text-slate-900">
+                  0800000006
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>

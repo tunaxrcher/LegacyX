@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "LegacyX Clinic",
-    "tagline": "ระบบจัดการคลินิกครบวงจร"
+    "tagline": ""
   },
   "nav": {
     "operations": "ปฏิบัติการ",
@@ -108,7 +108,7 @@
     "title": "เข้าสู่ระบบ",
     "subtitle": "เข้าระบบด้วยเบอร์โทร + OTP — ปลอดภัยและรวดเร็ว",
     "dev_notice": "ทดสอบระบบ",
-    "tenant": "องค์กร (slug)",
+    "tenant": "องค์กร",
     "branch": "สาขา",
     "user": "ผู้ใช้งาน",
     "email": "อีเมล",

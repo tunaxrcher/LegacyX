@@ -220,6 +220,7 @@ export default function LoginForm({ tenants, defaultTenantSlug }: Props) {
             />
           )}
         </div>
+        <hr />
 
         <div className="space-y-2">
           <Label htmlFor="phone">{t("phone")}</Label>
