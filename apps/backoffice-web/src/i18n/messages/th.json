@@ -16,6 +16,7 @@
     "manager_dashboard": "แดชบอร์ดผู้บริหาร",
     "manager_catalog": "Catalog (ยา / คอร์ส / BOM)",
     "manager_eod": "ปิดยอดสิ้นวัน (EoD)",
+    "manager_reports": "รายงาน (Reports)",
     "dashboard": "แดชบอร์ด",
     "appointments": "นัดหมาย",
     "visits": "วันนี้ในคลินิก",
@@ -1130,7 +1131,8 @@
     "complete": "ยืนยันได้รับเงิน",
     "completed": "ยืนยันแล้ว",
     "refund": "คืนเงิน",
-    "refund_desc": "บันทึก compensating row · invoice กลับสถานะ",
+    "refund_desc": "บันทึก compensating row · invoice กลับสถานะ · รองรับคืนบางส่วน",
+    "refund_remaining_hint": "คืนได้สูงสุด ฿{refundable} (จากยอดต้น ฿{original} หักที่คืนไปแล้ว)",
     "refunded": "คืนเงินเรียบร้อย",
     "reason": "เหตุผล",
     "void": "ยกเลิก",
@@ -1211,6 +1213,62 @@
       "MANAGER": "ผู้จัดการ",
       "ADMIN": "ผู้ดูแลระบบ",
       "SYSTEM": "ระบบ"
+    }
+  },
+  "reports": {
+    "title": "รายงาน",
+    "subtitle": "ดึงข้อมูลรายงานสำคัญ พร้อม Export Excel ได้ทันที",
+    "from": "จาก",
+    "to": "ถึง",
+    "within_days": "ภายใน (วัน)",
+    "apply": "อัปเดต",
+    "export_excel": "Export Excel",
+    "export_success": "ดาวน์โหลดเรียบร้อย",
+    "export_failed": "Export ล้มเหลว",
+    "loading": "กำลังโหลด…",
+    "empty": "ไม่มีข้อมูลในช่วงเวลาที่เลือก",
+    "tab": {
+      "doctor-productivity": "หมอ — ผลงาน",
+      "service-profitability": "บริการ — กำไร",
+      "patient-retention": "Retention",
+      "revenue-trend": "รายได้รายวัน",
+      "inventory-expiring": "ของใกล้หมดอายุ"
+    }
+  },
+  "allergies": {
+    "add": "เพิ่ม",
+    "add_title": "เพิ่มประวัติแพ้",
+    "add_desc": "ระบุสารก่อภูมิแพ้ ประเภท ความรุนแรง และอาการ (ถ้ามี)",
+    "add_success": "บันทึกประวัติแพ้แล้ว",
+    "remove": "ลบ",
+    "remove_confirm": "ลบประวัติแพ้นี้?",
+    "remove_success": "ลบแล้ว",
+    "save": "บันทึก",
+    "substance": "สารก่อภูมิแพ้",
+    "substance_required": "กรุณาระบุสารก่อภูมิแพ้",
+    "category_label": "ประเภท",
+    "severity_label": "ความรุนแรง",
+    "reaction": "อาการ",
+    "reaction_placeholder": "เช่น ผื่น คัน บวม ช็อก",
+    "note": "หมายเหตุ",
+    "alert_title": "แจ้งเตือน — ผู้ป่วยมีประวัติแพ้",
+    "alert_desc": "ยาที่กำลังจะสั่งมีส่วนประกอบที่ผู้ป่วยแพ้ กรุณายืนยันก่อนดำเนินการต่อ",
+    "contains": "มีส่วนประกอบ",
+    "patient_allergic_to": "ผู้ป่วยแพ้:",
+    "override_warning": "การยืนยันสั่งยาทั้งที่มีประวัติแพ้จะถูกบันทึกใน Audit Log ทุกครั้ง",
+    "cancel_order": "ยกเลิกการสั่ง",
+    "acknowledge_and_proceed": "ยืนยัน — รับทราบความเสี่ยงและสั่งยาต่อ",
+    "category": {
+      "DRUG": "ยา",
+      "FOOD": "อาหาร",
+      "ENVIRONMENTAL": "สิ่งแวดล้อม",
+      "OTHER": "อื่นๆ"
+    },
+    "severity": {
+      "MILD": "เล็กน้อย",
+      "MODERATE": "ปานกลาง",
+      "SEVERE": "รุนแรง",
+      "LIFE_THREATENING": "อันตรายถึงชีวิต"
     }
   }
 }

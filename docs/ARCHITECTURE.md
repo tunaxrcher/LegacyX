@@ -265,12 +265,6 @@ Gateway ตัดยอดเข้าบัญชีจริง → payment.se
 - `PhotosSection` Visit-detail tab — grid ของ cards พร้อม AI summary / observations / concerns / confidence + analyze + delete button
 - PDPA anonymise + Patient Merge ทั้งคู่ wipe / move PatientPhoto rows ตาม survivor
 
-**🧪 Test Foundation (Phase J)**
-- Vitest ที่ workspace root พร้อม `@vitest/coverage-v8`
-- 4 canonical test files / 19 tests: events envelope build, payload schemas (consent / promotion / lab), AI heuristic SOAP cue split (Thai/EN), promotion DTO validation
-- CI extended: lint → typecheck → **test** → build → docker buildx
-- ⚠️ **Coverage ยังบาง** — เหลือ integration + e2e specs สำหรับ phase ถัดไป
-
 ---
 
 🚧 9. Deferred Phases & Open Tech Debt
@@ -299,7 +293,6 @@ Gateway ตัดยอดเข้าบัญชีจริง → payment.se
 **🟢 Nice-to-have / Future cleanup**
 - **Promotion redemption ledger** ใช้ `auditLog` แทน dedicated `PromotionRedemption` table (per-patient count = in-memory scan) — refactor when volume grows
 - **Lab outsourced LIS adapter** ยังไม่มี — nurse กรอกผลด้วยมือ
-- **Test coverage** — 19 unit tests; integration + e2e specs ยังไม่เริ่ม
 - **`UserRole` table mirror** + **`User.passwordHash` nullable** — back-compat carriers, decide in v3 whether to drop. (`verifyPassword()` was removed in the audit pass — phone+OTP does not need it; resurrect from git if a future password flow needs it.)
 - Inline TODOs: `apps/worker-engine/src/relay/outbox-relay.ts:17`, `apps/worker-engine/src/notification/providers/sms.ts:27`
 

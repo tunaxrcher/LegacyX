@@ -5,6 +5,7 @@ import { BadRequest, NotFound, Conflict } from "../../shared/errors";
 import { writeWithOutbox } from "../../shared/outbox";
 import { authorize } from "../../shared/auth";
 import type { RequestContext } from "../../shared/context";
+import { assertNoAllergyConflict } from "../allergy/allergy.service";
 
 const decimalString = z
   .union([z.string(), z.number()])
@@ -28,6 +29,12 @@ export const CreateOrderDto = z.object({
   visit_id: z.string().min(1),
   notes: z.string().max(2000).optional(),
   items: z.array(OrderItemDto).min(1).max(50),
+  /**
+   * Allergy ids the prescriber explicitly acknowledged after seeing the
+   * AllergyAlertDialog. Without this, MEDICATION lines that match the
+   * patient's allergy list will be rejected at the service layer.
+   */
+  acknowledged_allergy_ids: z.array(z.string()).optional(),
 });
 export type CreateOrderInput = z.infer<typeof CreateOrderDto>;
 
@@ -68,6 +75,22 @@ export async function createOrder(ctx: RequestContext, input: CreateOrderInput) 
         data: { status: "IN_PROGRESS", startedAt: new Date() },
       });
     }
+
+    // Clinical safety net (Phase R) — check MEDICATION items against the
+    // patient's recorded allergies. Throws structured Conflict the UI can
+    // surface as an AllergyAlertDialog. Acknowledging the dialog re-submits
+    // the order with `acknowledged_allergy_ids` set, which routes through
+    // the override path AND records every overridden allergy in the audit
+    // log so the regulator can see the override decision.
+    const medicationProductIds = input.items
+      .filter((i) => i.item_type === "MEDICATION")
+      .map((i) => i.ref_id);
+    const allergyOverrides = await assertNoAllergyConflict({
+      ctx,
+      patientId: visit.patientId,
+      productIds: medicationProductIds,
+      acknowledgedAllergyIds: input.acknowledged_allergy_ids,
+    });
 
     // Resolve product prices for items without unit_price
     const productRefIds = input.items
@@ -188,6 +211,31 @@ export async function createOrder(ctx: RequestContext, input: CreateOrderInput) 
         } as object,
       },
     });
+
+    // Clinical safety: log every acknowledged allergy override on its own
+    // row so a regulator audit can answer "show me every drug-allergy
+    // override this month" with a single query.
+    if (allergyOverrides.overrides.length > 0) {
+      await tx.auditLog.createMany({
+        data: allergyOverrides.overrides.map((c) => ({
+          tenantId: ctx.tenantId,
+          branchId: ctx.branchId,
+          actorUserId: ctx.actor.id,
+          action: "allergy.override",
+          resourceType: "Order",
+          resourceId: order.id,
+          correlationId: ctx.correlationId,
+          after: {
+            patientId: visit.patientId,
+            allergyId: c.allergyId,
+            substance: c.substance,
+            severity: c.severity,
+            productId: c.productId,
+            matchedIngredient: c.matchedIngredient,
+          } as object,
+        })),
+      });
+    }
 
     return {
       result: { order, procedures },

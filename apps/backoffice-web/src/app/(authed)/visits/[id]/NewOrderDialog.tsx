@@ -41,8 +41,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { clientApi } from "@/lib/clientApi";
+import { ApiError, clientApi } from "@/lib/clientApi";
 import { CatalogPicker, type CatalogItem } from "@/components/catalog/CatalogPicker";
+import {
+  AllergyAlertDialog,
+  type AllergyConflict,
+} from "@/components/clinical/AllergyAlertDialog";
 import { cn } from "@/lib/utils";
 
 type ItemType = "PROCEDURE" | "PRODUCT" | "MEDICATION" | "COURSE";
@@ -81,6 +85,10 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
   const [notes, setNotes] = React.useState("");
   const [notesOpen, setNotesOpen] = React.useState(false);
   const [pickerValue, setPickerValue] = React.useState<string | undefined>();
+  // Allergy conflict state — populated from the 409 details so the alert
+  // dialog can render. Acknowledging the dialog re-submits with
+  // `acknowledged_allergy_ids` populated.
+  const [allergyConflicts, setAllergyConflicts] = React.useState<AllergyConflict[]>([]);
 
   const subtotal = lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0);
 
@@ -119,16 +127,7 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
     setLines((prev) => prev.filter((l) => l.key !== key));
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (lines.length === 0) {
-      toast.error(t("empty_cart"));
-      return;
-    }
-    if (lines.some((l) => l.qty <= 0)) {
-      toast.error(t("bad_qty"));
-      return;
-    }
+  async function postOrder(acknowledgedAllergyIds?: string[]) {
     setBusy(true);
     try {
       await clientApi.post("/api/v1/orders", {
@@ -141,14 +140,28 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
           qty: String(l.qty),
           unit_price: String(l.unitPrice),
         })),
+        acknowledged_allergy_ids: acknowledgedAllergyIds,
       });
       toast.success(t("create_success"));
       setOpen(false);
       setLines([]);
       setNotes("");
       setNotesOpen(false);
+      setAllergyConflicts([]);
       router.refresh();
     } catch (err) {
+      // 409 ALLERGY_CONFLICT — pull the conflicts off `details` and pop the
+      // AllergyAlertDialog. The user can either cancel (we abort) or
+      // acknowledge (we re-submit with the override list).
+      if (err instanceof ApiError && err.status === 409) {
+        const detail = err.details as
+          | { kind?: string; conflicts?: AllergyConflict[] }
+          | undefined;
+        if (detail?.kind === "ALLERGY_CONFLICT" && Array.isArray(detail.conflicts)) {
+          setAllergyConflicts(detail.conflicts);
+          return;
+        }
+      }
       toast.error(t("create_failed"), {
         description: err instanceof Error ? err.message : String(err),
       });
@@ -157,15 +170,38 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
     }
   }
 
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (lines.length === 0) {
+      toast.error(t("empty_cart"));
+      return;
+    }
+    if (lines.some((l) => l.qty <= 0)) {
+      toast.error(t("bad_qty"));
+      return;
+    }
+    await postOrder();
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="h-4 w-4" />
-          {t("new")}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+    <>
+      <AllergyAlertDialog
+        open={allergyConflicts.length > 0}
+        conflicts={allergyConflicts}
+        onCancel={() => setAllergyConflicts([])}
+        onOverride={(ids) => {
+          setAllergyConflicts([]);
+          void postOrder(ids);
+        }}
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <Plus className="h-4 w-4" />
+            {t("new")}
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("new")}</DialogTitle>
           <DialogDescription>{t("new_desc")}</DialogDescription>
@@ -250,7 +286,8 @@ export function NewOrderDialog({ visitId }: { visitId: string }) {
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }
 

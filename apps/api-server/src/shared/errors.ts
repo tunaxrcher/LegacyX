@@ -21,7 +21,8 @@ export const Forbidden = (msg = "Forbidden") =>
   new HttpError(403, "FORBIDDEN", msg);
 export const NotFound = (msg = "Not found") =>
   new HttpError(404, "NOT_FOUND", msg);
-export const Conflict = (msg: string) => new HttpError(409, "CONFLICT", msg);
+export const Conflict = (msg: string, details?: unknown) =>
+  new HttpError(409, "CONFLICT", msg, details);
 
 export function toErrorResponse(err: unknown, correlationId?: string) {
   if (err instanceof HttpError) {

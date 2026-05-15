@@ -263,7 +263,14 @@ function InvoiceCard({
                     : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  <PaymentRowActions payment={p} canWrite={canWrite} canVoid={canVoid} />
+                  <PaymentRowActions
+                    payment={p}
+                    canWrite={canWrite}
+                    canVoid={canVoid}
+                    alreadyRefunded={invoice.payments
+                      .filter((r) => r.refundOfId === p.id && r.state === "REFUNDED")
+                      .reduce((s, r) => s + Math.abs(Number(r.amount)), 0)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -548,16 +555,20 @@ function PaymentRowActions({
   payment,
   canWrite,
   canVoid,
+  alreadyRefunded,
 }: {
   payment: Payment;
   canWrite: boolean;
   canVoid: boolean;
+  alreadyRefunded: number;
 }) {
   if (payment.state === "AUTHORIZED" && canWrite) {
     return <CompletePayBtn id={payment.id} />;
   }
   if ((payment.state === "COMPLETED" || payment.state === "SETTLED") && canVoid) {
-    return <RefundDialog payment={payment} />;
+    const refundable = Math.max(0, Number(payment.amount) - alreadyRefunded);
+    if (refundable <= 0) return <span className="text-xs text-muted-foreground">—</span>;
+    return <RefundDialog payment={payment} refundable={refundable} />;
   }
   return <span className="text-xs text-muted-foreground">—</span>;
 }
@@ -586,12 +597,18 @@ function CompletePayBtn({ id }: { id: string }) {
   );
 }
 
-function RefundDialog({ payment }: { payment: Payment }) {
+function RefundDialog({
+  payment,
+  refundable,
+}: {
+  payment: Payment;
+  refundable: number;
+}) {
   const router = useRouter();
   const t = useTranslations("billing");
   const tCommon = useTranslations("common");
   const [open, setOpen] = React.useState(false);
-  const [amount, setAmount] = React.useState(payment.amount);
+  const [amount, setAmount] = React.useState(String(refundable));
   const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
@@ -633,11 +650,19 @@ function RefundDialog({ payment }: { payment: Payment }) {
               type="number"
               step="0.01"
               min="0.01"
-              max={payment.amount}
+              max={refundable}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
             />
+            {Number(payment.amount) !== refundable ? (
+              <p className="text-[11px] text-muted-foreground">
+                {t("refund_remaining_hint", {
+                  refundable: refundable.toLocaleString(),
+                  original: Number(payment.amount).toLocaleString(),
+                })}
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>{t("reason")}</Label>

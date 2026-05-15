@@ -16,6 +16,7 @@
     "manager_dashboard": "Manager Dashboard",
     "manager_catalog": "Catalog (Meds / Courses / BOM)",
     "manager_eod": "End-of-Day Operations",
+    "manager_reports": "Reports",
     "dashboard": "Dashboard",
     "appointments": "Appointments",
     "visits": "Today's visits",
@@ -1130,7 +1131,8 @@
     "complete": "Mark received",
     "completed": "Confirmed",
     "refund": "Refund",
-    "refund_desc": "Create compensating row · invoice status reverts",
+    "refund_desc": "Create compensating row · invoice status reverts · partial refunds supported",
+    "refund_remaining_hint": "Up to ฿{refundable} refundable (orig ฿{original} − previous refunds)",
     "refunded": "Refunded",
     "reason": "Reason",
     "void": "Void",
@@ -1211,6 +1213,62 @@
       "MANAGER": "Manager",
       "ADMIN": "Admin",
       "SYSTEM": "System"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Pull critical operating reports — every one exports to Excel.",
+    "from": "From",
+    "to": "To",
+    "within_days": "Within (days)",
+    "apply": "Apply",
+    "export_excel": "Export Excel",
+    "export_success": "Download started",
+    "export_failed": "Export failed",
+    "loading": "Loading…",
+    "empty": "No rows for the selected period.",
+    "tab": {
+      "doctor-productivity": "Doctor productivity",
+      "service-profitability": "Service profitability",
+      "patient-retention": "Retention cohorts",
+      "revenue-trend": "Revenue trend",
+      "inventory-expiring": "Expiring stock"
+    }
+  },
+  "allergies": {
+    "add": "Add",
+    "add_title": "Add allergy",
+    "add_desc": "Capture the substance, category, severity and reaction (if known).",
+    "add_success": "Allergy recorded",
+    "remove": "Remove",
+    "remove_confirm": "Remove this allergy from the record?",
+    "remove_success": "Removed",
+    "save": "Save",
+    "substance": "Substance",
+    "substance_required": "Substance is required",
+    "category_label": "Category",
+    "severity_label": "Severity",
+    "reaction": "Reaction",
+    "reaction_placeholder": "e.g. rash, swelling, anaphylaxis",
+    "note": "Note",
+    "alert_title": "Allergy alert — patient is allergic",
+    "alert_desc": "The medication you're about to order contains ingredients the patient is allergic to. Please confirm to proceed.",
+    "contains": "contains",
+    "patient_allergic_to": "Patient is allergic to:",
+    "override_warning": "Overriding an allergy alert is recorded in the audit log every single time.",
+    "cancel_order": "Cancel order",
+    "acknowledge_and_proceed": "Acknowledge & proceed",
+    "category": {
+      "DRUG": "Drug",
+      "FOOD": "Food",
+      "ENVIRONMENTAL": "Environmental",
+      "OTHER": "Other"
+    },
+    "severity": {
+      "MILD": "Mild",
+      "MODERATE": "Moderate",
+      "SEVERE": "Severe",
+      "LIFE_THREATENING": "Life-threatening"
     }
   }
 }

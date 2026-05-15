@@ -472,14 +472,38 @@ export async function refundPayment(
     if (orig.state !== "COMPLETED" && orig.state !== "SETTLED") {
       throw Conflict(`Cannot refund payment in state ${orig.state}`);
     }
-    const amount = input.amount ?? orig.amount;
-    if (amount.lte(0) || amount.gt(orig.amount)) {
-      throw BadRequest("Refund amount invalid");
+
+    // Cumulative refund guard — partial refunds may be issued multiple times
+    // (each one creates a compensating row with refundOfId = orig.id and a
+    // negative amount). The CAP is the original amount, not whatever's left
+    // after the last refund. Re-fetching here in the same TX is critical so
+    // a concurrent refund can't slip past the check.
+    const priorRefunds = await tx.payment.findMany({
+      where: { refundOfId: orig.id, state: "REFUNDED" },
+      select: { amount: true },
+    });
+    const alreadyRefunded = priorRefunds.reduce(
+      (s, r) => s.add(r.amount.abs()),
+      new Prisma.Decimal(0),
+    );
+    const refundable = orig.amount.sub(alreadyRefunded);
+
+    const amount = input.amount ?? refundable;
+    if (amount.lte(0)) {
+      throw BadRequest("Refund amount must be positive");
+    }
+    if (amount.gt(refundable)) {
+      throw BadRequest(
+        `Refund amount ${amount.toString()} exceeds remaining refundable ${refundable.toString()} (orig ${orig.amount.toString()} - already refunded ${alreadyRefunded.toString()})`,
+      );
     }
 
     const now = new Date();
-    // Flip original to REFUNDED if full refund, else keep COMPLETED + add compensating row
-    const fullRefund = amount.eq(orig.amount);
+    // Flip original to REFUNDED only when the cumulative refund equals the
+    // original amount — at THAT point the row is fully compensated. A second
+    // partial refund that exactly drains the remaining balance must also
+    // close the original out, so we compare against `refundable`.
+    const fullRefund = amount.eq(refundable);
     if (fullRefund) {
       await tx.payment.update({
         where: { id: orig.id },

@@ -2,6 +2,24 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
+/**
+ * Thrown by `clientApi.*` on non-2xx responses. We keep the parsed JSON
+ * `error.details` (e.g. allergy-conflict array) accessible so callers can
+ * branch on the failure shape without regexing the message.
+ */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  details?: unknown;
+  constructor(args: { status: number; message: string; code?: string; details?: unknown }) {
+    super(args.message);
+    this.name = "ApiError";
+    this.status = args.status;
+    this.code = args.code;
+    this.details = args.details;
+  }
+}
+
 function readSession() {
   if (typeof document === "undefined") return null;
   const m = document.cookie.match(/(?:^|; )lx_session=([^;]+)/);
@@ -40,12 +58,16 @@ async function request<T>(
   });
   if (!res.ok) {
     let text = `${method} ${path} → ${res.status}`;
+    let code: string | undefined;
+    let details: unknown;
     try {
-      const j = await res.json();
-      text =
-        (j?.error?.message as string | undefined) ??
-        (j?.message as string | undefined) ??
-        text;
+      const j = (await res.json()) as {
+        error?: { message?: string; code?: string; details?: unknown };
+        message?: string;
+      };
+      text = j?.error?.message ?? j?.message ?? text;
+      code = j?.error?.code;
+      details = j?.error?.details;
     } catch {
       try {
         text = `${text}: ${await res.text()}`;
@@ -53,7 +75,7 @@ async function request<T>(
         /* ignore */
       }
     }
-    throw new Error(text);
+    throw new ApiError({ status: res.status, message: text, code, details });
   }
   // 204 no content
   if (res.status === 204) return undefined as unknown as T;

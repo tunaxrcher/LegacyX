@@ -32,6 +32,7 @@ import {
 import { formatDate, formatDateTime, initials } from "@/lib/utils";
 import { WalletSection } from "./WalletSection";
 import { ConsentsSection } from "./ConsentsSection";
+import { AllergiesSection, type AllergyRecord } from "./AllergiesSection";
 import { EditPatientDialog } from "./EditPatientDialog";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,18 @@ function listifyJson(v: unknown): string[] {
   return [];
 }
 
+function parseAllergies(v: unknown): AllergyRecord[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter(
+    (a): a is AllergyRecord =>
+      typeof a === "object" &&
+      a !== null &&
+      typeof (a as AllergyRecord).id === "string" &&
+      typeof (a as AllergyRecord).substance === "string" &&
+      typeof (a as AllergyRecord).severity === "string",
+  );
+}
+
 export default async function PatientProfile({ params }: { params: { id: string } }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -114,7 +127,10 @@ export default async function PatientProfile({ params }: { params: { id: string 
   const consents = consentsRes?.data ?? [];
 
   const fullName = `${p.firstName} ${p.lastName}`;
-  const allergies = listifyJson(p.allergies);
+  // Phase R — allergies are now a structured array (typed AllergyRecord[]).
+  // We re-parse defensively because a few legacy patient rows still hold the
+  // free-text format and we don't want one bad row to crash the page.
+  const allergies = parseAllergies(p.allergies);
   const chronic = listifyJson(p.chronicConditions);
 
   return (
@@ -203,27 +219,7 @@ export default async function PatientProfile({ params }: { params: { id: string 
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <AlertTriangle className="h-4 w-4 text-warning" />
-                {t("patients.allergies")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {allergies.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("patients.no_allergies")}</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {allergies.map((a, i) => (
-                    <Badge key={i} variant="warning">
-                      {a}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <AllergiesSection patientId={p.id} initial={allergies} />
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">

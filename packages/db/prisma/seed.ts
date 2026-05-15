@@ -111,6 +111,10 @@ const PERMISSIONS: { resource: string; action: string; scope: string }[] = [
   //     hatch but in normal operation this is a Manager action.
   { resource: "pdpa", action: "export", scope: "tenant" },
   { resource: "pdpa", action: "anonymize", scope: "tenant" },
+  // Phase S — Manager Reports. Tenant-scoped read across visits, payments,
+  // procedures, stock ledger. ADMIN inherits as a system-recovery escape
+  // hatch; MANAGER is the day-to-day owner.
+  { resource: "report", action: "read", scope: "tenant" },
   // Phase O — Promotion / voucher engine. CRUD is a tenant-wide config
   // (Manager) but the redeem action runs at the desk so it's branch-scoped.
   { resource: "promotion", action: "read", scope: "tenant" },
@@ -176,6 +180,8 @@ const ROLE_MATRIX: Record<string, string[]> = {
     // ADMIN retains the same permission but only as a recovery escape hatch.
     "pdpa:export:tenant",
     "pdpa:anonymize:tenant",
+    // Phase S — Manager Reports (tenant-wide read).
+    "report:read:tenant",
   ],
   DOCTOR: [
     "patient:read:branch",
