@@ -53,9 +53,12 @@
   "settings_hub": {
     "title": "Settings",
     "subtitle": "Pick a category — only the ones your role can access are shown",
-    "group_clinic": "Clinic Setup",
+    "dialog_title": "Pick a category to configure",
+    "dialog_subtitle": "Categories shown depend on your role",
+    "dialog_count": "{count} items",
+    "group_clinic": "Clinic",
     "group_clinic_desc": "Rooms, services, products, staff, and notification templates — owned by Manager",
-    "group_admin": "System Admin",
+    "group_admin": "System",
     "group_admin_desc": "Users, roles, branches, and processing queues — owned by Admin",
     "tile_resources_desc": "Add / edit / retire rooms and equipment",
     "tile_services_desc": "Categories and services shown in the Patient App",
@@ -67,7 +70,8 @@
     "tile_admin_branches_desc": "Add / edit branches and timezones",
     "tile_dlq_desc": "Failed events — retry or abandon",
     "no_access_title": "Your role can't open Settings",
-    "no_access_desc": "Only Manager and Admin can access this hub"
+    "no_access_desc": "Only Manager and Admin can access this hub",
+    "meta_categories": "{count} accessible"
   },
   "break_glass": {
     "title": "Break-Glass Override",

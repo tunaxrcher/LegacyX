@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { WorkflowDialog } from "@/components/workflow/workflow-dialog";
+import { SettingsDialog } from "@/components/settings/settings-dialog";
 
 interface NavItem {
   href: string;
@@ -289,15 +290,28 @@ export function Sidebar({ roles = [] }: { roles?: string[] }) {
           disabled
         />
 
-        {/* Settings hub — visible to MANAGER + ADMIN only. The actual page at
-            /settings further filters cards by role. */}
+        {/* Settings — opens a dialog with role-filtered tiles instead of
+            navigating to a separate page. Faster UX and keeps the user
+            in their current context. /settings still works as a deep-link
+            fallback. Visible to MANAGER + ADMIN only. */}
         {SETTINGS_ROLES.some((r) => roles.includes(r)) && (
-          <BottomItem
-            icon={Settings}
-            label={tNav("nav.settings")}
-            collapsed={collapsed}
-            href="/settings"
-            active={pathname === "/settings" || pathname.startsWith("/settings/")}
+          <SettingsDialog
+            roles={roles}
+            trigger={
+              <button
+                type="button"
+                title={collapsed ? tNav("nav.settings") : undefined}
+                className={cn(
+                  "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                  collapsed && "justify-center px-0",
+                )}
+              >
+                <Settings className="h-[14px] w-[14px] shrink-0" />
+                {!collapsed && (
+                  <span className="truncate">{tNav("nav.settings")}</span>
+                )}
+              </button>
+            }
           />
         )}
 
