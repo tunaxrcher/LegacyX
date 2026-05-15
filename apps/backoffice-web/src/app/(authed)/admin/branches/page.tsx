@@ -4,9 +4,7 @@ import { Building2, MapPin, Clock } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -16,11 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
+import { EntityCard } from "@/components/ui/entity-card";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
 } from "@/lib/list-params";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { BranchRowActions } from "./BranchRowActions";
@@ -46,13 +46,7 @@ type Resp = {
 export default async function AdminBranchesPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    status?: string;
-    view?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -61,7 +55,7 @@ export default async function AdminBranchesPage({
   const { q, view, page, perPage } = parseListSearchParams(searchParams, {
     defaultPerPage: 24,
   });
-  const status = (searchParams?.status ?? "").toUpperCase();
+  const status = pickString(searchParams, "status").toUpperCase();
 
   const apiParams = new URLSearchParams();
   apiParams.set("page", String(page));
@@ -129,31 +123,24 @@ export default async function AdminBranchesPage({
         ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {branches.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<Building2 className="h-5 w-5" />}
-              title={t("admin_branches.list_empty_title")}
-              description={t("admin_branches.list_empty_desc")}
-            />
-          ) : view === "grid" ? (
-            <BranchGrid branches={branches} t={t} />
-          ) : (
-            <BranchTable branches={branches} t={t} />
-          )}
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <Building2 className="h-5 w-5" />,
+          title: t("admin_branches.list_empty_title"),
+          description: t("admin_branches.list_empty_desc"),
+        }}
+      >
+        {view === "grid" ? (
+          <BranchGrid branches={branches} t={t} />
+        ) : (
+          <BranchTable branches={branches} t={t} />
+        )}
+      </ListSurface>
     </div>
   );
 }
@@ -240,13 +227,7 @@ function BranchGrid({
   return (
     <ul className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {branches.map((b) => (
-        <li
-          key={b.id}
-          className="group relative flex h-full flex-col items-center gap-3 rounded-xl border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg"
-        >
-          <div className="absolute right-2 top-2">
-            <BranchRowActions branch={b} />
-          </div>
+        <EntityCard key={b.id} actions={<BranchRowActions branch={b} />}>
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary ring-2 ring-background shadow-soft">
             <Building2 className="h-6 w-6" />
           </div>
@@ -279,7 +260,7 @@ function BranchGrid({
           <div className="mt-auto text-[10px] text-muted-foreground">
             {t("admin_branches.updated_at")} · {formatDateTime(b.updatedAt)}
           </div>
-        </li>
+        </EntityCard>
       ))}
     </ul>
   );

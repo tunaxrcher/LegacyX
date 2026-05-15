@@ -4,9 +4,7 @@ import { Bell } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -16,11 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
 } from "@/lib/list-params";
 
 export const dynamic = "force-dynamic";
@@ -49,13 +48,7 @@ const VALID_CHANNELS = new Set(["LINE", "SMS", "EMAIL", "PUSH", "IN_APP"]);
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    status?: string;
-    channel?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -65,8 +58,8 @@ export default async function NotificationsPage({
     defaultPerPage: 25,
     maxPerPage: 200,
   });
-  const statusInput = (searchParams?.status ?? "").toUpperCase();
-  const channelInput = (searchParams?.channel ?? "").toUpperCase();
+  const statusInput = pickString(searchParams, "status").toUpperCase();
+  const channelInput = pickString(searchParams, "channel").toUpperCase();
   const status = VALID_STATUSES.has(statusInput) ? statusInput : "";
   const channel = VALID_CHANNELS.has(channelInput) ? channelInput : "";
 
@@ -144,73 +137,63 @@ export default async function NotificationsPage({
         ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<Bell className="h-5 w-5" />}
-              title={t("notifications.empty_title")}
-              description={t("notifications.empty_desc")}
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>{t("notifications.col_when")}</TableHead>
-                  <TableHead>{t("notifications.col_channel")}</TableHead>
-                  <TableHead>{t("notifications.col_template")}</TableHead>
-                  <TableHead>{t("notifications.col_recipient")}</TableHead>
-                  <TableHead>{t("notifications.col_status")}</TableHead>
-                  <TableHead>{t("notifications.col_attempts")}</TableHead>
-                  <TableHead>{t("notifications.col_error")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatDateTime(r.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-[10px]">
-                        {r.channel}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {r.templateCode}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {r.recipientRef.length > 22
-                        ? r.recipientRef.slice(0, 22) + "…"
-                        : r.recipientRef}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={r.status} />
-                    </TableCell>
-                    <TableCell className="text-xs tabular-nums">
-                      {r.attempt}
-                    </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-xs text-destructive">
-                      {r.lastError ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <Bell className="h-5 w-5" />,
+          title: t("notifications.empty_title"),
+          description: t("notifications.empty_desc"),
+        }}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40">
+              <TableHead>{t("notifications.col_when")}</TableHead>
+              <TableHead>{t("notifications.col_channel")}</TableHead>
+              <TableHead>{t("notifications.col_template")}</TableHead>
+              <TableHead>{t("notifications.col_recipient")}</TableHead>
+              <TableHead>{t("notifications.col_status")}</TableHead>
+              <TableHead>{t("notifications.col_attempts")}</TableHead>
+              <TableHead>{t("notifications.col_error")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                  {formatDateTime(r.createdAt)}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="font-mono text-[10px]">
+                    {r.channel}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {r.templateCode}
+                </TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {r.recipientRef.length > 22
+                    ? r.recipientRef.slice(0, 22) + "…"
+                    : r.recipientRef}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={r.status} />
+                </TableCell>
+                <TableCell className="text-xs tabular-nums">
+                  {r.attempt}
+                </TableCell>
+                <TableCell className="max-w-[280px] truncate text-xs text-destructive">
+                  {r.lastError ?? "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ListSurface>
     </div>
   );
 }

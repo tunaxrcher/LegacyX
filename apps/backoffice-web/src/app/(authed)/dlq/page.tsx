@@ -4,7 +4,6 @@ import { CheckCircle2, AlertOctagon } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,15 +13,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
 } from "@/lib/list-params";
 import ReplayButton from "./ReplayButton";
+
+export const dynamic = "force-dynamic";
 
 type Dlq = {
   id: string;
@@ -39,19 +40,12 @@ type Resp = {
   pagination: { total: number; page: number; perPage: number };
 };
 
-export const dynamic = "force-dynamic";
-
 const VALID_STATUSES = new Set(["NEW", "REPROCESSED", "ABANDONED"]);
 
 export default async function DlqPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    status?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -60,7 +54,7 @@ export default async function DlqPage({
   const { q, page, perPage } = parseListSearchParams(searchParams, {
     defaultPerPage: 25,
   });
-  const statusInput = (searchParams?.status ?? "NEW").toUpperCase();
+  const statusInput = (pickString(searchParams, "status") || "NEW").toUpperCase();
   const status = VALID_STATUSES.has(statusInput) ? statusInput : "NEW";
 
   const apiParams = new URLSearchParams();
@@ -123,73 +117,61 @@ export default async function DlqPage({
         ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {items.length === 0 ? (
-            <EmptyState
-              className="m-6 bg-success/5"
-              icon={<CheckCircle2 className="h-5 w-5 text-success" />}
-              title={t("dlq.empty_title")}
-              description={t("dlq.empty_desc")}
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>{t("dlq.event_name")}</TableHead>
-                  <TableHead>{t("dlq.attempts")}</TableHead>
-                  <TableHead>{t("dlq.last_error")}</TableHead>
-                  <TableHead>{t("dlq.occurred_at")}</TableHead>
-                  <TableHead className="text-right">
-                    {t("common.actions")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <AlertOctagon className="h-4 w-4 text-destructive" />
-                        <div>
-                          <div className="text-sm font-medium">
-                            {d.eventName}
-                          </div>
-                          <div className="font-mono text-[10px] text-muted-foreground">
-                            {d.eventId}
-                          </div>
-                        </div>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <CheckCircle2 className="h-5 w-5 text-success" />,
+          title: t("dlq.empty_title"),
+          description: t("dlq.empty_desc"),
+        }}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40">
+              <TableHead>{t("dlq.event_name")}</TableHead>
+              <TableHead>{t("dlq.attempts")}</TableHead>
+              <TableHead>{t("dlq.last_error")}</TableHead>
+              <TableHead>{t("dlq.occurred_at")}</TableHead>
+              <TableHead className="text-right">
+                {t("common.actions")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((d) => (
+              <TableRow key={d.id}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <AlertOctagon className="h-4 w-4 text-destructive" />
+                    <div>
+                      <div className="text-sm font-medium">{d.eventName}</div>
+                      <div className="font-mono text-[10px] text-muted-foreground">
+                        {d.eventId}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="warning">{d.attempts}×</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[420px] truncate text-xs text-muted-foreground">
-                      {d.error}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {formatDateTime(d.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {d.status === "NEW" && <ReplayButton id={d.id} />}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="warning">{d.attempts}×</Badge>
+                </TableCell>
+                <TableCell className="max-w-[420px] truncate text-xs text-muted-foreground">
+                  {d.error}
+                </TableCell>
+                <TableCell className="text-sm tabular-nums">
+                  {formatDateTime(d.createdAt)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {d.status === "NEW" && <ReplayButton id={d.id} />}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ListSurface>
     </div>
   );
 }

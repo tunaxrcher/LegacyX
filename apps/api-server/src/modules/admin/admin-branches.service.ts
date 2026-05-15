@@ -42,13 +42,15 @@ export const UpdateBranchDto = z.object({
 export interface ListBranchesFilters {
   q?: string;
   status?: string;
-  page?: number;
-  perPage?: number;
+  /** 1-indexed page number. Caller must clamp ≥ 1. */
+  page: number;
+  /** Items per page. Caller must clamp + cap. */
+  perPage: number;
 }
 
 export async function listBranches(
   ctx: RequestContext,
-  filters: ListBranchesFilters = {},
+  filters: ListBranchesFilters,
 ) {
   // Gate on user:read so any role with admin-pages access can list branches
   // (needed for the staff-branch picker dialog as well).
@@ -65,8 +67,7 @@ export async function listBranches(
       { address: { contains: filters.q } },
     ];
   }
-  const page = Math.max(1, filters.page ?? 1);
-  const perPage = Math.min(200, Math.max(1, filters.perPage ?? 25));
+  const { page, perPage } = filters;
 
   const [total, branches] = await Promise.all([
     prisma.branch.count({ where }),

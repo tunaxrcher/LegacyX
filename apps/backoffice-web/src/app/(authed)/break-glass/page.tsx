@@ -4,7 +4,6 @@ import { ShieldAlert } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,9 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
@@ -44,11 +42,7 @@ type Resp = {
 export default async function BreakGlassPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -108,64 +102,54 @@ export default async function BreakGlassPage({
         searchPlaceholder={t("break_glass.search_placeholder")}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<ShieldAlert className="h-5 w-5" />}
-              title={t("break_glass.empty_title")}
-              description={t("break_glass.empty_desc")}
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>{t("break_glass.when")}</TableHead>
-                  <TableHead>{t("break_glass.actor")}</TableHead>
-                  <TableHead>{t("break_glass.approver")}</TableHead>
-                  <TableHead>{t("break_glass.resource")}</TableHead>
-                  <TableHead>{t("break_glass.reason")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime(r.createdAt)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {r.actorUserId.slice(-10)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {r.approvedBy.slice(-10)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <div>{r.resourceType}</div>
-                      <div className="text-muted-foreground">
-                        {r.resourceId.slice(-10)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[360px] text-xs">
-                      {r.reason}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <ShieldAlert className="h-5 w-5" />,
+          title: t("break_glass.empty_title"),
+          description: t("break_glass.empty_desc"),
+        }}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40">
+              <TableHead>{t("break_glass.when")}</TableHead>
+              <TableHead>{t("break_glass.actor")}</TableHead>
+              <TableHead>{t("break_glass.approver")}</TableHead>
+              <TableHead>{t("break_glass.resource")}</TableHead>
+              <TableHead>{t("break_glass.reason")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="text-xs text-muted-foreground">
+                  {formatDateTime(r.createdAt)}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {r.actorUserId.slice(-10)}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {r.approvedBy.slice(-10)}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  <div>{r.resourceType}</div>
+                  <div className="text-muted-foreground">
+                    {r.resourceId.slice(-10)}
+                  </div>
+                </TableCell>
+                <TableCell className="max-w-[360px] text-xs">
+                  {r.reason}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ListSurface>
     </div>
   );
 }

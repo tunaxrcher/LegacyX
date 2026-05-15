@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import type { RawSearchParams } from "@/lib/list-params";
 import { UsersListView } from "../../admin/users/UsersListView";
 
 export const dynamic = "force-dynamic";
@@ -20,14 +22,20 @@ export const dynamic = "force-dynamic";
 export default async function ManagerStaffPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: RawSearchParams;
 }) {
+  const t = await getTranslations();
   return (
     <UsersListView
       searchParams={searchParams}
       basePath="/manager/staff"
-      titleKey="manager_staff.title"
-      subtitleKey="manager_staff.subtitle"
+      copy={{
+        title: t("manager_staff.title"),
+        subtitle: t("manager_staff.subtitle"),
+        searchPlaceholder: t("manager_staff.search_placeholder"),
+        emptyTitle: t("manager_staff.list_empty_title"),
+        emptyDesc: t("manager_staff.list_empty_desc"),
+      }}
     />
   );
 }

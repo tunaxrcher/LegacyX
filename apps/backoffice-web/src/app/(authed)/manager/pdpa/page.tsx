@@ -21,6 +21,7 @@ import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
 } from "@/lib/list-params";
 import { PdpaActionBar } from "./PdpaActionBar";
 
@@ -47,12 +48,7 @@ const VALID_ACTIONS = new Set(["pdpa.export", "pdpa.anonymize"]);
 export default async function PdpaPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    action?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -61,7 +57,7 @@ export default async function PdpaPage({
   const { q, page, perPage } = parseListSearchParams(searchParams, {
     defaultPerPage: 25,
   });
-  const actionInput = searchParams?.action ?? "";
+  const actionInput = pickString(searchParams, "action");
   const actionFilter = VALID_ACTIONS.has(actionInput) ? actionInput : "";
   // If no explicit action filter, default to all pdpa.* actions.
   const apiAction = actionFilter || "pdpa";

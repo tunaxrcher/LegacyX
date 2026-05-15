@@ -6,7 +6,6 @@ import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -16,11 +15,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
+import { EntityCard } from "@/components/ui/entity-card";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
 } from "@/lib/list-params";
 import { CreatePromotionDialog } from "./CreatePromotionDialog";
 import { PromotionRowActions } from "./PromotionRowActions";
@@ -39,9 +40,17 @@ type Promotion = {
   createdAt: string;
 };
 
+type Counts = {
+  total: number;
+  active: number;
+  inactive: number;
+  expired: number;
+};
+
 type Resp = {
   data: Promotion[];
   pagination: { total: number; page: number; perPage: number };
+  counts?: Counts;
 };
 
 const TYPE_VARIANT: Record<
@@ -73,14 +82,7 @@ function formatConfig(p: Promotion): string {
 export default async function PromotionsPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    type?: string;
-    status?: string;
-    view?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -89,9 +91,9 @@ export default async function PromotionsPage({
   const { q, view, page, perPage } = parseListSearchParams(searchParams, {
     defaultPerPage: 24,
   });
-  const typeInput = (searchParams?.type ?? "").toUpperCase();
+  const typeInput = pickString(searchParams, "type").toUpperCase();
   const type = TYPE_OPTIONS.includes(typeInput) ? typeInput : "";
-  const statusInput = (searchParams?.status ?? "").toLowerCase();
+  const statusInput = pickString(searchParams, "status").toLowerCase();
   const status = ["active", "inactive", "expired"].includes(statusInput)
     ? statusInput
     : "";
@@ -99,10 +101,14 @@ export default async function PromotionsPage({
   const apiParams = new URLSearchParams();
   apiParams.set("page", String(page));
   apiParams.set("per_page", String(perPage));
-  apiParams.set("include_inactive", "1");
+  apiParams.set("with_counts", "1");
+  if (status) {
+    apiParams.set("status", status);
+  } else {
+    apiParams.set("include_inactive", "1");
+  }
   if (q) apiParams.set("q", q);
   if (type) apiParams.set("type", type);
-  if (status && status !== "expired") apiParams.set("status", status);
 
   const promosRes = await apiJson<Resp>(
     session,
@@ -112,16 +118,13 @@ export default async function PromotionsPage({
       ({
         data: [] as Promotion[],
         pagination: { total: 0, page: 1, perPage },
+        counts: { total: 0, active: 0, inactive: 0, expired: 0 },
       }) as Resp,
   );
-  let promos = promosRes.data;
-  // "expired" is computed client-side (no server column).
-  if (status === "expired") {
-    promos = promos.filter((p) => p.endsAt && new Date(p.endsAt) < new Date());
-  }
-  const total = status === "expired" ? promos.length : promosRes.pagination.total;
-
-  const activeCount = promos.filter((p) => p.active).length;
+  const promos = promosRes.data;
+  const total = promosRes.pagination.total;
+  const counts: Counts =
+    promosRes.counts ?? { total: 0, active: 0, inactive: 0, expired: 0 };
 
   const buildHref = makeListHrefBuilder("/manager/promotions", {
     q: q || undefined,
@@ -152,20 +155,17 @@ export default async function PromotionsPage({
       <div className="grid gap-3 md:grid-cols-3">
         <KpiCard
           icon={<Tag className="h-5 w-5 text-success" />}
-          value={activeCount}
+          value={counts.active}
           label={t("promotions.active_count")}
         />
         <KpiCard
           icon={<Tag className="h-5 w-5 text-info" />}
-          value={total}
+          value={counts.total}
           label={t("promotions.total_count")}
         />
         <KpiCard
           icon={<Calendar className="h-5 w-5 text-warning" />}
-          value={
-            promos.filter((p) => p.endsAt && new Date(p.endsAt) < new Date())
-              .length
-          }
+          value={counts.expired}
           label={t("promotions.expired_count")}
         />
       </div>
@@ -199,32 +199,25 @@ export default async function PromotionsPage({
         ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {promos.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<Tag className="h-5 w-5" />}
-              title={t("promotions.list_empty_title")}
-              description={t("promotions.list_empty_desc")}
-              action={<CreatePromotionDialog />}
-            />
-          ) : view === "grid" ? (
-            <PromotionGrid promos={promos} t={t} />
-          ) : (
-            <PromotionTable promos={promos} t={t} />
-          )}
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <Tag className="h-5 w-5" />,
+          title: t("promotions.list_empty_title"),
+          description: t("promotions.list_empty_desc"),
+          action: <CreatePromotionDialog />,
+        }}
+      >
+        {view === "grid" ? (
+          <PromotionGrid promos={promos} t={t} />
+        ) : (
+          <PromotionTable promos={promos} t={t} />
+        )}
+      </ListSurface>
     </div>
   );
 }
@@ -253,13 +246,20 @@ function KpiCard({
   );
 }
 
-function PromotionStatusBadge({ p }: { p: Promotion }) {
-  if (!p.active) return <Badge variant="muted">inactive</Badge>;
+function PromotionStatusBadge({
+  p,
+  t,
+}: {
+  p: Promotion;
+  t: Translator;
+}) {
+  if (!p.active)
+    return <Badge variant="muted">{t("promotions.status_inactive")}</Badge>;
   const expired = p.endsAt && new Date(p.endsAt) < new Date();
   return expired ? (
-    <Badge variant="warning">expired</Badge>
+    <Badge variant="warning">{t("promotions.status_expired")}</Badge>
   ) : (
-    <Badge variant="success">active</Badge>
+    <Badge variant="success">{t("promotions.status_active")}</Badge>
   );
 }
 
@@ -305,7 +305,7 @@ function PromotionTable({
               <br />→ {p.endsAt ? formatDateTime(p.endsAt) : "∞"}
             </TableCell>
             <TableCell>
-              <PromotionStatusBadge p={p} />
+              <PromotionStatusBadge p={p} t={t} />
             </TableCell>
             <TableCell className="text-right">
               <PromotionRowActions promotion={p} />
@@ -327,16 +327,12 @@ function PromotionGrid({
   return (
     <ul className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {promos.map((p) => (
-        <li
+        <EntityCard
           key={p.id}
-          className={
-            "group relative flex h-full flex-col gap-3 rounded-xl border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg" +
-            (!p.active ? " opacity-70" : "")
-          }
+          align="start"
+          dim={!p.active}
+          actions={<PromotionRowActions promotion={p} />}
         >
-          <div className="absolute right-2 top-2">
-            <PromotionRowActions promotion={p} />
-          </div>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Tag className="h-5 w-5" />
@@ -352,7 +348,7 @@ function PromotionGrid({
           </div>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant={TYPE_VARIANT[p.type] ?? "muted"}>{p.type}</Badge>
-            <PromotionStatusBadge p={p} />
+            <PromotionStatusBadge p={p} t={t} />
           </div>
           <div className="line-clamp-2 text-xs text-muted-foreground">
             {formatConfig(p)}
@@ -361,7 +357,7 @@ function PromotionGrid({
             {t("promotions.window")}: {formatDateTime(p.startsAt)} →{" "}
             {p.endsAt ? formatDateTime(p.endsAt) : "∞"}
           </div>
-        </li>
+        </EntityCard>
       ))}
     </ul>
   );

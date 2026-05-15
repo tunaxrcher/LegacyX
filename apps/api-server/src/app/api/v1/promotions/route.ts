@@ -4,6 +4,7 @@ import { toErrorResponse } from "../../../../shared/errors";
 import { parsePagination } from "../../../../shared/pagination";
 import {
   listPromotions,
+  countPromotions,
   createPromotion,
   CreatePromotionDto,
   type ListPromotionsFilters,
@@ -20,33 +21,33 @@ export async function GET(req: Request) {
     const includeInactive = url.searchParams.get("include_inactive") === "1";
     const statusParam = (url.searchParams.get("status") ?? "").toLowerCase();
     const status: ListPromotionsFilters["status"] =
-      statusParam === "active" || statusParam === "inactive" || statusParam === "expired" || statusParam === "all"
+      statusParam === "active" ||
+      statusParam === "inactive" ||
+      statusParam === "expired" ||
+      statusParam === "all"
         ? statusParam
         : undefined;
     const { page, perPage } = parsePagination(url, {
       defaultPerPage: 25,
       maxPerPage: 200,
     });
-    const result = await listPromotions(ctx, {
-      q: url.searchParams.get("q") ?? undefined,
-      type: url.searchParams.get("type") ?? undefined,
-      status,
-      includeInactive,
-      page,
-      perPage,
-    });
-    // `listPromotions` only returns the paginated shape when filters force it;
-    // since we pass `page`/`perPage` here we're always in the paginated branch.
-    if (Array.isArray(result)) {
-      return NextResponse.json({
-        data: result,
-        pagination: { total: result.length, page: 1, perPage: result.length },
-        correlation_id: correlationId,
-      });
-    }
+    const withCounts = url.searchParams.get("with_counts") === "1";
+
+    const [result, counts] = await Promise.all([
+      listPromotions(ctx, {
+        q: url.searchParams.get("q") ?? undefined,
+        type: url.searchParams.get("type") ?? undefined,
+        status,
+        includeInactive,
+        page,
+        perPage,
+      }),
+      withCounts ? countPromotions(ctx) : Promise.resolve(undefined),
+    ]);
     return NextResponse.json({
       data: result.data,
       pagination: result.pagination,
+      ...(counts ? { counts } : {}),
       correlation_id: correlationId,
     });
   } catch (err) {

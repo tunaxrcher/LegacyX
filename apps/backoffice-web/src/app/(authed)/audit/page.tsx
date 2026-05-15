@@ -4,9 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -16,11 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
 } from "@/lib/list-params";
 
 export const dynamic = "force-dynamic";
@@ -73,14 +72,7 @@ const ACTION_OPTIONS = [
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    resource_type?: string;
-    resource_id?: string;
-    action?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -90,9 +82,9 @@ export default async function AuditLogPage({
     defaultPerPage: 50,
     maxPerPage: 200,
   });
-  const resourceType = searchParams?.resource_type ?? "";
-  const resourceId = searchParams?.resource_id ?? "";
-  const action = searchParams?.action ?? "";
+  const resourceType = pickString(searchParams, "resource_type");
+  const resourceId = pickString(searchParams, "resource_id");
+  const action = pickString(searchParams, "action");
 
   const apiParams = new URLSearchParams();
   apiParams.set("page", String(page));
@@ -145,9 +137,9 @@ export default async function AuditLogPage({
         q={q}
         filters={{
           resource_type: resourceType,
+          resource_id: resourceId,
           action,
         }}
-        preserveParams={{ resource_id: resourceId || undefined }}
         perPage={perPage}
         searchKey="q"
         searchPlaceholder={t("audit.search_placeholder")}
@@ -170,79 +162,69 @@ export default async function AuditLogPage({
         ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {rows.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<ShieldCheck className="h-5 w-5" />}
-              title={t("audit.empty_title")}
-              description={t("audit.empty_desc")}
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>{t("audit.when")}</TableHead>
-                  <TableHead>{t("audit.actor")}</TableHead>
-                  <TableHead>{t("audit.action")}</TableHead>
-                  <TableHead>{t("audit.resource")}</TableHead>
-                  <TableHead>{t("audit.reason")}</TableHead>
-                  <TableHead>{t("audit.correlation")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {formatDateTime(r.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      {r.actor ? (
-                        <div className="text-sm">
-                          <div className="font-medium">{r.actor.fullName}</div>
-                          <div className="font-mono text-xs text-muted-foreground">
-                            {r.actor.phone ?? "—"}
-                          </div>
-                        </div>
-                      ) : (
-                        <Badge variant="outline">SYSTEM</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="info" className="font-mono text-[10px]">
-                        {r.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <div>{r.resourceType}</div>
-                      <div className="text-muted-foreground">
-                        {r.resourceId.slice(-10)}
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <ShieldCheck className="h-5 w-5" />,
+          title: t("audit.empty_title"),
+          description: t("audit.empty_desc"),
+        }}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40">
+              <TableHead>{t("audit.when")}</TableHead>
+              <TableHead>{t("audit.actor")}</TableHead>
+              <TableHead>{t("audit.action")}</TableHead>
+              <TableHead>{t("audit.resource")}</TableHead>
+              <TableHead>{t("audit.reason")}</TableHead>
+              <TableHead>{t("audit.correlation")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                  {formatDateTime(r.createdAt)}
+                </TableCell>
+                <TableCell>
+                  {r.actor ? (
+                    <div className="text-sm">
+                      <div className="font-medium">{r.actor.fullName}</div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {r.actor.phone ?? "—"}
                       </div>
-                    </TableCell>
-                    <TableCell className="max-w-[260px] truncate text-xs">
-                      {r.reason ?? "—"}
-                    </TableCell>
-                    <TableCell className="font-mono text-[10px] text-muted-foreground">
-                      {r.correlationId ? r.correlationId.slice(0, 10) : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+                    </div>
+                  ) : (
+                    <Badge variant="outline">SYSTEM</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="info" className="font-mono text-[10px]">
+                    {r.action}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  <div>{r.resourceType}</div>
+                  <div className="text-muted-foreground">
+                    {r.resourceId.slice(-10)}
+                  </div>
+                </TableCell>
+                <TableCell className="max-w-[260px] truncate text-xs">
+                  {r.reason ?? "—"}
+                </TableCell>
+                <TableCell className="font-mono text-[10px] text-muted-foreground">
+                  {r.correlationId ? r.correlationId.slice(0, 10) : "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ListSurface>
     </div>
   );
 }

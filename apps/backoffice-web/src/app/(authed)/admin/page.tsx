@@ -32,35 +32,45 @@ type Health = {
   status: string;
   checks: Record<string, { ok: boolean; ms?: number }>;
 };
-type AdminUser = { id: string; status: "ACTIVE" | "INACTIVE" | "LOCKED" };
 type Role = { id: string };
-type DlqItem = { id: string };
+type Paged = { pagination: { total: number } };
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The admin overview only needs the aggregate counts, not the full user /
+ * DLQ list. We hit each endpoint with `per_page=1` and read
+ * `pagination.total` — that's a cheap COUNT(*) on the server and avoids
+ * shipping payloads that scale with the tenant size.
+ */
 export default async function AdminOverview() {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
 
-  const [health, usersRes, rolesRes, dlqRes] = await Promise.all([
-    apiJson<Health>(session, "/api/health").catch(() => null),
-    apiJson<{ data: AdminUser[] }>(session, "/api/v1/admin/users").catch(
-      () => ({ data: [] as AdminUser[] }),
-    ),
-    apiJson<{ data: Role[] }>(session, "/api/v1/admin/roles").catch(() => ({
-      data: [] as Role[],
-    })),
-    apiJson<{ data: DlqItem[] }>(session, "/api/admin/dlq").catch(() => ({
-      data: [] as DlqItem[],
-    })),
-  ]);
+  const [health, usersTotalRes, usersActiveRes, usersLockedRes, rolesRes, dlqRes] =
+    await Promise.all([
+      apiJson<Health>(session, "/api/health").catch(() => null),
+      apiJson<Paged>(session, "/api/v1/admin/users?per_page=1").catch(() => null),
+      apiJson<Paged>(
+        session,
+        "/api/v1/admin/users?status=ACTIVE&per_page=1",
+      ).catch(() => null),
+      apiJson<Paged>(
+        session,
+        "/api/v1/admin/users?status=LOCKED&per_page=1",
+      ).catch(() => null),
+      apiJson<{ data: Role[] }>(session, "/api/v1/admin/roles").catch(() => ({
+        data: [] as Role[],
+      })),
+      apiJson<Paged>(session, "/api/admin/dlq?per_page=1").catch(() => null),
+    ]);
 
-  const totalUsers = usersRes.data.length;
-  const activeUsers = usersRes.data.filter((u) => u.status === "ACTIVE").length;
-  const lockedUsers = usersRes.data.filter((u) => u.status === "LOCKED").length;
+  const totalUsers = usersTotalRes?.pagination?.total ?? 0;
+  const activeUsers = usersActiveRes?.pagination?.total ?? 0;
+  const lockedUsers = usersLockedRes?.pagination?.total ?? 0;
   const totalRoles = rolesRes.data.length;
-  const dlqDepth = dlqRes.data.length;
+  const dlqDepth = dlqRes?.pagination?.total ?? 0;
   const apiOk = health?.status === "ok";
   const dbCheck = health?.checks?.db;
 

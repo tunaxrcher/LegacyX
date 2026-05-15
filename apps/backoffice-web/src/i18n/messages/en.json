@@ -631,7 +631,10 @@
   },
   "manager_staff": {
     "title": "Staff Management",
-    "subtitle": "Add and edit operational staff (Doctor, Nurse, Reception, Pharmacist). To onboard a Manager or Administrator, contact your system admin."
+    "subtitle": "Add and edit operational staff (Doctor, Nurse, Reception, Pharmacist). To onboard a Manager or Administrator, contact your system admin.",
+    "search_placeholder": "Search staff name or phone…",
+    "list_empty_title": "No staff match your filters",
+    "list_empty_desc": "Try clearing filters or onboard a new staff member."
   },
   "admin_branches": {
     "title": "Branches",

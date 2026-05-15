@@ -137,13 +137,15 @@ export interface ListUsersFilters {
   q?: string;
   role?: string;
   status?: string;
-  page?: number;
-  perPage?: number;
+  /** 1-indexed page number. Caller must clamp ≥ 1. */
+  page: number;
+  /** Items per page. Caller must clamp + cap. */
+  perPage: number;
 }
 
 export async function listUsers(
   ctx: RequestContext,
-  filters: ListUsersFilters = {},
+  filters: ListUsersFilters,
 ) {
   await authorize(ctx, { resource: "user", action: "read", target: {} });
 
@@ -172,8 +174,7 @@ export async function listUsers(
     ];
   }
 
-  const page = Math.max(1, filters.page ?? 1);
-  const perPage = Math.min(200, Math.max(1, filters.perPage ?? 25));
+  const { page, perPage } = filters;
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),

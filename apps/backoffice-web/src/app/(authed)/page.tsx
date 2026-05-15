@@ -22,8 +22,7 @@ import { cn, formatRelative } from "@/lib/utils";
 type Health = { status: string; checks: Record<string, { ok: boolean; ms?: number }> };
 type ApptItem = { id: string; status: string; scheduledAt: string };
 type ApptList = { data: ApptItem[]; pagination: { total: number } };
-type DlqItem = { id: string; eventName: string; firstFailedAt: string };
-type DlqList = { data: DlqItem[] };
+type DlqList = { pagination: { total: number } };
 
 function startOfDayISO() {
   const d = new Date();
@@ -62,12 +61,12 @@ export default async function Dashboard() {
         startOfDayISO()
       )}&to=${encodeURIComponent(endOfDayISO())}&perPage=20`
     ).catch(() => null),
-    apiJson<DlqList>(session, "/api/admin/dlq").catch(() => null),
+    apiJson<DlqList>(session, "/api/admin/dlq?per_page=1").catch(() => null),
   ]);
 
   const apptTodayCount = apptsToday?.data?.length ?? 0;
   const apptTotal = apptsAll?.pagination?.total ?? 0;
-  const dlqCount = dlq?.data?.length ?? 0;
+  const dlqCount = dlq?.pagination?.total ?? 0;
   const apiOk = health?.status === "ok";
 
   const kpis = [

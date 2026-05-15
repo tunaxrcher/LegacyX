@@ -29,6 +29,12 @@ export interface ListToolbarSelect {
   options: ListToolbarSelectOption[];
   /** Width override (Tailwind class), e.g. "w-[140px]". */
   widthClass?: string;
+  /**
+   * Optional label for the "All" option. Defaults to `label` (so the
+   * placeholder doubles as the All-row text). Use when the filter label
+   * differs from the all-state copy (e.g. "Gender" vs "All Genders").
+   */
+  allLabel?: string;
 }
 
 export type ListToolbarView = "table" | "grid";
@@ -157,7 +163,7 @@ export function ListToolbar({
                 <SelectValue placeholder={sel.label} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ANY}>{sel.label}</SelectItem>
+                <SelectItem value={ANY}>{sel.allLabel ?? sel.label}</SelectItem>
                 {sel.options.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {o.label}

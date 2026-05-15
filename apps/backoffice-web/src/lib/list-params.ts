@@ -9,11 +9,26 @@
  *     then renders a `<ListToolbar>` + `<Pagination>`.
  */
 
+export type RawSearchParams =
+  | Record<string, string | string[] | undefined>
+  | undefined;
+
 export interface ParsedListParams {
   q: string;
   view: "table" | "grid";
   page: number;
   perPage: number;
+}
+
+/**
+ * Pull a single string value from Next 14's `searchParams`. Returns `""` if
+ * absent or an array (duplicate keys) — callers can decide what to default.
+ */
+export function pickString(params: RawSearchParams, key: string): string {
+  const v = params?.[key];
+  if (typeof v === "string") return v;
+  if (Array.isArray(v) && v.length > 0 && typeof v[0] === "string") return v[0];
+  return "";
 }
 
 export interface ParseListOptions {
@@ -23,19 +38,14 @@ export interface ParseListOptions {
 }
 
 export function parseListSearchParams(
-  searchParams: Record<string, string | string[] | undefined> | undefined,
+  searchParams: RawSearchParams,
   opts: ParseListOptions = {},
 ): ParsedListParams {
   const defaultPerPage = opts.defaultPerPage ?? 25;
   const maxPerPage = opts.maxPerPage ?? 100;
   const defaultView = opts.defaultView ?? "table";
 
-  const pick = (key: string): string => {
-    const v = searchParams?.[key];
-    if (typeof v === "string") return v;
-    if (Array.isArray(v) && v.length > 0 && typeof v[0] === "string") return v[0];
-    return "";
-  };
+  const pick = (key: string) => pickString(searchParams, key);
 
   const q = pick("q").trim();
   const viewRaw = pick("view").toLowerCase();

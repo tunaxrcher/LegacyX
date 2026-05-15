@@ -62,15 +62,19 @@ export async function createBreakGlass(
   return row;
 }
 
+export interface ListBreakGlassFilters {
+  resourceType?: string;
+  resourceId?: string;
+  q?: string;
+  /** 1-indexed page number. Caller is expected to clamp ≥ 1. */
+  page: number;
+  /** Items per page. Caller is expected to clamp + cap. */
+  perPage: number;
+}
+
 export async function listBreakGlass(
   ctx: RequestContext,
-  filters: {
-    resourceType?: string;
-    resourceId?: string;
-    q?: string;
-    page?: number;
-    perPage?: number;
-  } = {},
+  filters: ListBreakGlassFilters,
 ) {
   await authorize(ctx, { resource: "audit", action: "read", target: {} });
   const where: Record<string, unknown> = { tenantId: ctx.tenantId };
@@ -83,8 +87,7 @@ export async function listBreakGlass(
       { reason: { contains: filters.q } },
     ];
   }
-  const page = Math.max(1, filters.page ?? 1);
-  const perPage = Math.min(200, Math.max(1, filters.perPage ?? 25));
+  const { page, perPage } = filters;
   const [total, rows] = await Promise.all([
     prisma.breakGlassOverride.count({ where }),
     prisma.breakGlassOverride.findMany({

@@ -4,9 +4,7 @@ import { UserCog, Phone as PhoneIcon, Lock, Users } from "lucide-react";
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -16,11 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ListToolbar } from "@/components/ui/list-toolbar";
-import { Pagination } from "@/components/ui/pagination";
+import { ListSurface } from "@/components/ui/list-surface";
+import { EntityCard } from "@/components/ui/entity-card";
 import { formatDateTime } from "@/lib/utils";
 import {
   makeListHrefBuilder,
   parseListSearchParams,
+  pickString,
+  type RawSearchParams,
 } from "@/lib/list-params";
 import { CreateUserDialog } from "./CreateUserDialog";
 import { UserRowActions } from "./UserRowActions";
@@ -58,16 +59,27 @@ const STATUS_VARIANT: Record<AdminUser["status"], "success" | "muted" | "destruc
  * two pages render the same underlying user list (the api-server applies a
  * Separation-of-Duties filter so MANAGER doesn't see ADMIN rows).
  */
+/**
+ * Copy-bundle keys used by the variant of this view that's rendered. Each
+ * mounted route (admin / staff) supplies its own translated copy so the
+ * toolbar placeholder, empty state etc. don't say "Users" on `/manager/staff`.
+ */
+export interface UsersListCopy {
+  title: string;
+  subtitle: string;
+  searchPlaceholder: string;
+  emptyTitle: string;
+  emptyDesc: string;
+}
+
 export async function UsersListView({
   searchParams,
   basePath,
-  titleKey,
-  subtitleKey,
+  copy,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: RawSearchParams;
   basePath: string;
-  titleKey: "admin_users.title" | "manager_staff.title";
-  subtitleKey: "admin_users.subtitle" | "manager_staff.subtitle";
+  copy: UsersListCopy;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
@@ -76,12 +88,8 @@ export async function UsersListView({
   const { q, view, page, perPage } = parseListSearchParams(searchParams, {
     defaultPerPage: 24,
   });
-  const pickStr = (k: string) => {
-    const v = searchParams?.[k];
-    return typeof v === "string" ? v : "";
-  };
-  const role = pickStr("role");
-  const status = pickStr("status");
+  const role = pickString(searchParams, "role");
+  const status = pickString(searchParams, "status");
 
   const apiParams = new URLSearchParams();
   apiParams.set("page", String(page));
@@ -122,7 +130,7 @@ export async function UsersListView({
       <PageHeader
         title={
           <span className="flex items-center gap-3">
-            {t(titleKey)}
+            {copy.title}
             {total > 0 && (
               <Badge variant="secondary" className="rounded-full px-2 text-xs">
                 {total.toLocaleString()}
@@ -130,7 +138,7 @@ export async function UsersListView({
             )}
           </span>
         }
-        description={t(subtitleKey)}
+        description={copy.subtitle}
         actions={
           <CreateUserDialog
             roles={roles.map((r) => ({ code: r.code, name: r.name }))}
@@ -147,7 +155,7 @@ export async function UsersListView({
         view={view}
         perPage={perPage}
         searchKey="q"
-        searchPlaceholder={t("admin_users.search_placeholder")}
+        searchPlaceholder={copy.searchPlaceholder}
         showViewToggle
         selects={[
           {
@@ -169,43 +177,36 @@ export async function UsersListView({
         ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {users.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<Users className="h-5 w-5" />}
-              title={t("admin_users.list_empty_title")}
-              description={t("admin_users.list_empty_desc")}
-            />
-          ) : view === "grid" ? (
-            <UserGrid
-              users={users}
-              roles={roles}
-              allBranches={allBranches}
-              actorRoles={actorRoles}
-              t={t}
-            />
-          ) : (
-            <UserTable
-              users={users}
-              roles={roles}
-              allBranches={allBranches}
-              actorRoles={actorRoles}
-              t={t}
-            />
-          )}
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <Users className="h-5 w-5" />,
+          title: copy.emptyTitle,
+          description: copy.emptyDesc,
+        }}
+      >
+        {view === "grid" ? (
+          <UserGrid
+            users={users}
+            roles={roles}
+            allBranches={allBranches}
+            actorRoles={actorRoles}
+            t={t}
+          />
+        ) : (
+          <UserTable
+            users={users}
+            roles={roles}
+            allBranches={allBranches}
+            actorRoles={actorRoles}
+            t={t}
+          />
+        )}
+      </ListSurface>
     </div>
   );
 }
@@ -327,19 +328,17 @@ function UserGrid({
   return (
     <ul className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {users.map((u) => (
-        <li
+        <EntityCard
           key={u.id}
-          className="group relative flex h-full flex-col items-center gap-3 rounded-xl border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg"
-        >
-          <div className="absolute right-2 top-2">
+          actions={
             <UserRowActions
               user={u}
               allRoles={roles.map((r) => ({ code: r.code, name: r.name }))}
               allBranches={allBranches}
               actorRoles={actorRoles}
             />
-          </div>
-
+          }
+        >
           <UserAvatar user={u} size={16} />
 
           <div className="min-w-0 space-y-1">
@@ -390,7 +389,7 @@ function UserGrid({
           <div className="mt-auto text-[10px] text-muted-foreground">
             {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "—"}
           </div>
-        </li>
+        </EntityCard>
       ))}
     </ul>
   );

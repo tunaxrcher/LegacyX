@@ -66,57 +66,74 @@ export const CreatePromotionDto = z.object({
 
 export const UpdatePromotionDto = CreatePromotionDto.partial().omit({ code: true });
 
+export type PromotionStatus = "active" | "inactive" | "expired" | "all";
+
 export interface ListPromotionsFilters {
   q?: string;
   type?: string;
-  status?: "active" | "inactive" | "expired" | "all";
+  status?: PromotionStatus;
+  /** Default `false` — only ACTIVE promotions returned unless `status` is set. */
   includeInactive?: boolean;
-  page?: number;
-  perPage?: number;
+  /** 1-indexed page number. Caller must clamp ≥ 1. */
+  page: number;
+  /** Items per page. Caller must clamp + cap. */
+  perPage: number;
 }
 
-export async function listPromotions(
-  ctx: RequestContext,
-  filters: ListPromotionsFilters | boolean = {},
-) {
-  await authorize(ctx, { resource: "promotion", action: "read" });
-  // Back-compat — older callers pass `includeInactive` as a plain boolean.
-  const opts: ListPromotionsFilters =
-    typeof filters === "boolean" ? { includeInactive: filters } : filters;
+export interface PromotionCounts {
+  total: number;
+  active: number;
+  inactive: number;
+  expired: number;
+}
 
-  const includeInactive = opts.includeInactive ?? opts.status !== undefined;
+/** Build the Prisma `where` clause from the filters object. */
+function buildPromotionWhere(
+  ctx: RequestContext,
+  opts: ListPromotionsFilters,
+  now: Date,
+): Record<string, unknown> {
   const where: Record<string, unknown> = {
     tenantId: ctx.tenantId,
     deletedAt: null,
   };
-  if (!includeInactive) where.active = true;
-  if (opts.status === "active") where.active = true;
-  if (opts.status === "inactive") where.active = false;
+  // `status` takes precedence over `includeInactive` — UI uses one or the other.
+  if (opts.status === "active") {
+    where.active = true;
+    where.OR = [{ endsAt: null }, { endsAt: { gte: now } }];
+  } else if (opts.status === "inactive") {
+    where.active = false;
+  } else if (opts.status === "expired") {
+    where.endsAt = { lt: now };
+  } else if (!opts.includeInactive && opts.status !== "all") {
+    where.active = true;
+  }
   if (opts.type) where.type = opts.type;
   if (opts.q) {
-    where.OR = [
+    // Avoid shadowing the OR used for `active` by combining with AND.
+    const ored = [
       { code: { contains: opts.q } },
       { name: { contains: opts.q } },
     ];
+    if (where.OR) {
+      where.AND = [{ OR: where.OR }, { OR: ored }];
+      delete where.OR;
+    } else {
+      where.OR = ored;
+    }
   }
+  return where;
+}
 
-  // When pagination is explicitly requested, return paginated shape;
-  // otherwise keep the legacy "return array" behaviour so other callers
-  // (e.g. internal pricing service) don't break.
-  const wantsPaginated =
-    typeof filters === "object" &&
-    filters !== null &&
-    ("page" in filters || "perPage" in filters || "q" in filters || "type" in filters);
+export async function listPromotions(
+  ctx: RequestContext,
+  filters: ListPromotionsFilters,
+) {
+  await authorize(ctx, { resource: "promotion", action: "read" });
+  const now = new Date();
+  const where = buildPromotionWhere(ctx, filters, now);
+  const { page, perPage } = filters;
 
-  if (!wantsPaginated) {
-    return prisma.promotion.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  const page = Math.max(1, opts.page ?? 1);
-  const perPage = Math.min(200, Math.max(1, opts.perPage ?? 25));
   const [total, rows] = await Promise.all([
     prisma.promotion.count({ where }),
     prisma.promotion.findMany({
@@ -127,6 +144,34 @@ export async function listPromotions(
     }),
   ]);
   return { data: rows, pagination: { total, page, perPage } };
+}
+
+/**
+ * Aggregate counts for the KPI strip on `/manager/promotions`. Computed via
+ * three separate `count` queries so the cards reflect the full dataset, not
+ * a single page.
+ */
+export async function countPromotions(
+  ctx: RequestContext,
+): Promise<PromotionCounts> {
+  await authorize(ctx, { resource: "promotion", action: "read" });
+  const now = new Date();
+  const baseWhere = { tenantId: ctx.tenantId, deletedAt: null } as const;
+  const [total, active, inactive, expired] = await Promise.all([
+    prisma.promotion.count({ where: baseWhere }),
+    prisma.promotion.count({
+      where: {
+        ...baseWhere,
+        active: true,
+        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+      },
+    }),
+    prisma.promotion.count({ where: { ...baseWhere, active: false } }),
+    prisma.promotion.count({
+      where: { ...baseWhere, endsAt: { lt: now } },
+    }),
+  ]);
+  return { total, active, inactive, expired };
 }
 
 export async function createPromotion(

@@ -5,7 +5,6 @@ import { Users, ArrowRight, CalendarDays, User as UserIcon } from "lucide-react"
 import { getSessionFromCookies } from "@/lib/session";
 import { apiJson } from "@/lib/api";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,11 +15,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Pagination } from "@/components/ui/pagination";
+import { ListToolbar } from "@/components/ui/list-toolbar";
+import { ListSurface } from "@/components/ui/list-surface";
 import { cn, formatDate, initials } from "@/lib/utils";
+import {
+  makeListHrefBuilder,
+  parseListSearchParams,
+  pickString,
+  type RawSearchParams,
+} from "@/lib/list-params";
 import { NewPatientDialog } from "./NewPatientDialog";
-import { PatientFilters, type PatientViewMode } from "./PatientFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -70,36 +74,20 @@ function calcAge(dob: string | null): number | null {
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams?: {
-    q?: string;
-    new?: string;
-    gender?: string;
-    status?: string;
-    view?: string;
-    page?: string;
-    per_page?: string;
-  };
+  searchParams?: RawSearchParams;
 }) {
   const session = getSessionFromCookies();
   if (!session) redirect("/login");
   const t = await getTranslations();
 
-  // Normalise inputs
-  const q = (searchParams?.q ?? "").trim();
-  const autoOpenNew = searchParams?.new === "1";
-  const genderInput = (searchParams?.gender ?? "").toUpperCase();
-  const statusInput = (searchParams?.status ?? "").toUpperCase();
+  const { q, view, page, perPage } = parseListSearchParams(searchParams, {
+    defaultPerPage: 25,
+  });
+  const autoOpenNew = pickString(searchParams, "new") === "1";
+  const genderInput = pickString(searchParams, "gender").toUpperCase();
+  const statusInput = pickString(searchParams, "status").toUpperCase();
   const gender = VALID_GENDER.has(genderInput) ? genderInput : "";
   const status = VALID_STATUS.has(statusInput) ? statusInput : "";
-  const view: PatientViewMode =
-    searchParams?.view === "grid" ? "grid" : "table";
-  const pageRaw = Number(searchParams?.page ?? 1);
-  const page = Math.max(1, Number.isFinite(pageRaw) ? pageRaw : 1);
-  const perPageRaw = Number(searchParams?.per_page ?? 25);
-  const perPage = Math.min(
-    100,
-    Math.max(1, Number.isFinite(perPageRaw) ? perPageRaw : 25),
-  );
 
   const apiParams = new URLSearchParams();
   apiParams.set("page", String(page));
@@ -121,37 +109,22 @@ export default async function PatientsPage({
 
   const total = list.pagination?.total ?? list.data.length;
 
-  // Helper: build patients URL preserving current state, with overrides.
-  const buildHref = (overrides: Record<string, string | number | null>) => {
-    const params = new URLSearchParams();
-    const merged: Record<string, string | number | undefined> = {
-      q: q || undefined,
-      gender: gender || undefined,
-      status: status || undefined,
-      view: view === "grid" ? "grid" : undefined,
-      page,
-      per_page: perPage,
-    };
-    for (const [k, v] of Object.entries(overrides)) {
-      if (v === null) {
-        delete merged[k];
-        continue;
-      }
-      merged[k] = v;
-    }
-    for (const [k, v] of Object.entries(merged)) {
-      if (v === undefined || v === "") continue;
-      params.set(k, String(v));
-    }
-    const qs = params.toString();
-    return qs ? `/patients?${qs}` : "/patients";
-  };
+  const buildHref = makeListHrefBuilder("/patients", {
+    q: q || undefined,
+    gender: gender || undefined,
+    status: status || undefined,
+    view: view === "grid" ? "grid" : undefined,
+    page,
+    per_page: perPage,
+  });
 
   const canWrite =
     Array.isArray(session.roles) &&
     session.roles.some((r) =>
       ["MANAGER", "DOCTOR", "RECEPTION"].includes(r),
     );
+
+  const hasAnyFilter = Boolean(q || gender || status);
 
   return (
     <div className="space-y-5">
@@ -172,48 +145,67 @@ export default async function PatientsPage({
         }
       />
 
-      <PatientFilters
+      <ListToolbar
+        basePath="/patients"
         q={q}
-        gender={gender}
-        status={status}
+        filters={{ gender, status }}
         view={view}
         perPage={perPage}
+        searchKey="q"
+        searchPlaceholder={t("patients.search_placeholder")}
+        showViewToggle
+        selects={[
+          {
+            key: "gender",
+            label: t("patients.filter_gender"),
+            widthClass: "w-[150px]",
+            allLabel: t("patients.filter_all_genders"),
+            options: [
+              { value: "MALE", label: t("patients.gender_male") },
+              { value: "FEMALE", label: t("patients.gender_female") },
+              { value: "OTHER", label: t("patients.gender_other") },
+              {
+                value: "UNDISCLOSED",
+                label: t("patients.gender_undisclosed"),
+              },
+            ],
+          },
+          {
+            key: "status",
+            label: t("patients.filter_status"),
+            widthClass: "w-[150px]",
+            allLabel: t("patients.filter_all_statuses"),
+            options: [
+              { value: "ACTIVE", label: t("patients.status_active") },
+              { value: "INACTIVE", label: t("patients.status_inactive") },
+              { value: "MERGED", label: t("patients.status_merged") },
+            ],
+          },
+        ]}
       />
 
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          {list.data.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<Users className="h-5 w-5" />}
-              title={
-                q || gender || status
-                  ? t("patients.list_empty_title")
-                  : t("patients.empty_title")
-              }
-              description={
-                q || gender || status
-                  ? t("patients.list_empty_desc")
-                  : t("patients.empty_desc")
-              }
-            />
-          ) : view === "grid" ? (
-            <PatientGrid patients={list.data} t={t} />
-          ) : (
-            <PatientTable patients={list.data} t={t} />
-          )}
-
-          {total > 0 && (
-            <Pagination
-              total={total}
-              page={page}
-              perPage={perPage}
-              getPageHref={(p) => buildHref({ page: p })}
-              getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <ListSurface
+        total={total}
+        page={page}
+        perPage={perPage}
+        getPageHref={(p) => buildHref({ page: p })}
+        getPerPageHref={(pp) => buildHref({ per_page: pp, page: 1 })}
+        empty={{
+          icon: <Users className="h-5 w-5" />,
+          title: hasAnyFilter
+            ? t("patients.list_empty_title")
+            : t("patients.empty_title"),
+          description: hasAnyFilter
+            ? t("patients.list_empty_desc")
+            : t("patients.empty_desc"),
+        }}
+      >
+        {view === "grid" ? (
+          <PatientGrid patients={list.data} t={t} />
+        ) : (
+          <PatientTable patients={list.data} t={t} />
+        )}
+      </ListSurface>
     </div>
   );
 }
@@ -331,10 +323,16 @@ function PatientGrid({
         const age = calcAge(p.dob);
         const statusKey = `patients.status_${p.status.toLowerCase()}`;
         return (
-          <li key={p.id}>
+          // Patient grid cards are whole-card links; we render an `<li>`
+          // directly instead of `<EntityCard>` since EntityCard's actions
+          // slot is unused and the entire card becomes the link target.
+          <li
+            key={p.id}
+            className="group h-full transition-all hover:-translate-y-0.5"
+          >
             <Link
               href={`/patients/${p.id}`}
-              className="group flex h-full flex-col items-center gap-3 rounded-xl border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft-lg"
+              className="flex h-full flex-col items-center gap-3 rounded-xl border bg-card p-4 text-center shadow-soft transition-colors group-hover:border-primary/40 group-hover:shadow-soft-lg"
             >
               <Avatar className="h-16 w-16 ring-2 ring-background shadow-soft transition group-hover:ring-primary/20">
                 {p.linePictureUrl ? (
