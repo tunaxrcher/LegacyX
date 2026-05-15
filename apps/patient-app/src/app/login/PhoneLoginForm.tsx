@@ -61,8 +61,7 @@ export function PhoneLoginForm() {
   function onSendOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPhoneError(null);
-    const trimmed = phone.trim();
-    if (trimmed.replace(/\D/g, "").length < 8) {
+    if (phone.length !== 10) {
       setPhoneError(t("err_phone_short"));
       return;
     }
@@ -137,9 +136,14 @@ export function PhoneLoginForm() {
             <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="tel"
-              inputMode="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              pattern="[0-9]*"
+              maxLength={10}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) =>
+                setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+              }
               placeholder={t("phone_placeholder")}
               autoFocus
               required

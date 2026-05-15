@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "LegacyX Clinic",
-    "tagline": "คลินิกในกระเป๋าคุณ"
+    "tagline": "LegacyX Clinic"
   },
   "tab": {
     "home": "หน้าแรก",
@@ -16,7 +16,8 @@
     "hero_subtitle": "EXPERIENCE THE PINNACLE OF MEDICAL & AESTHETIC CARE",
     "welcome_back": "ยินดีต้อนรับกลับ",
     "view_profile": "ดูโปรไฟล์",
-    "no_categories": "ยังไม่มีหมวดบริการให้เลือก"
+    "no_categories": "ยังไม่มีหมวดบริการให้เลือก",
+    "ecosystem_footer": "Safety Standards Certified | LegacyX Ecosystem"
   },
   "category": {
     "back": "กลับหน้าหลัก",
@@ -69,7 +70,7 @@
   "login": {
     "back_home": "กลับหน้าหลัก",
     "back_phone": "เปลี่ยนเบอร์โทร",
-    "phone_title": "",
+    "phone_title": "APP",
     "phone_subtitle": "กรอกเบอร์โทรเพื่อรับ OTP",
     "phone_label": "เบอร์โทรศัพท์",
     "phone_placeholder": "08X-XXX-XXXX",

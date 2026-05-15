@@ -104,7 +104,7 @@ export default async function BookingSuccessPage({
     : null;
 
   return (
-    <main className="px-4 pt-10 pb-10 animate-fade-in min-h-[80vh] flex flex-col items-center justify-center">
+    <main className="mx-auto max-w-md px-4 pt-10 pb-10 animate-fade-in min-h-[80vh] flex flex-col items-center justify-center">
       <div className="w-full max-w-sm text-center">
         {/* Success icon */}
         <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">

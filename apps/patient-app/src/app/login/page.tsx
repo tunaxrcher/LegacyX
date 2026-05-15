@@ -21,10 +21,10 @@ export default async function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 via-background to-background flex flex-col">
-      <div className="px-4 pt-6">
+      <div className="relative z-10 px-4 pt-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition"
+          className="inline-flex items-center gap-1.5 -ml-2 px-2 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground active:bg-muted transition"
         >
           <ArrowLeft className="h-4 w-4" />
           {t("back_home")}

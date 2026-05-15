@@ -11,28 +11,29 @@ import { BottomNav } from "@/components/bottom-nav";
  * `getPatientSession() → redirect("/login")` check, keeping the security
  * boundary explicit at the page level.
  *
- * Bottom nav: shown ONLY when the patient is logged in. Guests see the
- * minimal welcome page with an inline "Sign in" CTA in the header — the
- * extra navigation chrome would be noise when there's nowhere they can go
- * yet.
+ * Layout strategy:
+ *   - **Guest** (no session): no max-width constraint — pages render in
+ *     full-width "marketing" mode (welcome page, category browsing) so the
+ *     desktop view doesn't waste screen real estate.
+ *   - **Logged in**: classic mobile shell (`max-w-md`) with the bottom-nav.
+ *
+ * Pages that need to look identical regardless of auth state (the booking
+ * flow itself) wrap themselves in `max-w-md` so they keep the mobile layout
+ * even for guests.
  */
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = getPatientSession();
-  const hasSession = !!session;
+  const hasSession = !!getPatientSession();
+  if (!hasSession) {
+    return <div className="min-h-screen">{children}</div>;
+  }
   return (
-    <div
-      className={
-        hasSession
-          ? "mx-auto max-w-md min-h-screen pb-20"
-          : "mx-auto max-w-md min-h-screen pb-6"
-      }
-    >
+    <div className="mx-auto max-w-md min-h-screen pb-20">
       {children}
-      {hasSession && <BottomNav hasSession={hasSession} />}
+      <BottomNav hasSession />
     </div>
   );
 }

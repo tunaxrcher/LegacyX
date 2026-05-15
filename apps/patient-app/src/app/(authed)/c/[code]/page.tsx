@@ -67,7 +67,7 @@ export default async function CategoryPage({
   const title = locale === "th" ? category.name_th : category.name;
 
   return (
-    <main className="px-4 pt-4 pb-6 animate-fade-in">
+    <main className="mx-auto max-w-md px-4 pt-4 pb-6 animate-fade-in">
       {/* Header strip */}
       <div className="flex items-center justify-between mb-4">
         <Link

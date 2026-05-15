@@ -7,6 +7,20 @@ import { Camera, Loader2, Phone, User } from "lucide-react";
 
 const GUEST_HANDOFF_KEY = "lx_pending_registration";
 
+// Allow Thai + English letters and spaces only — strip everything else
+// (digits, punctuation, emoji, etc.).
+const NAME_STRIP_RE = /[^A-Za-z\u0E00-\u0E7F\s]/g;
+
+function sanitizeName(value: string): string {
+  // Replace runs of whitespace with a single space but keep a trailing space
+  // while the user is typing between words.
+  return value.replace(NAME_STRIP_RE, "").replace(/\s{2,}/g, " ");
+}
+
+function sanitizePhone(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 10);
+}
+
 export type GuestRegistration = {
   serviceId: string;
   fullName: string;
@@ -25,6 +39,8 @@ export function RegisterForm({ serviceId }: { serviceId: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [kycFileName, setKycFileName] = useState<string | null>(null);
   const kycDataUrlRef = useRef<string | null>(null);
 
@@ -51,21 +67,20 @@ export function RegisterForm({ serviceId }: { serviceId: string }) {
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    const form = e.currentTarget;
-    const fullName = String(new FormData(form).get("full_name") ?? "").trim();
-    const phone = String(new FormData(form).get("phone") ?? "").trim();
-    if (fullName.length < 2) {
+    const trimmedName = fullName.trim();
+    const digits = phone.replace(/\D/g, "");
+    if (trimmedName.length < 2) {
       setError(t("err_name_short"));
       return;
     }
-    if (phone.replace(/\D/g, "").length < 8) {
+    if (digits.length !== 10) {
       setError(t("err_phone_short"));
       return;
     }
     const payload: GuestRegistration = {
       serviceId,
-      fullName,
-      phone,
+      fullName: trimmedName,
+      phone: digits,
       kycImageDataUrl: kycDataUrlRef.current,
     };
     try {
@@ -94,6 +109,9 @@ export function RegisterForm({ serviceId }: { serviceId: string }) {
             type="text"
             name="full_name"
             required
+            autoComplete="name"
+            value={fullName}
+            onChange={(e) => setFullName(sanitizeName(e.target.value))}
             placeholder={t("full_name_placeholder")}
             className="w-full rounded-2xl border bg-background pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
@@ -110,8 +128,13 @@ export function RegisterForm({ serviceId }: { serviceId: string }) {
           <input
             type="tel"
             name="phone"
-            inputMode="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            pattern="[0-9]*"
+            maxLength={10}
             required
+            value={phone}
+            onChange={(e) => setPhone(sanitizePhone(e.target.value))}
             placeholder={t("phone_placeholder")}
             className="w-full rounded-2xl border bg-background pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
