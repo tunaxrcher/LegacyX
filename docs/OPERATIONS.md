@@ -146,6 +146,23 @@ sudo chmod 600 /etc/ssl/cloudflare/cf-origin.key
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+### Re-seed / reset DB (staging only)
+
+```bash
+# Refresh roles, permissions, branches, catalog. Safe to run on a populated
+# DB — uses `upsert`. Does NOT delete test patient / appointment / payment.
+bash scripts/seed.sh
+
+# DROP every table → re-migrate → re-seed. Wipes ALL operational data.
+# Prompts for confirmation; pass --yes to skip.
+bash scripts/reset.sh
+```
+
+⚠️ **Never run `reset.sh` on a DB that holds real patient data** — irreversible.
+The script blocks unless you type `RESET` or pass `--yes`. The local
+equivalents (`pnpm db:seed` / `pnpm db:reset`) target the *dev* `.env`, not
+`.env.prod`, so they're safe on your laptop.
+
 ---
 
 ## Status & logs
@@ -237,4 +254,10 @@ sudo nginx -t && sudo systemctl reload nginx
 
 # Smoke test
 curl -s https://api-legacyx.unityx.group/api/readyz | jq .
+
+# Re-seed (refresh users/roles/catalog, keeps test data)
+bash scripts/seed.sh
+
+# Full DB reset (DESTRUCTIVE — wipes everything, then re-seeds)
+bash scripts/reset.sh
 ```

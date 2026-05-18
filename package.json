@@ -22,6 +22,9 @@
     "db:seed": "pnpm --filter @legacyx/db seed",
     "db:studio": "pnpm --filter @legacyx/db studio",
     "db:reset": "pnpm --filter @legacyx/db reset",
+    "prod:deploy": "bash scripts/deploy.sh",
+    "prod:seed": "bash scripts/seed.sh",
+    "prod:reset": "bash scripts/reset.sh",
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f"
