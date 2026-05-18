@@ -47,7 +47,9 @@ services:
     image: redis:7-alpine
     container_name: legacyx-redis
     <<: *app-defaults
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    # BullMQ requires "noeviction" so queue jobs are never silently dropped
+    # when Redis hits the memory cap. We prefer OOM-restart over losing state.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     volumes:
       - redis_data:/data
     healthcheck:
