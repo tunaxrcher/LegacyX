@@ -105,6 +105,7 @@ packages/types              Cross-app DTOs (Zod)
 | Debug a failed job | `/dlq` (System Admin only) → inspect → reprocess |
 | Read metrics | `curl -H "Authorization: Bearer $METRICS_BEARER_TOKEN" /api/metrics` (api-server) or `:9464/metrics` (worker-engine) |
 | Deploy to production | `bash scripts/deploy.sh` on the droplet — see `docs/DEPLOYMENT.md` for the full first-time setup |
+| Day-to-day deploy ops (env / schema / deps) | `docs/OPERATIONS.md` — one-page cheatsheet |
 
 ## Verification commands
 
@@ -123,7 +124,8 @@ pnpm db:seed                 # Should print 8 users including 0888888888 dual
 - `docs/PROGRESS.md` — what's actually built (Phase A → H + tech debt)
 - `docs/ROLES.md` — RBAC/ABAC permission matrix
 - `docs/DEMO_WORKFLOW.md` — end-to-end test scenarios
-- `docs/DEPLOYMENT.md` — DigitalOcean Droplet + Managed MySQL + Spaces playbook
+- `docs/DEPLOYMENT.md` — DigitalOcean Droplet + Managed MySQL + Spaces playbook (first-time setup)
+- `docs/OPERATIONS.md` — day-to-day deploy cheatsheet (code/env/schema/deps changes)
 - `docs/PRODUCTION_HARDENING.md` — pre-deploy checklist
 - `docs/RUNBOOK.md` — on-call procedures (DLQ, OTP fail, DB restore, etc.)
 - `docs/CONVENTIONS.md` — deeper code-style reference (this file is the short version)

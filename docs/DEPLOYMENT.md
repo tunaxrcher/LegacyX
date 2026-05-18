@@ -13,6 +13,7 @@ Production domains:
 | Patient app (LIFF/PWA) | `m-legacyx.unityx.group` | `127.0.0.1:3004` |
 
 Related docs:
+- [`docs/OPERATIONS.md`](./OPERATIONS.md) — day-to-day deploy cheatsheet (after first-time setup)
 - [`docs/PRODUCTION_HARDENING.md`](./PRODUCTION_HARDENING.md) — pre-deploy checklist
 - [`docs/RUNBOOK.md`](./RUNBOOK.md) — on-call procedures
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) — system design
