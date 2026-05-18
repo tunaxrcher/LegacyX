@@ -208,6 +208,8 @@ Never `prisma migrate reset` in production. Follow **expand → contract**:
 | Wrapped `DATABASE_URL` in `"..."` | Prisma error: `URL must start with mysql://` | Quotes are literal in `--env-file`. Write `KEY=value` not `KEY="value"` |
 | `KEY=value   # comment` on the same line in `.env.prod` | Lookups return empty / decryption fails / mysterious hash mismatches between seed and runtime | `docker run --env-file` keeps the inline comment in the value; `docker compose --env-file` strips it. They end up using different keys. Put every comment on its OWN line, then re-seed. |
 | `SERVER_ACTIONS_ALLOWED_ORIGINS=https://...` (with scheme) | Backoffice/patient-app mutations silently fail in prod | Hostnames only. `SERVER_ACTIONS_ALLOWED_ORIGINS=app-legacyx.unityx.group,m-legacyx.unityx.group` |
+| Browser CORS error calling api-server | `ALLOWED_ORIGINS` not set (api-server middleware) | `ALLOWED_ORIGINS=https://app-legacyx.unityx.group,https://m-legacyx.unityx.group` — full URLs WITH scheme |
+| Edited `NEXT_PUBLIC_*` in `.env.prod`, recycled, still no effect | These are inlined into client JS at compile time | Rebuild the affected image: `docker compose build --no-cache backoffice-web patient-app` |
 | CA cert chmod 600 | `Can't reach database server` even though `nc` works | `chmod 644 infra/docker/secrets/db-ca.crt` |
 | Nginx 521 after deploy | Cloudflare can't reach origin | Check CF SSL mode (Flexible → HTTP origin / Full → HTTPS origin) matches what nginx listens on |
 | `nginx -t` complains about duplicate `ssl_protocols` | Ubuntu's `/etc/nginx/nginx.conf` already sets it at http scope | Don't redeclare in `legacyx.conf` |
