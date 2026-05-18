@@ -71,11 +71,18 @@ mkdir -p infra/docker/secrets
 #   infra/docker/secrets/db-ca.crt
 # e.g. from your laptop:
 #   scp ca-certificate.crt deploy@<droplet-ip>:/srv/legacyx/infra/docker/secrets/db-ca.crt
-chmod 600 infra/docker/secrets/db-ca.crt
+chmod 644 infra/docker/secrets/db-ca.crt
 ```
 
-The secret is referenced by the api-server and worker-engine containers
-through [`infra/docker/docker-compose.do.yml`](../infra/docker/docker-compose.do.yml)
+> **Why 644, not 600**: the cert is mounted into the api-server / worker-engine /
+> ai-service containers which run as a non-root `app` user (UID ≠ host UID).
+> 600 (owner-only) makes the file unreadable inside the container, and Prisma
+> reports the resulting TLS failure as a generic "Can't reach database server" —
+> hard to diagnose. 644 is safe because the file only contains the *public* CA
+> certificate (no private key).
+
+The secret is referenced by the api-server, worker-engine, and ai-service
+containers through [`infra/docker/docker-compose.do.yml`](../infra/docker/docker-compose.do.yml)
 and mounted read-only at `/run/secrets/db-ca.crt`.
 
 ---
@@ -194,18 +201,27 @@ docker run --rm --env-file .env.prod \
 
 # 5.2 Seed roles + demo tenant (DO NOT re-run on a DB with real patient data —
 #     it upserts demo users back in).
+#
+# Notes:
+#   • We bypass `pnpm db:seed` (which would invoke dotenv-cli looking for .env)
+#     and call `tsx prisma/seed.ts` directly so the env from `--env-file
+#     .env.prod` is what the script sees.
+#   • We run `prisma generate` explicitly because filter-installs don't trigger
+#     the package's postinstall hook in a deterministic way.
 docker run --rm --env-file .env.prod \
   -e NODE_ENV=development \
-  -v $(pwd):/app -w /app \
-  -v $(pwd)/infra/docker/secrets/db-ca.crt:/run/secrets/db-ca.crt:ro \
+  -v "$(pwd):/app" -w /app \
+  -v "$(pwd)/infra/docker/secrets/db-ca.crt:/run/secrets/db-ca.crt:ro" \
   node:20-alpine sh -c '
     apk add --no-cache openssl &&
     corepack enable && corepack prepare pnpm@9.12.0 --activate &&
-    rm -rf node_modules packages/*/node_modules &&
-    pnpm install --filter @legacyx/db... --prod=false --no-frozen-lockfile &&
-    pnpm db:seed
+    pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
+    cd packages/db && npx --yes prisma@5.22.0 generate && cd /app &&
+    pnpm --filter @legacyx/db exec tsx prisma/seed.ts
   '
 ```
+
+You should see `Seeded …` lines followed by `✅ Seed complete.`
 
 ---
 
@@ -233,23 +249,60 @@ reach them.
 
 ## 7. Nginx + TLS (once)
 
+> **Why this is sequenced this way**: `infra/nginx/legacyx.conf` ships with
+> `listen 443 ssl` blocks that reference `/etc/letsencrypt/live/.../fullchain.pem`.
+> If you `cp` it into place before the certificates exist, `nginx -t` fails and
+> nothing reloads. The order below issues the certificates **first** in
+> standalone mode (with nginx stopped so port 80 is free), then installs the
+> finished config.
+
+### 7.1 Verify DNS resolves to the droplet first
+
+```bash
+DROPLET_IP=$(curl -s ifconfig.me)
+for d in app-legacyx.unityx.group api-legacyx.unityx.group m-legacyx.unityx.group; do
+  printf '%-40s %s (droplet=%s)\n' "$d" "$(dig +short $d | tail -1)" "$DROPLET_IP"
+done
+# All three must resolve to the droplet IP. If not, wait for DNS propagation
+# before continuing — certbot will fail otherwise.
+```
+
+### 7.2 Issue certificates (standalone, no config yet)
+
+```bash
+sudo systemctl stop nginx          # free port 80 for ACME http-01 challenge
+
+sudo certbot certonly --standalone \
+  -d app-legacyx.unityx.group \
+  -d api-legacyx.unityx.group \
+  -d m-legacyx.unityx.group \
+  --agree-tos -m admin@unityx.group --no-eff-email --non-interactive
+
+sudo ls /etc/letsencrypt/live/     # should list one of the three domains
+```
+
+### 7.3 Install the nginx config + reload
+
 ```bash
 sudo cp infra/nginx/legacyx.conf /etc/nginx/sites-available/legacyx
 sudo ln -sf /etc/nginx/sites-available/legacyx /etc/nginx/sites-enabled/legacyx
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t && sudo systemctl reload nginx
 
-sudo certbot --nginx \
-  -d app-legacyx.unityx.group \
-  -d api-legacyx.unityx.group \
-  -d m-legacyx.unityx.group \
-  --agree-tos -m admin@unityx.group --no-eff-email
-
+sudo nginx -t                      # must print "syntax is ok" + "test is successful"
+sudo systemctl start nginx
 sudo systemctl enable nginx
+sudo systemctl status nginx --no-pager | head -10
 ```
 
-Certbot rewrites the `listen 443 ssl` blocks in place; commit nothing back.
-The systemd timer `snap.certbot.renew.timer` handles auto-renewal.
+### 7.4 Confirm auto-renewal works
+
+The snap timer `snap.certbot.renew.timer` is enabled automatically. Verify
+once that the renewal hook can reload nginx:
+
+```bash
+sudo systemctl status snap.certbot.renew.timer --no-pager | head -5
+sudo certbot renew --dry-run
+```
 
 ---
 
@@ -338,6 +391,8 @@ Cross-check against [`docs/PRODUCTION_HARDENING.md`](./PRODUCTION_HARDENING.md):
 |---|---|---|
 | Prisma migrate errors `URL must start with the protocol mysql://` | `DATABASE_URL` wrapped in `"..."` in `.env.prod` | `docker --env-file` does not interpret quotes — write `KEY=value` (no quotes) |
 | `api-server` crash-loops on startup | `DATABASE_URL` missing `?sslaccept=strict` | Managed MySQL requires TLS — add the flag and reference the CA cert |
+| `/api/readyz` says `Can't reach database server` but `nc <host> 25060` succeeds from inside the container | CA cert at `infra/docker/secrets/db-ca.crt` is `chmod 600` — non-root `app` user inside the container cannot read it, TLS handshake silently fails | `chmod 644 infra/docker/secrets/db-ca.crt` and recycle the affected services |
+| `ai-service` restart-loops with `Unable to require .../libquery_engine-linux-musl-openssl-3.0.x.so.node — No such file or directory` | A stale `PRISMA_QUERY_ENGINE_LIBRARY` env var (or a re-introduction of one) pointing at `/app/node_modules/.prisma/client/...` — that path only exists in the Next.js standalone build, not in the pnpm raw layout used by ai-service / worker-engine | Remove the env var for those services and let Prisma auto-resolve the engine from the pnpm store |
 | Anyone can log in with OTP `123456` | `DEV_OTP=123456` left in `.env.prod` | Empty the value, recycle api-server |
 | File uploads to Spaces silently fail | `S3_FORCE_PATH_STYLE=true` | DO Spaces requires virtual-host style — set to `false` |
 | Every patient login fails after redeploy | `ENCRYPTION_MASTER_KEY` changed | Restore the original key from password manager (key change == data loss) |
