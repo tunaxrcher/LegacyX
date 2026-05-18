@@ -91,6 +91,8 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.ai-service
+    volumes:
+      - ./secrets/db-ca.crt:/run/secrets/db-ca.crt:ro
     ports:
       - "127.0.0.1:${AI_PORT:-3002}:3002"
 
