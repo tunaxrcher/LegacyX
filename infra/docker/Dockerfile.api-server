@@ -34,6 +34,23 @@ RUN cd packages/db && npx --yes prisma@5.22.0 generate
 COPY apps/api-server ./apps/api-server
 RUN pnpm --filter @legacyx/api-server build
 
+# Next.js standalone tracing sometimes misses the dynamically-loaded Prisma
+# engine .node binary (especially with pnpm's nested .pnpm/ layout). Copy
+# the entire generated Prisma client folder into the standalone tree so it
+# is guaranteed to be available at runtime.
+RUN mkdir -p apps/api-server/.next/standalone/node_modules/.prisma/client \
+ && find /app/node_modules -type f \
+      \( -name 'libquery_engine-*.so.node' \
+         -o -name 'schema.prisma' \
+         -o -name 'index.js' \
+         -o -name 'index.d.ts' \
+         -o -name 'default.js' \
+         -o -name 'edge.js' \
+         -o -name 'wasm.js' \
+         -o -name 'package.json' \) \
+      -path '*/.prisma/client/*' \
+      -exec cp -L {} apps/api-server/.next/standalone/node_modules/.prisma/client/ \;
+
 # ---------- runtime ----------
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
