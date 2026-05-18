@@ -59,6 +59,9 @@ ENV PORT=3001
 # Next.js standalone server bind only to that hostname — breaking 127.0.0.1
 # health probes inside the container. Force 0.0.0.0 here.
 ENV HOSTNAME=0.0.0.0
+# Point Prisma directly at the engine binary so it skips path resolution
+# (which is fragile with Next.js standalone + pnpm + monorepo layouts).
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
 WORKDIR /app
 
 # Install openssl so Prisma can detect the OpenSSL major version at runtime
@@ -73,6 +76,11 @@ USER app
 COPY --from=builder --chown=app:app /app/apps/api-server/.next/standalone ./
 COPY --from=builder --chown=app:app /app/apps/api-server/.next/static ./apps/api-server/.next/static
 COPY --from=builder --chown=app:app /app/apps/api-server/public ./apps/api-server/public
+
+# Mirror the engine into the alternate location Prisma might search when
+# resolved from apps/api-server/node_modules/@prisma/client (monorepo case).
+RUN mkdir -p /app/apps/api-server/node_modules/.prisma/client \
+ && cp -L /app/node_modules/.prisma/client/* /app/apps/api-server/node_modules/.prisma/client/ 2>/dev/null || true
 
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

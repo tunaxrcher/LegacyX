@@ -21,6 +21,9 @@ COPY apps/ai-service ./apps/ai-service
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=3002
+# Point Prisma directly at the engine binary so it skips path resolution
+# (which is fragile with pnpm + monorepo layouts).
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
 WORKDIR /app
 
 # Install openssl so Prisma can detect the OpenSSL major version at runtime
