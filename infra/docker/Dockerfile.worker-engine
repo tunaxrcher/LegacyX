@@ -3,6 +3,7 @@
 FROM node:20-alpine AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+RUN apk add --no-cache openssl
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 
@@ -24,6 +25,10 @@ COPY apps/worker-engine ./apps/worker-engine
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
+
+# Install openssl so Prisma can detect the OpenSSL major version at runtime
+# and load the matching engine binary (linux-musl-openssl-3.0.x).
+RUN apk add --no-cache openssl
 
 RUN addgroup -S app && adduser -S app -G app
 

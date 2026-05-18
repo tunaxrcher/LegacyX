@@ -4,6 +4,10 @@
 FROM node:20-alpine AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+# openssl lets `prisma generate` correctly detect OpenSSL 3 and download the
+# matching `linux-musl-openssl-3.0.x` engine binary (paired with the schema's
+# binaryTargets declaration in packages/db/prisma/schema.prisma).
+RUN apk add --no-cache openssl
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 
@@ -39,6 +43,10 @@ ENV PORT=3001
 # health probes inside the container. Force 0.0.0.0 here.
 ENV HOSTNAME=0.0.0.0
 WORKDIR /app
+
+# Install openssl so Prisma can detect the OpenSSL major version at runtime
+# and load the matching engine binary (linux-musl-openssl-3.0.x).
+RUN apk add --no-cache openssl
 
 # Non-root user
 RUN addgroup -S app && adduser -S app -G app
