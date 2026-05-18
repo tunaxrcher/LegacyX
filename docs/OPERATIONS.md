@@ -206,6 +206,7 @@ Never `prisma migrate reset` in production. Follow **expand → contract**:
 | Forgot to commit `pnpm-lock.yaml` | Docker build fails: `lockfile is not up to date` | `git add pnpm-lock.yaml && git commit && git push` |
 | Changed `.env.prod` but did `up -d` without `--force-recreate` | Container still uses old env | Add `--force-recreate` |
 | Wrapped `DATABASE_URL` in `"..."` | Prisma error: `URL must start with mysql://` | Quotes are literal in `--env-file`. Write `KEY=value` not `KEY="value"` |
+| `KEY=value   # comment` on the same line in `.env.prod` | Lookups return empty / decryption fails / mysterious hash mismatches between seed and runtime | `docker run --env-file` keeps the inline comment in the value; `docker compose --env-file` strips it. They end up using different keys. Put every comment on its OWN line, then re-seed. |
 | CA cert chmod 600 | `Can't reach database server` even though `nc` works | `chmod 644 infra/docker/secrets/db-ca.crt` |
 | Nginx 521 after deploy | Cloudflare can't reach origin | Check CF SSL mode (Flexible → HTTP origin / Full → HTTPS origin) matches what nginx listens on |
 | `nginx -t` complains about duplicate `ssl_protocols` | Ubuntu's `/etc/nginx/nginx.conf` already sets it at http scope | Don't redeclare in `legacyx.conf` |
