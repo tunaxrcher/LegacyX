@@ -249,6 +249,20 @@ reach them.
 
 ## 7. Nginx + TLS (once)
 
+Pick **one** of two TLS paths depending on whether the production domain
+will run Cloudflare in **Full (strict)** or **Flexible** mode.
+
+| Path | Cloudflare SSL mode | Cert on droplet | When to use |
+|---|---|---|---|
+| **7A** — Cloudflare Origin Cert | **Full (strict)** (zone, or per-hostname Config Rule) | CF Origin Cert (15 years) | Production with PII. End-to-end encrypted. |
+| **7B** — HTTP-only behind Flexible | **Flexible** (zone default) | None | Staging / smoke testing only. Plaintext between CF and origin. |
+
+Skip whichever path doesn't apply.
+
+---
+
+### Path 7A — Cloudflare Origin Cert (production, recommended)
+
 > **TLS strategy** — DNS for `*-legacyx.unityx.group` is proxied through
 > Cloudflare (orange-cloud). The zone-wide SSL mode stays on whatever the
 > rest of `unityx.group` uses (e.g. Flexible for legacy subdomains); a
@@ -361,6 +375,54 @@ even if someone discovers the droplet IP. Skip this if you don't care.
    ssl_verify_client on;
    ```
 4. `sudo nginx -t && sudo systemctl reload nginx`
+
+---
+
+### Path 7B — HTTP-only behind Cloudflare Flexible (staging / smoke test)
+
+> ⚠️ **Plaintext between Cloudflare and origin.** Acceptable for a test
+> deploy on a shared zone where you can't change the zone-wide SSL mode.
+> Not recommended for production with real PII. To migrate to Path 7A
+> later, you only need to (1) get an Origin Cert, (2) swap the nginx
+> config file, (3) flip the Cloudflare SSL mode for those hostnames. No
+> code changes.
+
+#### 7B.1 Cloudflare Dashboard
+
+1. Make sure DNS A records for `app-legacyx`, `api-legacyx`, `m-legacyx`
+   point to the droplet IP with the orange-cloud (proxied) toggle on.
+2. SSL/TLS → Overview → Flexible (no change needed if the zone is already
+   on Flexible).
+3. No Origin Cert, no Configuration Rule.
+
+#### 7B.2 Install the HTTP-only nginx config
+
+```bash
+cd /srv/legacyx
+sudo cp infra/nginx/legacyx-flexible.conf /etc/nginx/sites-available/legacyx
+sudo ln -sf /etc/nginx/sites-available/legacyx /etc/nginx/sites-enabled/legacyx
+sudo rm -f /etc/nginx/sites-enabled/default
+
+sudo nginx -t                   # must print "syntax is ok"
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+sudo systemctl status nginx --no-pager | head -10
+```
+
+The config (`infra/nginx/legacyx-flexible.conf`):
+- Listens on port 80 only (Cloudflare connects in HTTP).
+- Forwards `X-Forwarded-Proto: https` to the apps so cookies remain `Secure`.
+- Trusts Cloudflare's IP ranges for `CF-Connecting-IP`.
+- Returns 444 for direct droplet-IP probes.
+
+#### 7B.3 Firewall
+
+```bash
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw --force enable
+sudo ufw status
+```
 
 ---
 
