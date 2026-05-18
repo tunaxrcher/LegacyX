@@ -1,0 +1,123 @@
+name: legacyx-do
+
+# DigitalOcean production stack for LegacyX.
+#
+# Differences vs docker-compose.prod.yml:
+#   • No `mysql` service       → DO Managed MySQL (DATABASE_URL in .env.prod)
+#   • No `minio` service       → DO Spaces (S3_ENDPOINT in .env.prod)
+#   • CA cert mounted as a    read-only secret for api-server + worker-engine
+#     so Prisma can talk to Managed MySQL over TLS.
+#
+# Usage on the droplet:
+#   cd /srv/legacyx
+#   docker compose -f infra/docker/docker-compose.do.yml --env-file .env.prod up -d --build
+#
+# Prerequisites on the droplet:
+#   • infra/docker/secrets/db-ca.crt  (download from DO Managed MySQL → Connection Details)
+#   • .env.prod                       (copy from .env.prod.example and fill in)
+#   • Droplet IP added to Managed MySQL "Trusted Sources"
+
+x-app-defaults: &app-defaults
+  restart: unless-stopped
+  networks:
+    - legacyx-net
+  env_file:
+    - ../../.env.prod
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: legacyx-redis
+    <<: *app-defaults
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api-server:
+    image: legacyx/api-server:${IMAGE_TAG:-latest}
+    container_name: legacyx-api
+    <<: *app-defaults
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api-server
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./secrets/db-ca.crt:/run/secrets/db-ca.crt:ro
+    ports:
+      - "127.0.0.1:${API_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  worker-engine:
+    image: legacyx/worker-engine:${IMAGE_TAG:-latest}
+    container_name: legacyx-worker
+    <<: *app-defaults
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.worker-engine
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./secrets/db-ca.crt:/run/secrets/db-ca.crt:ro
+    ports:
+      - "127.0.0.1:${WORKER_METRICS_PORT:-9464}:9464"
+
+  ai-service:
+    image: legacyx/ai-service:${IMAGE_TAG:-latest}
+    container_name: legacyx-ai
+    <<: *app-defaults
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.ai-service
+    ports:
+      - "127.0.0.1:${AI_PORT:-3002}:3002"
+
+  backoffice-web:
+    image: legacyx/backoffice-web:${IMAGE_TAG:-latest}
+    container_name: legacyx-backoffice
+    <<: *app-defaults
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backoffice-web
+    depends_on:
+      api-server:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKOFFICE_PORT:-3003}:3003"
+
+  patient-app:
+    image: legacyx/patient-app:${IMAGE_TAG:-latest}
+    container_name: legacyx-patient
+    <<: *app-defaults
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.patient-app
+    depends_on:
+      api-server:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PATIENT_PORT:-3004}:3004"
+
+networks:
+  legacyx-net:
+    driver: bridge
+
+volumes:
+  redis_data:

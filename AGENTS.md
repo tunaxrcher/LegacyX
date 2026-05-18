@@ -104,6 +104,7 @@ packages/types              Cross-app DTOs (Zod)
 | Add patient-facing page | `apps/patient-app/src/app/...`. Public pages live outside `(authed)`; authed pages inside |
 | Debug a failed job | `/dlq` (System Admin only) → inspect → reprocess |
 | Read metrics | `curl -H "Authorization: Bearer $METRICS_BEARER_TOKEN" /api/metrics` (api-server) or `:9464/metrics` (worker-engine) |
+| Deploy to production | `bash scripts/deploy.sh` on the droplet — see `docs/DEPLOYMENT.md` for the full first-time setup |
 
 ## Verification commands
 
@@ -122,7 +123,9 @@ pnpm db:seed                 # Should print 8 users including 0888888888 dual
 - `docs/PROGRESS.md` — what's actually built (Phase A → H + tech debt)
 - `docs/ROLES.md` — RBAC/ABAC permission matrix
 - `docs/DEMO_WORKFLOW.md` — end-to-end test scenarios
+- `docs/DEPLOYMENT.md` — DigitalOcean Droplet + Managed MySQL + Spaces playbook
 - `docs/PRODUCTION_HARDENING.md` — pre-deploy checklist
+- `docs/RUNBOOK.md` — on-call procedures (DLQ, OTP fail, DB restore, etc.)
 - `docs/CONVENTIONS.md` — deeper code-style reference (this file is the short version)
 - `docs/adr/` — Architecture Decision Records (one per major decision)
 - `docs/design/02-prisma-schema.prisma` — annotated reference schema
