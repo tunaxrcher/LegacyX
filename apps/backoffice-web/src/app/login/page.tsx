@@ -1,19 +1,8 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import {
-  Briefcase,
-  HeartPulse,
-  Headset,
-  KeyRound,
-  Pill,
-  ShieldCheck,
-  Sparkles,
-  Stethoscope,
-  TestTube2,
-  Users,
-} from "lucide-react";
+import { ShieldCheck, Sparkles, Users } from "lucide-react";
 import LoginForm from "./LoginForm";
-import { cn } from "@/lib/utils";
+import DevAccounts from "./DevAccounts";
 
 export const dynamic = "force-dynamic";
 
@@ -41,45 +30,6 @@ export default async function LoginPage() {
     { icon: ShieldCheck, key: "PDPA-grade encryption" },
     { icon: Sparkles, key: "AI assistive drafts with human approval" },
     { icon: Users, key: "Multi-tenant, multi-branch" },
-  ];
-
-  const devAccounts = [
-    {
-      icon: ShieldCheck,
-      role: "ผู้ดูแลระบบ",
-      phone: "0800000001",
-      color: "bg-violet-100 text-violet-700",
-    },
-    {
-      icon: Briefcase,
-      role: "ผู้จัดการสาขา",
-      phone: "0800000002",
-      color: "bg-blue-100 text-blue-700",
-    },
-    {
-      icon: Stethoscope,
-      role: "หมอแพทย์",
-      phone: "0800000003",
-      color: "bg-emerald-100 text-emerald-700",
-    },
-    {
-      icon: HeartPulse,
-      role: "พยาบาล",
-      phone: "0800000004",
-      color: "bg-rose-100 text-rose-700",
-    },
-    {
-      icon: Headset,
-      role: "พนักงานต้อนรับ",
-      phone: "0800000005",
-      color: "bg-amber-100 text-amber-700",
-    },
-    {
-      icon: Pill,
-      role: "เภสัชกร",
-      phone: "0800000006",
-      color: "bg-cyan-100 text-cyan-700",
-    },
   ];
 
   return (
@@ -165,34 +115,13 @@ export default async function LoginPage() {
                 <p className="text-sm font-semibold text-slate-800">
                   บัญชีสำหรับทดสอบระบบ
                 </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  คลิกเพื่อคัดลอกเบอร์โทร
+                </p>
               </div>
             </div>
 
-            <ul className="space-y-1.5">
-              {devAccounts.map(({ icon: Icon, role, phone, color }) => (
-                <li
-                  key={phone}
-                  className="group flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-primary/40 hover:shadow-sm"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                        color,
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-medium text-slate-700">
-                      {role}
-                    </span>
-                  </div>
-                  <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 group-hover:text-primary">
-                    {phone}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <DevAccounts />
           </div>
         </div>
       </section>
