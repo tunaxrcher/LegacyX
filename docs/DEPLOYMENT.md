@@ -165,27 +165,37 @@ AI_SERVICE_URL=http://ai-service:3002
 
 ## 5. Run database migrations + seed (once)
 
+> **Note**: `NODE_ENV=development` is set explicitly in the docker run command
+> below to override the `NODE_ENV=production` value coming in via `--env-file`.
+> Without this, `pnpm install` skips devDependencies — including the
+> `dotenv-cli` and `prisma` packages that the `migrate:deploy` / `seed`
+> scripts rely on. `NODE_ENV` does not affect `prisma migrate deploy` itself.
+
 ```bash
 cd /srv/legacyx
 
 # 5.1 Apply schema
 docker run --rm --env-file .env.prod \
+  -e NODE_ENV=development \
   -v $(pwd):/app -w /app \
   -v $(pwd)/infra/docker/secrets/db-ca.crt:/run/secrets/db-ca.crt:ro \
   node:20-alpine sh -c '
+    apk add --no-cache openssl &&
     corepack enable && corepack prepare pnpm@9.12.0 --activate &&
-    pnpm install --frozen-lockfile --filter @legacyx/db... &&
+    pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
     pnpm --filter @legacyx/db migrate:deploy
   '
 
 # 5.2 Seed roles + demo tenant (DO NOT re-run on a DB with real patient data —
 #     it upserts demo users back in).
 docker run --rm --env-file .env.prod \
+  -e NODE_ENV=development \
   -v $(pwd):/app -w /app \
   -v $(pwd)/infra/docker/secrets/db-ca.crt:/run/secrets/db-ca.crt:ro \
   node:20-alpine sh -c '
+    apk add --no-cache openssl &&
     corepack enable && corepack prepare pnpm@9.12.0 --activate &&
-    pnpm install --frozen-lockfile --filter @legacyx/db... &&
+    pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
     pnpm db:seed
   '
 ```
