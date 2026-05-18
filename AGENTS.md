@@ -131,7 +131,7 @@ pnpm db:seed                 # Should print 8 users including 0888888888 dual
 - `docs/CONVENTIONS.md` — deeper code-style reference (this file is the short version)
 - `docs/adr/` — Architecture Decision Records (one per major decision)
 - `docs/design/02-prisma-schema.prisma` — annotated reference schema
-- `.env.example` — every env var the system reads
+- `.env.dev.example` — every env var the system reads (dev). For production see `.env.prod.example` + `docs/DEPLOYMENT.md`.
 
 ## When the tide doesn't match the map
 

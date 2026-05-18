@@ -13,7 +13,7 @@
  *                   user supplied so signatures look "real".
  *   - `forcePathStyle` honoured from env but DEFAULTS to FALSE — DO Spaces is
  *                   the AWS virtual-host style by default. The
- *                   `S3_FORCE_PATH_STYLE=true` value in `.env.example` was
+ *                   `S3_FORCE_PATH_STYLE=true` value in `.env.dev.example` was
  *                   misleading; ignore it unless you really need path-style.
  *
  * Public URLs are built virtual-host style:

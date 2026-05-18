@@ -28,14 +28,14 @@ export function normalizePhone(raw: string): string {
  * env-set key in the api-server is exactly how `phoneHash` mismatches happen.
  *
  * If you're running seed and see this throw, set `ENCRYPTION_MASTER_KEY` in
- * your `.env` (see `.env.example`).
+ * your `.env` (see `.env.dev.example`).
  */
 function getEncryptionKey(): Buffer {
   const raw = process.env.ENCRYPTION_MASTER_KEY;
   if (!raw) {
     throw new Error(
       "ENCRYPTION_MASTER_KEY not set — refusing to compute identity hashes with a default key. " +
-        "Set the env var (see .env.example) before running seed/api/worker.",
+        "Set the env var (see .env.dev.example) before running seed/api/worker.",
     );
   }
   return createHash("sha256").update(raw).digest();
