@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -21,7 +21,7 @@ COPY apps/worker-engine ./apps/worker-engine
 # extra startup cost of TS source-on-the-fly is negligible. If perf matters,
 # swap to `tsc -p apps/worker-engine` + node dist/index.js.
 
-FROM node:20-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
