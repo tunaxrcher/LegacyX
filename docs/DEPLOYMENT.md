@@ -156,34 +156,40 @@ GEMINI_MODEL_VISION=gemini-1.5-flash
 AI_SERVICE_URL=http://ai-service:3002
 ```
 
-> **Critical**: `ENCRYPTION_MASTER_KEY` is the seed for `searchableHash()` and
+> **Critical — `ENCRYPTION_MASTER_KEY`** is the seed for `searchableHash()` and
 > AES-GCM PII encryption. **If lost, every encrypted column (`Patient.phoneEnc`,
 > `emailEnc`, `nidEnc`, etc.) becomes unreadable and patients cannot log in.**
 > Back it up to a password manager *before* you run the first migration.
+
+> **Critical — no double quotes in `.env.prod`**. `docker run --env-file` does
+> NOT interpret quotes; they are taken as literal characters in the value.
+> The Prisma migrate step will fail with
+> `Error validating datasource ... the URL must start with the protocol mysql://`
+> if you wrap `DATABASE_URL` in quotes. Write `KEY=value` not `KEY="value"`.
 
 ---
 
 ## 5. Run database migrations + seed (once)
 
-> **Note**: `NODE_ENV=development` is set explicitly in the docker run command
-> below to override the `NODE_ENV=production` value coming in via `--env-file`.
-> Without this, `pnpm install` skips devDependencies — including the
-> `dotenv-cli` and `prisma` packages that the `migrate:deploy` / `seed`
-> scripts rely on. `NODE_ENV` does not affect `prisma migrate deploy` itself.
+> **Why this is split into two different invocations**: `migrate deploy` only
+> needs `prisma` + the schema/migrations folder, so we call it through `npx`
+> directly. `db:seed` runs custom TypeScript that imports from the wider
+> workspace (events, identity helpers), so it does need pnpm install +
+> devDependencies. The `NODE_ENV=development` override on the seed step
+> forces pnpm to install devDeps (`tsx`, `dotenv-cli`, `prisma`) even though
+> `.env.prod` carries `NODE_ENV=production`.
 
 ```bash
 cd /srv/legacyx
 
-# 5.1 Apply schema
+# 5.1 Apply schema — calls prisma directly, no pnpm/workspace install needed.
 docker run --rm --env-file .env.prod \
-  -e NODE_ENV=development \
-  -v $(pwd):/app -w /app \
+  -v $(pwd)/packages/db:/db \
   -v $(pwd)/infra/docker/secrets/db-ca.crt:/run/secrets/db-ca.crt:ro \
+  -w /db \
   node:20-alpine sh -c '
     apk add --no-cache openssl &&
-    corepack enable && corepack prepare pnpm@9.12.0 --activate &&
-    pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
-    pnpm --filter @legacyx/db migrate:deploy
+    npx --yes prisma@5.22.0 migrate deploy
   '
 
 # 5.2 Seed roles + demo tenant (DO NOT re-run on a DB with real patient data —
@@ -195,7 +201,8 @@ docker run --rm --env-file .env.prod \
   node:20-alpine sh -c '
     apk add --no-cache openssl &&
     corepack enable && corepack prepare pnpm@9.12.0 --activate &&
-    pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
+    rm -rf node_modules packages/*/node_modules &&
+    pnpm install --filter @legacyx/db... --prod=false --no-frozen-lockfile &&
     pnpm db:seed
   '
 ```
@@ -329,6 +336,7 @@ Cross-check against [`docs/PRODUCTION_HARDENING.md`](./PRODUCTION_HARDENING.md):
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Prisma migrate errors `URL must start with the protocol mysql://` | `DATABASE_URL` wrapped in `"..."` in `.env.prod` | `docker --env-file` does not interpret quotes — write `KEY=value` (no quotes) |
 | `api-server` crash-loops on startup | `DATABASE_URL` missing `?sslaccept=strict` | Managed MySQL requires TLS — add the flag and reference the CA cert |
 | Anyone can log in with OTP `123456` | `DEV_OTP=123456` left in `.env.prod` | Empty the value, recycle api-server |
 | File uploads to Spaces silently fail | `S3_FORCE_PATH_STYLE=true` | DO Spaces requires virtual-host style — set to `false` |

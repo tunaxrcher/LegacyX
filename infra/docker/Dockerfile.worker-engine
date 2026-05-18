@@ -13,7 +13,7 @@ COPY apps/worker-engine/package.json ./apps/worker-engine/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@legacyx/worker-engine..."
 
-RUN pnpm --filter @legacyx/db generate
+RUN cd packages/db && npx --yes prisma@5.22.0 generate
 
 COPY apps/worker-engine ./apps/worker-engine
 

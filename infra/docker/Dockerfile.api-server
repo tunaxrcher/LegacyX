@@ -19,7 +19,12 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@legacyx/api-server..."
 
 # Generate Prisma client BEFORE the build (Next.js bundler needs it).
-RUN pnpm --filter @legacyx/db generate
+# We call prisma directly via npx because pnpm filter installs do not pull in
+# devDependencies of transitive workspace packages — i.e. `prisma` (CLI) and
+# `dotenv-cli` in @legacyx/db are not present when `--filter "@legacyx/api-server..."`
+# is used. npx grabs prisma on demand and is reproducible because the version
+# is pinned.
+RUN cd packages/db && npx --yes prisma@5.22.0 generate
 
 # Copy the full source and build.
 COPY apps/api-server ./apps/api-server

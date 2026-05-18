@@ -67,20 +67,17 @@ fi
 
 if [[ "$MIGRATE" == "1" ]]; then
     echo "==> [2/4] Running migrations against Managed MySQL"
-    # NODE_ENV=development overrides the value in .env.prod so pnpm installs
-    # devDependencies (dotenv-cli + prisma live there). NODE_ENV does not
-    # affect `prisma migrate deploy` itself — it only reads DATABASE_URL.
+    # Bypass pnpm + dotenv-cli entirely — DATABASE_URL is already in the
+    # container env via --env-file, so we can call `prisma migrate deploy`
+    # directly through npx. Faster, no node_modules left behind, no prompts.
     docker run --rm \
         --env-file "$ENV_FILE" \
-        -e NODE_ENV=development \
-        -v "$(pwd):/app" -w /app \
+        -v "$(pwd)/packages/db:/db" \
         -v "$(pwd)/$CA_CERT_PATH:/run/secrets/db-ca.crt:ro" \
+        -w /db \
         node:20-alpine sh -c '
             apk add --no-cache openssl >/dev/null 2>&1 &&
-            corepack enable >/dev/null 2>&1 &&
-            corepack prepare pnpm@9.12.0 --activate >/dev/null 2>&1 &&
-            pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
-            pnpm --filter @legacyx/db migrate:deploy
+            npx --yes prisma@5.22.0 migrate deploy
         '
 else
     echo "==> [2/4] No schema changes — skipping migrations"
