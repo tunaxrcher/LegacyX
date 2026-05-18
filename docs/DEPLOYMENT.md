@@ -249,39 +249,76 @@ reach them.
 
 ## 7. Nginx + TLS (once)
 
-> **Why this is sequenced this way**: `infra/nginx/legacyx.conf` ships with
-> `listen 443 ssl` blocks that reference `/etc/letsencrypt/live/.../fullchain.pem`.
-> If you `cp` it into place before the certificates exist, `nginx -t` fails and
-> nothing reloads. The order below issues the certificates **first** in
-> standalone mode (with nginx stopped so port 80 is free), then installs the
-> finished config.
+> **TLS strategy** — DNS for `*-legacyx.unityx.group` is proxied through
+> Cloudflare (orange-cloud). The zone-wide SSL mode stays on whatever the
+> rest of `unityx.group` uses (e.g. Flexible for legacy subdomains); a
+> **per-hostname Configuration Rule** elevates only LegacyX to **Full
+> (strict)**. The origin presents a **Cloudflare Origin Certificate** (free,
+> valid 15 years, ECC/RSA) so traffic is encrypted end-to-end without ever
+> needing Let's Encrypt or ACME challenges.
+>
+> Why not Let's Encrypt? With Cloudflare proxy enabled, ACME http-01 (port 80)
+> never reaches the droplet, and dns-01 requires an API token + dynamic
+> propagation. Origin certs are simpler and last 15 years.
 
-### 7.1 Verify DNS resolves to the droplet first
+### 7.1 Cloudflare Dashboard — set SSL mode per hostname
+
+1. `unityx.group` → **SSL/TLS → Overview**: leave zone mode at its current
+   setting (no global change needed).
+2. `unityx.group` → **Rules → Configuration Rules → Create rule**:
+   - Name: `LegacyX Full TLS`
+   - When incoming requests match: **Hostname** **is in**
+     `app-legacyx.unityx.group`, `api-legacyx.unityx.group`,
+     `m-legacyx.unityx.group`
+   - Then: set **SSL** to **Full (strict)**
+   - Save + Deploy
+3. (Optional, Free plans only) If Configuration Rules is unavailable, use
+   3 Page Rules with pattern `https://<hostname>/*` → "SSL: Full (strict)".
+
+### 7.2 Cloudflare Dashboard — issue an Origin Certificate
+
+1. `unityx.group` → **SSL/TLS → Origin Server → Create Certificate**
+2. Hostnames: `*.unityx.group, unityx.group` (covers all three subdomains)
+3. Private key type: **RSA (2048)**, Validity: **15 years**
+4. Copy **both** the certificate and the private key — the private key is
+   shown **only once**.
+
+### 7.3 Install the origin certificate on the droplet
+
+From your laptop, save the two PEM blobs into `~/cf-origin/cf-origin.crt`
+and `~/cf-origin/cf-origin.key`, then:
+
+```bash
+scp ~/cf-origin/cf-origin.* deploy@<droplet-ip>:/tmp/
+rm -rf ~/cf-origin                              # delete local copies
+```
+
+On the droplet:
+
+```bash
+sudo mkdir -p /etc/ssl/cloudflare
+sudo mv /tmp/cf-origin.crt /etc/ssl/cloudflare/cf-origin.crt
+sudo mv /tmp/cf-origin.key /etc/ssl/cloudflare/cf-origin.key
+sudo chown root:root /etc/ssl/cloudflare/*
+sudo chmod 644 /etc/ssl/cloudflare/cf-origin.crt
+sudo chmod 600 /etc/ssl/cloudflare/cf-origin.key
+ls -la /etc/ssl/cloudflare/
+```
+
+### 7.4 Verify DNS resolves through Cloudflare (sanity check)
 
 ```bash
 DROPLET_IP=$(curl -s ifconfig.me)
 for d in app-legacyx.unityx.group api-legacyx.unityx.group m-legacyx.unityx.group; do
-  printf '%-40s %s (droplet=%s)\n' "$d" "$(dig +short $d | tail -1)" "$DROPLET_IP"
+  resolved=$(dig +short $d | tail -1)
+  printf '%-40s %s (droplet=%s)\n' "$d" "$resolved" "$DROPLET_IP"
 done
-# All three must resolve to the droplet IP. If not, wait for DNS propagation
-# before continuing — certbot will fail otherwise.
+# Expected: each hostname resolves to a Cloudflare IP (e.g. 104.21.x.x or
+# 172.67.x.x), NOT the droplet IP. The droplet only needs to reachable from
+# Cloudflare on port 443.
 ```
 
-### 7.2 Issue certificates (standalone, no config yet)
-
-```bash
-sudo systemctl stop nginx          # free port 80 for ACME http-01 challenge
-
-sudo certbot certonly --standalone \
-  -d app-legacyx.unityx.group \
-  -d api-legacyx.unityx.group \
-  -d m-legacyx.unityx.group \
-  --agree-tos -m admin@unityx.group --no-eff-email --non-interactive
-
-sudo ls /etc/letsencrypt/live/     # should list one of the three domains
-```
-
-### 7.3 Install the nginx config + reload
+### 7.5 Install the nginx config + start nginx
 
 ```bash
 sudo cp infra/nginx/legacyx.conf /etc/nginx/sites-available/legacyx
@@ -289,20 +326,41 @@ sudo ln -sf /etc/nginx/sites-available/legacyx /etc/nginx/sites-enabled/legacyx
 sudo rm -f /etc/nginx/sites-enabled/default
 
 sudo nginx -t                      # must print "syntax is ok" + "test is successful"
-sudo systemctl start nginx
+sudo systemctl restart nginx
 sudo systemctl enable nginx
 sudo systemctl status nginx --no-pager | head -10
 ```
 
-### 7.4 Confirm auto-renewal works
+The config (`infra/nginx/legacyx.conf`):
+- Trusts the Cloudflare IP ranges via `set_real_ip_from` + `CF-Connecting-IP`
+  so application logs and `X-Real-IP` show the actual client.
+- Returns `444` (silent disconnect) for any direct port-80 hit on the
+  droplet IP — bots scanning the IP get nothing.
 
-The snap timer `snap.certbot.renew.timer` is enabled automatically. Verify
-once that the renewal hook can reload nginx:
+### 7.6 Firewall
 
 ```bash
-sudo systemctl status snap.certbot.renew.timer --no-pager | head -5
-sudo certbot renew --dry-run
+sudo ufw allow 22/tcp
+sudo ufw allow 443/tcp
+sudo ufw deny 80/tcp               # optional — port 80 only attracts bots
+sudo ufw --force enable
+sudo ufw status
 ```
+
+### 7.7 (Optional, recommended) Cloudflare Authenticated Origin Pulls
+
+Forces the droplet to reject anything that didn't come through Cloudflare,
+even if someone discovers the droplet IP. Skip this if you don't care.
+
+1. Cloudflare → SSL/TLS → Origin Server → **Authenticated Origin Pulls** → Enable
+2. Download Cloudflare's CA: <https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/set-up/>
+3. Drop the CA at `/etc/ssl/cloudflare/origin-pull-ca.pem` + add to each
+   server block:
+   ```nginx
+   ssl_client_certificate /etc/ssl/cloudflare/origin-pull-ca.pem;
+   ssl_verify_client on;
+   ```
+4. `sudo nginx -t && sudo systemctl reload nginx`
 
 ---
 
