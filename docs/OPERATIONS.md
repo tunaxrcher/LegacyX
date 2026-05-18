@@ -231,6 +231,26 @@ Never `prisma migrate reset` in production. Follow **expand → contract**:
 | Nginx 521 after deploy | Cloudflare can't reach origin | Check CF SSL mode (Flexible → HTTP origin / Full → HTTPS origin) matches what nginx listens on |
 | `nginx -t` complains about duplicate `ssl_protocols` | Ubuntu's `/etc/nginx/nginx.conf` already sets it at http scope | Don't redeclare in `legacyx.conf` |
 | New migration added but `deploy.sh` skipped it | `OLD_HEAD == NEW_HEAD` (already pulled) | `bash scripts/deploy.sh --force-migrate` |
+| `pnpm install` or `npm install` run directly on droplet | `pnpm-lock.yaml` modified, a stray `package-lock.json` appears, future builds fail with `ERR_PNPM_OUTDATED_LOCKFILE` | The droplet has no Node by design — every Node command must go through a throwaway Docker container. Revert: `git checkout packages/*/package.json pnpm-lock.yaml && rm -f packages/*/package-lock.json` |
+
+---
+
+## Golden rule for the droplet
+
+**Never run `npm` / `pnpm` / `node` / `npx` directly on the host.** The droplet
+intentionally has no Node toolchain — that's how we avoid version drift,
+accidental dependency upgrades, and lockfile pollution. Every Node command
+goes through a throwaway Docker container (see `scripts/seed.sh`,
+`scripts/reset.sh`, the `migrate deploy` step in `scripts/deploy.sh`).
+
+If you find yourself wanting to "just quickly try" a Node command on the
+droplet, stop. Either:
+- Add it to one of the scripts in `scripts/` (so it's reproducible), or
+- Wrap it in a `docker run --rm node:20-alpine sh -c '...'` one-liner.
+
+The only commands you should ever run as `deploy@` on the droplet are
+`git`, `docker`, `sudo nginx`, `sudo systemctl`, and the wrappers in
+`scripts/`.
 
 ---
 
