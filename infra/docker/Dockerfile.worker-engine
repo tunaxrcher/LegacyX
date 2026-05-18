@@ -24,9 +24,11 @@ COPY apps/worker-engine ./apps/worker-engine
 
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
-# Point Prisma directly at the engine binary so it skips path resolution
-# (which is fragile with pnpm + monorepo layouts).
-ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
+# NOTE: Do not pin PRISMA_QUERY_ENGINE_LIBRARY here. In a pnpm install the
+# engine lives at /app/node_modules/.pnpm/@prisma+client@.../node_modules/
+# .prisma/client/libquery_engine-* and Prisma can resolve it relative to
+# the @prisma/client runtime location automatically. Pinning a hardcoded
+# path would only work for the Next.js standalone layout (api-server).
 WORKDIR /app
 
 # Install openssl so Prisma can detect the OpenSSL major version at runtime
