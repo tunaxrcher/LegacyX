@@ -27,6 +27,12 @@ echo "==> Seeding database via throwaway node:20-alpine container"
 
 # NODE_ENV=development is intentional — pnpm needs to install devDeps
 # (tsx, dotenv-cli, prisma) which `.env.prod` would otherwise skip.
+#
+# --no-frozen-lockfile is intentional too: this is a *throwaway* container
+# (node_modules go in /app inside the container and are discarded on exit).
+# Real reproducibility is enforced at api-server / backoffice-web build
+# time, which DO use --frozen-lockfile. Tolerating drift here avoids
+# blocking a seed/reset when lockfile and package.json drifted by a patch.
 docker run --rm \
     --env-file "$ENV_FILE" \
     -e NODE_ENV=development \
@@ -35,7 +41,7 @@ docker run --rm \
     node:20-alpine sh -c '
         apk add --no-cache openssl >/dev/null 2>&1 &&
         corepack enable && corepack prepare pnpm@9.12.0 --activate &&
-        pnpm install --frozen-lockfile --filter @legacyx/db... --prod=false &&
+        pnpm install --no-frozen-lockfile --filter @legacyx/db... --prod=false &&
         cd packages/db && npx --yes prisma@5.22.0 generate && cd /app &&
         pnpm --filter @legacyx/db exec tsx prisma/seed.ts
     '
