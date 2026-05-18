@@ -14,6 +14,17 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@legacyx/patient-app..."
 
 COPY apps/patient-app ./apps/patient-app
+
+# NEXT_PUBLIC_* must be present at BUILD time (Next.js inlines into client JS).
+ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_TENANT_SLUG
+ARG NEXT_PUBLIC_LIFF_ID
+ARG NEXT_PUBLIC_LINE_OA_ADD_FRIEND_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_TENANT_SLUG=$NEXT_PUBLIC_TENANT_SLUG
+ENV NEXT_PUBLIC_LIFF_ID=$NEXT_PUBLIC_LIFF_ID
+ENV NEXT_PUBLIC_LINE_OA_ADD_FRIEND_URL=$NEXT_PUBLIC_LINE_OA_ADD_FRIEND_URL
+
 RUN pnpm --filter @legacyx/patient-app build
 
 FROM node:20-alpine AS runtime
