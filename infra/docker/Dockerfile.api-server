@@ -34,6 +34,10 @@ RUN pnpm --filter @legacyx/api-server build
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=3001
+# Bind to all interfaces. Docker auto-sets HOSTNAME=<container-id> which makes
+# Next.js standalone server bind only to that hostname — breaking 127.0.0.1
+# health probes inside the container. Force 0.0.0.0 here.
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
 # Non-root user

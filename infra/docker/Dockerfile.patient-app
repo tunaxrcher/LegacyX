@@ -19,6 +19,7 @@ RUN pnpm --filter @legacyx/patient-app build
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=3004
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
 RUN addgroup -S app && adduser -S app -G app

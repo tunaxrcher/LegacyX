@@ -53,6 +53,11 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Override Docker's auto-set HOSTNAME=<container-id> so Next.js standalone
+    # binds to 0.0.0.0 — otherwise the internal healthcheck (127.0.0.1) fails
+    # and other services depending on `service_healthy` cannot start.
+    environment:
+      HOSTNAME: 0.0.0.0
     volumes:
       - ./secrets/db-ca.crt:/run/secrets/db-ca.crt:ro
     ports:
@@ -99,6 +104,8 @@ services:
     depends_on:
       api-server:
         condition: service_healthy
+    environment:
+      HOSTNAME: 0.0.0.0
     ports:
       - "127.0.0.1:${BACKOFFICE_PORT:-3003}:3003"
 
@@ -112,6 +119,8 @@ services:
     depends_on:
       api-server:
         condition: service_healthy
+    environment:
+      HOSTNAME: 0.0.0.0
     ports:
       - "127.0.0.1:${PATIENT_PORT:-3004}:3004"
 
