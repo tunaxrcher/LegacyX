@@ -30,7 +30,7 @@
     "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
+    "@types/node": "^25.9.0",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.5",
     "knip": "^6.13.1",
